@@ -10,3 +10,6 @@ web/out/
 .env.local
 *.log
 .DS_Store
+scripts/fork/.state/
+scripts/fork/.snapshot.json
+scripts/node_modules/

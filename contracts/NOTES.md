@@ -68,3 +68,55 @@ about 1.4 s wall-clock on publicnode.
   `d0 04 <uint32 factor>` and is what all tests use. `ProbeScale.exec` itself is correct.
 - **`deal()` works for mocks and mainnet WETH/USDC** (stdstore finds the balance slot through USDC's proxy), so the
   base's `fund()` is chain-agnostic.
+
+## Live-liquidity proof on a Base fork (`test/fork/live/`, `test/fork/v102/`)
+
+Qualification rule #1 proof: a taker fills REAL, LIVE maker strategies through the OFFICIAL, UNMODIFIED
+`AquaSwapVMRouter` v1.0.2 (`0x111111338c5091E8440b67B168bAe16a668AC0De`) against the OFFICIAL Aqua
+(`0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a`) on a Base (8453) fork pinned at block **50946000**, and in the
+same suite our `ProbeRouter` is deployed against the SAME registry, a strategy is shipped to it and filled, and
+per-app scoping of the registry is proven in both directions.
+
+| Path | What |
+| --- | --- |
+| `test/fork/v102/ISwapVMV102.sol` | ABI of the deployed router ("World A"): 5-arg `quote/swap` (`0x44aa5f14`/`0xf4d2d412`), `Order{maker,uint256 traits,bytes data}`, `Swapped`, `ProtocolFeeSkipped`, `TxOriginTokenBalanceIsZero`, `eip712Domain`. |
+| `test/fork/v102/TakerTraitsV102.sol` | Dependency-free port of the tag's `TakerTraitsLib.build` (20-byte slice table + 2-byte flags; 7 flags, no `isAToB`/`allowPartialFill`). Golden vector asserted: `build(default)` == `0x00…0041` == SDK `TakerTraits.default().encode()`. |
+| `test/fork/live/LiveBaseStrategies.sol` | 3 live `Shipped` payloads (exact bytes, hashes, makers, ship blocks/txs, ledger balances at the pinned block) + Base addresses (KycNFT `0x26FF…a468`, a RES holder, protocol-fee recipient). |
+| `test/fork/live/AquaBaseLiveFork.t.sol` | 6 tests (below). Skips cleanly when no RPC is set **or the RPC is not Base**, so `FORK_RPC_URL=<ethereum rpc>` (used by `AquaMainnetFork.t.sol`) leaves them `[SKIP]`. |
+
+```bash
+cd contracts
+FORK_RPC_URL=https://gateway.tenderly.co/public/base forge test --match-path 'test/fork/live/*' -vv
+# alternatives: BASE_FORK_RPC_URL=… (takes precedence); BASE_FORK_BLOCK=0 forks the head instead of 50946000
+# fallback RPC verified: https://mainnet.base.org (archive at the pinned block) — 6/6 pass, ~1 s
+```
+
+Verified 2026-09-06 (Tenderly gateway, block 50946000; also 6/6 at head 50947438 and 6/6 via mainnet.base.org):
+
+| Test | Live strategy (maker / hash) | Result |
+| --- | --- | --- |
+| `test_Live_0_…` | all three | router `eip712Domain` = "1inch SwapVM v1.0" / "1.0.2"; `keccak256(strategy) == officialRouter.hash(order) == strategyHash`; KYC-gate presence decoded from bytes; ledgers match the pinned constants. |
+| `test_Live_A1_Ungated_EOAMaker` | `0xFD40Ce00…aD18` / `0xb5a7193e…29fb` (concentrated 2000-2100, 10 % flat fee) | permissionless EOA (0 RES) sells 0.0005 WETH → 923,159 USDC-units; `Pulled`/`Pushed`/`Swapped` asserted; taker, maker-wallet and Aqua-ledger deltas exact; quote == swap; **swap gas 137,619**. Amount picked by a ladder capped at min(ledger, wallet, allowance) — this maker's book is only ~1 USDC deep. |
+| `test_Live_A2_Ungated_ContractMakerWithHooks` | `0x1a09f7d9…88Ec` (18 KB contract, pre-transfer-out + post-transfer-in hooks) / `0x99f8041e…3838` (0.3 % flat fee + XYC) | permissionless EOA sells **0.05 WETH → 27,591,104 USDC-units**; quote equals the value recomputed from the decoded program (ceil fee + XYC on the live ledger); maker wallet holds 0 USDC — its hook sources USDC just-in-time from `0xb367a430…3a4e`; **swap gas 786,249**. |
+| `test_Live_A3_Gated_RESHolder` | `0x2467eBaF…Cd17` / `0xb7c20070…c5c3` (1inch dApp: KycNFT gate, 0.0125 % aqua protocol fee, concentrated 1875-2091, 0.05 % flat fee) | non-holder is rejected on quote AND swap with `TxOriginTokenBalanceIsZero(taker, KycNFT)`; `vm.prank(holder, holder)` (tx.origin = real RES holder `0x3E4798B0…67c1`) sells **0.05 WETH → 104,178,436 USDC-units**; `ProtocolFeeSkipped` (fee 6.25e12 wei > 6.8e11 WETH ledger) so maker wallet +0.05 WETH exactly; **swap gas 148,771**. |
+| `test_Live_B_OurRouter_…AppIsolation` | our maker, ProbeRouter | ship 1 WETH / 2,480 USDC XYC to the official Aqua with `app = ProbeRouter`; 0.05 WETH → 118,095,238 USDC-units, **gas 108,267**; both routers hash the order identically (`OFFICIAL.hash(v102Order) == router.hash(order)`) yet `safeBalances(maker, OFFICIAL, hash)` reverts `SafeBalancesForTokenNotInActiveStrategy`, official `quote`/`swap` on our order revert the same way, a direct `aqua.pull` from the official router's address panics (underflow), and symmetrically our router cannot read/pull the live strategy. |
+| `test_Live_C_OneWallet_TwoApps_OneRegistry` | live maker `0x2467eBaF…Cd17` | the live dApp maker (pranked, **no new approve** — its mainnet allowance to Aqua is already max) ships a second XYC strategy to OUR router; the taker fills it (22,545,454 USDC-units) and the RES holder then fills the maker's official-router strategy (20,882,179); the same wallet paid both, and each app's ledger moved only by its own fill. |
+
+Facts learned about the deployed router / live books:
+- **`quote` succeeding does not mean `swap` will.** The three ungated EOA books on Base (all maker `0xFD40…`) hold
+  ~1-2 USDC in the ledger but concentrated liquidity quotes 55 USDC for 0.1 WETH; `swap` then reverts inside
+  `Aqua.pull` (Panic 0x11 ledger underflow) or `SafeTransferFromFailed` (wallet/allowance). Fillable size =
+  min(Aqua ledger, wallet balance, allowance to Aqua) of tokenOut — compute it before quoting.
+- 159/436 Base strategies are ungated, but only 3 ungated WETH/USDC books were active and wallet-backed at the
+  pinned block (all tiny). The deepest genuinely fillable WETH/USDC book (`0xb7c20070…`, ~$1.98k ledger, ~895 USDC
+  wallet) is KycNFT-gated: the gate reads `tx.origin`, so a fork demo needs `vm.prank(holder, holder)` /
+  `anvil_impersonateAccount` of a RES holder (quote via `eth_call` must also set `from`).
+- `aquaProtocolFeeAmountInXD` is best-effort: it `try`s `Aqua.pull(maker, hash, tokenIn, fee, to)` and emits
+  `ProtocolFeeSkipped` when the ledger cannot cover it; the taker still pays the full `amountIn` and the maker keeps it.
+- Maker hooks work through the official router with plain EOA taker traits (A2): a contract maker with
+  `hasPreTransferOutHook` pulled inventory from an external vault mid-swap; the fill costs ~5.7x the gas of an EOA maker.
+- Both routers compute `keccak256(abi.encode(order))` for Aqua orders, so the SAME hash exists under two apps; Aqua
+  scopes every balance by `(maker, app, strategyHash, token)` and never checks that `app` is a known contract.
+- Foundry gotchas: NatSpec parses `@word` inside `///` comments as a tag (use `//` for narrative comments
+  mentioning `@1inch/...` or `@block`); `vm.skip` belongs in the test/modifier, so the chain-id guard sets a flag in
+  `setUp` and the `onlyFork` modifier skips.

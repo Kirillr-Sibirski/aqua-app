@@ -1,0 +1,24 @@
+{
+  "name": "@aqua-app/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local Base-fork demo infrastructure for the Aqua/SwapVM app (anvil + viem + tsx)",
+  "scripts": {
+    "fork": "bash fork/start.sh",
+    "bootstrap": "tsx fork/bootstrap.ts",
+    "smoke": "tsx fork/smoke.ts",
+    "oracle": "tsx fork/oracle.ts",
+    "time": "tsx fork/time.ts",
+    "snapshot": "tsx fork/snapshot.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "viem": "^2.56.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4.23.13",
+    "typescript": "^5"
+  }
+}
