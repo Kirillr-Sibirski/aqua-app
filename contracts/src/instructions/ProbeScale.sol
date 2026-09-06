@@ -22,7 +22,7 @@ library ProbeScale {
         MemoryPtr start = MemoryPtrLib.alloc(InstructionBuilder.sizeOf() + 4);
         MemoryPtr ptr = start.pushHeader(opcode).push(uint256(factor), 4);
         start.patchLength(ptr);
-        return start.resolve();
+        return ptr.resolve();
     }
 
     function exec(Context memory ctx, bytes calldata args) internal pure {
