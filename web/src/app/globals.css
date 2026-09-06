@@ -1,26 +1,302 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Aqua position terminal — design tokens
+   Source of truth: DESIGN.md. Values are OKLCH; contrast is verified by
+   `node scripts/contrast.mjs` (18 pairs, all >= their floor).
+   Dark only. There is no light theme and no `prefers-color-scheme` branch.
+   ========================================================================== */
+
+/* `dark:` always matches. A contributor who writes `dark:border-white/20` out of
+   habit gets the dark treatment regardless of the visitor's OS setting, because
+   this app has exactly one theme. */
+@custom-variant dark (&);
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* --- surfaces: tinted neutrals, chroma leaning toward the accent hue ----- */
+  --bg: oklch(0.17 0.008 240); /* page */
+  --surface: oklch(0.21 0.009 240); /* cards, table rows */
+  --surface-2: oklch(0.25 0.01 240); /* raised, inputs, hover */
+  --line: oklch(0.32 0.012 240); /* 1px hairlines */
+  --line-strong: oklch(0.4 0.014 240); /* focused inputs, table header rules */
+
+  /* --- text --------------------------------------------------------------- */
+  --ink: oklch(0.97 0.004 240); /* primary          17.53:1 on --bg */
+  --ink-2: oklch(0.78 0.008 240); /* secondary         9.56:1 on --bg */
+  --ink-3: oklch(0.64 0.01 240); /* tertiary, axis    5.69:1 on --bg, 4.76:1 on --surface-2 */
+
+  /* --- accent: primary action and "your position". Under 10% of pixels. ---- */
+  --accent: oklch(0.68 0.16 245);
+  --accent-ink: oklch(0.16 0.02 245); /* label on an accent fill, 6.80:1 */
+  --accent-dim: oklch(0.42 0.09 245); /* accent hairlines, chart band edges */
+
+  /* --- money: earned saturation, never decoration ------------------------- */
+  --pos: oklch(0.74 0.15 155); /* gains, fills received */
+  --neg: oklch(0.68 0.17 25); /* losses, liquidations */
+  --warn: oklch(0.8 0.14 85); /* stale oracle, low coverage */
+
+  /* --- derived, so no component hard-codes an alpha ----------------------- */
+  --focus-ring: color-mix(in oklch, var(--accent) 60%, transparent);
+  --selection: color-mix(in oklch, var(--accent) 32%, transparent);
+  --scrim: oklch(0.1 0.008 240 / 0.72); /* modal backdrop, no blur */
+
+  /* --- z-index: semantic steps only. Never write an arbitrary z value. ----- */
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-modal-backdrop: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+  --z-tooltip: 60;
+
+  /* --- motion: state changes only, 140-200ms ------------------------------ */
+  --duration-fast: 140ms; /* hover, press, pill swaps */
+  --duration-base: 170ms; /* the default for a state change */
+  --duration-slow: 200ms; /* overlays, the one fill-lands reveal */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Colors. Utilities read these as `bg-surface`, `text-ink-2`, `border-line`. */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-dim: var(--accent-dim);
+  --color-pos: var(--pos);
+  --color-neg: var(--neg);
+  --color-warn: var(--warn);
+  --color-scrim: var(--scrim);
 }
 
-@media (prefers-color-scheme: dark) {
+/* The scales below are declared in a plain `@theme`, not `@theme inline`: inline mode substitutes
+   a token's value into the utility and emits no custom property, so `var(--radius-pill)` and
+   `var(--ease-out-quart)` would resolve to nothing in the hand-written rules further down. A plain
+   block generates the same utilities *and* puts the variables on `:root`, where base styles, the
+   `transition-state` utility and JS can all read them. Colors stay inline because they already
+   alias real `:root` properties. */
+@theme {
+  /* Type: 11 / 12 / 13 / 14 body / 16 / 20 / 26 / 34, with line-heights on a
+     4px grid and a -0.02em tracking floor on the display steps. */
+  --text-micro: 0.6875rem; /* 11px — column headers, pill labels, <= 4 words */
+  --text-micro--line-height: 1rem;
+  --text-micro--letter-spacing: 0.04em;
+  --text-mini: 0.75rem; /* 12px — captions, helper text, chart ticks */
+  --text-mini--line-height: 1rem;
+  --text-mini--letter-spacing: 0.005em;
+  --text-meta: 0.8125rem; /* 13px — dense table cells, secondary labels */
+  --text-meta--line-height: 1.25rem;
+  --text-body: 0.875rem; /* 14px — body */
+  --text-body--line-height: 1.25rem;
+  --text-lead: 1rem; /* 16px — lead paragraph, card titles */
+  --text-lead--line-height: 1.5rem;
+  --text-lead--letter-spacing: -0.006em;
+  --text-title: 1.25rem; /* 20px — page and section titles */
+  --text-title--line-height: 1.75rem;
+  --text-title--letter-spacing: -0.012em;
+  --text-section: 1.625rem; /* 26px — KPI figures */
+  --text-section--line-height: 2rem;
+  --text-section--letter-spacing: -0.02em;
+  --text-display: 2.125rem; /* 34px — the ceiling; nothing is larger */
+  --text-display--line-height: 2.5rem;
+  --text-display--letter-spacing: -0.022em;
+
+  /* Line-height overrides for the two rhythms in the app. */
+  --leading-num: 1.2; /* numeric rows */
+  --leading-prose: 1.45; /* prose */
+
+  /* Radius: three values, and only three. */
+  --radius-card: 10px;
+  --radius-control: 8px;
+  --radius-pill: 999px;
+
+  /* Elevation exists for overlays and nothing else. Surfaces use hairlines. */
+  --shadow-overlay:
+    0 1px 0 0 var(--line) inset, 0 24px 48px -16px oklch(0 0 0 / 0.66),
+    0 8px 16px -8px oklch(0 0 0 / 0.5);
+
+  /* Motion curve. Durations are plain custom properties (Tailwind has no
+     duration namespace); use `duration-(--duration-base)` or `transition-state`. */
+  --ease-out-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
+
+  /* Layout: 1280px content column. */
+  --container-page: 80rem;
+
+  /* Fonts: two families, wired in layout.tsx by next/font. */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+}
+
+/* --- utilities ------------------------------------------------------------ */
+
+/* Every number, address, hash and byte string carries this. */
+@utility tnum {
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* The one transition components should reach for. State changes only. */
+@utility transition-state {
+  transition-property: color, background-color, border-color, outline-color, opacity, transform,
+    box-shadow, fill, stroke;
+  transition-duration: var(--duration-base);
+  transition-timing-function: var(--ease-out-quart);
+}
+
+@utility z-dropdown {
+  z-index: var(--z-dropdown);
+}
+@utility z-sticky {
+  z-index: var(--z-sticky);
+}
+@utility z-modal-backdrop {
+  z-index: var(--z-modal-backdrop);
+}
+@utility z-modal {
+  z-index: var(--z-modal);
+}
+@utility z-toast {
+  z-index: var(--z-toast);
+}
+@utility z-tooltip {
+  z-index: var(--z-tooltip);
+}
+
+/* For custom controls that must show the ring on a wrapper rather than the
+   focused node itself (`:has(:focus-visible)`), or on programmatic focus. */
+@utility focus-ring {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* --- base ----------------------------------------------------------------- */
+
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: dark;
+  }
+
+  html {
+    background-color: var(--bg);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Headings set their own tracking through the type scale; balance keeps two-
+     line titles from leaving one orphan word. */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+  }
+
+  /* Figures must not jitter as they stream. */
+  input,
+  textarea,
+  table,
+  code,
+  kbd,
+  samp,
+  pre,
+  time {
+    font-variant-numeric: tabular-nums slashed-zero;
+  }
+
+  ::placeholder {
+    color: var(--ink-3);
+  }
+
+  ::selection {
+    background-color: var(--selection);
+    color: var(--ink);
+  }
+
+  /* One visible ring, everywhere, including custom controls with tabindex. */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  [disabled],
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  /* Scrollbars read as part of the surface, not as a system widget. The thumb
+     sits inside a transparent gutter so it works on --bg and on --surface. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background-color: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--line);
+    background-clip: content-box;
+    border: 3px solid transparent;
+    border-radius: var(--radius-pill);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--line-strong);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* --- reduced motion ------------------------------------------------------- */
+
+/* Every animation in the app resolves through the duration tokens or through a
+   `transition-*` utility, so neutralising both here is the single branch. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 1ms;
+    --duration-base: 1ms;
+    --duration-slow: 1ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }

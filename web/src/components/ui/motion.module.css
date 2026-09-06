@@ -1,0 +1,67 @@
+/*
+ * The two keyframe animations in the primitive library.
+ *
+ * Everything else in the app is a transition between two states, which `transition-state` and the
+ * duration tokens already cover; these two are the exceptions because they loop. Both are scoped
+ * to this CSS module so no global class name is introduced, and both carry an explicit
+ * `prefers-reduced-motion: reduce` branch that stops the loop rather than merely shortening it
+ * (globals.css collapses durations for everything else).
+ */
+
+/* --- busy spinner --------------------------------------------------------- */
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  transform-origin: 50% 50%;
+  animation: ui-spin 720ms linear infinite;
+}
+
+/* --- skeleton sweep ------------------------------------------------------- */
+
+@keyframes ui-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklch, var(--ink) 7%, transparent) 50%,
+    transparent 100%
+  );
+  animation: ui-sweep 1400ms var(--ease-out-quart) infinite;
+}
+
+/* --- reduced motion ------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    /* A frozen ring still reads as "busy" next to aria-busy and the button's own label. */
+    animation: none;
+  }
+
+  .sweep::after {
+    /* No sweep at all, and no gradient left behind: the flat surface is the loading state. */
+    animation: none;
+    background: none;
+  }
+}

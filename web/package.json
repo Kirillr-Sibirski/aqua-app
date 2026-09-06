@@ -11,14 +11,23 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "d3-scale": "4.0.2",
+    "d3-shape": "3.2.0",
+    "lucide-react": "1.41.0",
     "next": "16.3.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "sonner": "2.0.8",
+    "tailwind-merge": "3.6.0",
     "viem": "^2.56.3",
     "wagmi": "^3.7.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/d3-scale": "4.0.9",
+    "@types/d3-shape": "3.2.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
