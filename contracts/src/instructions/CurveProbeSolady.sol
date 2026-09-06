@@ -9,8 +9,8 @@ import { MemoryPtr, MemoryPtrLib } from "@1inch/swap-vm/src/libs/MemoryPtr.sol";
 import { InstructionBuilder } from "@1inch/swap-vm/src/libs/InstructionBuilder.sol";
 import { InstructionArgs } from "@1inch/swap-vm/src/libs/InstructionArgs.sol";
 
-import { WadMathSolady as M } from "../probe/WadMathSolady.sol";
-import { GaussianSolady as G } from "../probe/GaussianSolady.sol";
+import { WadMath as M } from "../math/WadMath.sol";
+import { Gaussian as G } from "../math/Gaussian.sol";
 
 /// @notice THROWAWAY probe opcode 0xd1 (solady FixedPointMathLib backend): fixed-point curves that need pow/exp/ln/sqrt/Phi.
 /// @dev Encoding: [uint8 fn][uint256 a][uint256 b][uint256 c]  (97 arg bytes; header makes 99 program bytes)

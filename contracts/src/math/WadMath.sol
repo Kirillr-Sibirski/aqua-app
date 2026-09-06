@@ -4,7 +4,7 @@ pragma solidity 0.8.30;
 import { FixedPointMathLib as F } from "solady/src/utils/FixedPointMathLib.sol";
 
 /// @notice Thin 1e18 fixed-point adapter over solady 0.1.26 FixedPointMathLib (MIT). All values are 1e18-scaled.
-library WadMathSolady {
+library WadMath {
     uint256 internal constant WAD = 1e18;
 
     /// @dev e^x. Reverts ExpOverflow() for x >= 135.305999368893231589e18.

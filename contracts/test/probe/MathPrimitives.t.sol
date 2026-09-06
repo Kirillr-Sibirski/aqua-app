@@ -4,9 +4,9 @@ pragma solidity 0.8.30;
 import { Test, console2 } from "forge-std/Test.sol";
 
 import { WadMathPRB } from "../../src/probe/WadMathPRB.sol";
-import { WadMathSolady } from "../../src/probe/WadMathSolady.sol";
+import { WadMath } from "../../src/math/WadMath.sol";
 import { GaussianPRB } from "../../src/probe/GaussianPRB.sol";
-import { GaussianSolady } from "../../src/probe/GaussianSolady.sol";
+import { Gaussian } from "../../src/math/Gaussian.sol";
 import { MathBench } from "../../src/probe/MathBench.sol";
 
 /// @title MathPrimitivesTest
@@ -122,68 +122,68 @@ contract MathPrimitivesTest is Test {
     // ------------------------------------------------------------------ accuracy: solady
 
     function test_Solady_Exp() public pure {
-        assertApproxEqRel(WadMathSolady.exp(1e18), EXP_1, REL_1E12);
-        assertApproxEqRel(WadMathSolady.exp(2.5e18), EXP_2_5, REL_1E12);
-        assertApproxEqRel(WadMathSolady.exp(10e18), EXP_10, REL_1E12);
-        assertApproxEqRel(WadMathSolady.expNeg(2.5e18), EXPNEG_2_5, REL_1E12);
-        assertApproxEqRel(WadMathSolady.expNeg(10e18), EXPNEG_10, REL_1E12);
-        assertEq(WadMathSolady.expNeg(42e18), 0);
+        assertApproxEqRel(WadMath.exp(1e18), EXP_1, REL_1E12);
+        assertApproxEqRel(WadMath.exp(2.5e18), EXP_2_5, REL_1E12);
+        assertApproxEqRel(WadMath.exp(10e18), EXP_10, REL_1E12);
+        assertApproxEqRel(WadMath.expNeg(2.5e18), EXPNEG_2_5, REL_1E12);
+        assertApproxEqRel(WadMath.expNeg(10e18), EXPNEG_10, REL_1E12);
+        assertEq(WadMath.expNeg(42e18), 0);
     }
 
     function test_Solady_Ln() public pure {
-        assertApproxEqAbs(WadMathSolady.ln(EXP_1), LN_E, 1e6);
-        assertApproxEqRel(WadMathSolady.ln(10e18), LN_10, REL_1E12);
-        assertApproxEqRel(WadMathSolady.ln(0.5e18), LN_HALF, REL_1E12);
-        assertApproxEqRel(WadMathSolady.ln(1e12), LN_1E_6, REL_1E12);
+        assertApproxEqAbs(WadMath.ln(EXP_1), LN_E, 1e6);
+        assertApproxEqRel(WadMath.ln(10e18), LN_10, REL_1E12);
+        assertApproxEqRel(WadMath.ln(0.5e18), LN_HALF, REL_1E12);
+        assertApproxEqRel(WadMath.ln(1e12), LN_1E_6, REL_1E12);
     }
 
     function test_Solady_Pow() public pure {
-        assertApproxEqRel(WadMathSolady.pow(0.5e18, 0.3e18), POW_HALF_0_3, REL_1E12);
-        assertApproxEqRel(WadMathSolady.pow(1.25e18, 3.5e18), POW_1_25_3_5, REL_1E12);
-        assertApproxEqRel(WadMathSolady.pow(2e18, 0.5e18), POW_2_HALF, REL_1E12);
-        assertApproxEqRel(WadMathSolady.pow(0.9e18, 4e18), POW_0_9_4, REL_1E12);
+        assertApproxEqRel(WadMath.pow(0.5e18, 0.3e18), POW_HALF_0_3, REL_1E12);
+        assertApproxEqRel(WadMath.pow(1.25e18, 3.5e18), POW_1_25_3_5, REL_1E12);
+        assertApproxEqRel(WadMath.pow(2e18, 0.5e18), POW_2_HALF, REL_1E12);
+        assertApproxEqRel(WadMath.pow(0.9e18, 4e18), POW_0_9_4, REL_1E12);
     }
 
     function test_Solady_Sqrt() public pure {
-        assertApproxEqAbs(WadMathSolady.sqrt(2e18), SQRT_2, 1);
-        assertApproxEqAbs(WadMathSolady.sqrt(1e12), 1e15, 1);
-        assertEq(WadMathSolady.sqrt(4e18), 2e18);
+        assertApproxEqAbs(WadMath.sqrt(2e18), SQRT_2, 1);
+        assertApproxEqAbs(WadMath.sqrt(1e12), 1e15, 1);
+        assertEq(WadMath.sqrt(4e18), 2e18);
     }
 
     function test_Solady_Phi() public pure {
-        assertApproxEqAbs(GaussianSolady.cdf(0), PHI_0, PHI_ABS);
-        assertApproxEqAbs(GaussianSolady.cdf(0.5e18), PHI_0_5, PHI_ABS);
-        assertApproxEqAbs(GaussianSolady.cdf(1.96e18), PHI_1_96, PHI_ABS);
-        assertApproxEqAbs(GaussianSolady.cdf(-1e18), PHI_M1, PHI_ABS);
-        assertApproxEqAbs(GaussianSolady.cdf(-3e18), PHI_M3, PHI_ABS);
-        assertApproxEqAbs(GaussianSolady.cdf(2.5e18), PHI_2_5, PHI_ABS);
-        assertApproxEqAbs(GaussianSolady.cdf(-5e18), PHI_M5, PHI_ABS);
+        assertApproxEqAbs(Gaussian.cdf(0), PHI_0, PHI_ABS);
+        assertApproxEqAbs(Gaussian.cdf(0.5e18), PHI_0_5, PHI_ABS);
+        assertApproxEqAbs(Gaussian.cdf(1.96e18), PHI_1_96, PHI_ABS);
+        assertApproxEqAbs(Gaussian.cdf(-1e18), PHI_M1, PHI_ABS);
+        assertApproxEqAbs(Gaussian.cdf(-3e18), PHI_M3, PHI_ABS);
+        assertApproxEqAbs(Gaussian.cdf(2.5e18), PHI_2_5, PHI_ABS);
+        assertApproxEqAbs(Gaussian.cdf(-5e18), PHI_M5, PHI_ABS);
     }
 
     function test_Solady_PhiInv() public pure {
-        assertApproxEqAbs(GaussianSolady.icdf(0.5e18), 0, 2e9);
-        assertApproxEqAbs(GaussianSolady.icdf(0.975e18), PHIINV_0_975, PHIINV_ABS);
-        assertApproxEqAbs(GaussianSolady.icdf(0.1e18), PHIINV_0_1, PHIINV_ABS);
-        assertApproxEqAbs(GaussianSolady.icdf(0.9e18), PHIINV_0_9, PHIINV_ABS);
+        assertApproxEqAbs(Gaussian.icdf(0.5e18), 0, 2e9);
+        assertApproxEqAbs(Gaussian.icdf(0.975e18), PHIINV_0_975, PHIINV_ABS);
+        assertApproxEqAbs(Gaussian.icdf(0.1e18), PHIINV_0_1, PHIINV_ABS);
+        assertApproxEqAbs(Gaussian.icdf(0.9e18), PHIINV_0_9, PHIINV_ABS);
     }
 
     // ------------------------------------------------------------------ exact deltas (logged, for the KB)
 
     function test_LogDeltas() public pure {
         console2.log("prb    exp(1)  delta wei", _d(WadMathPRB.exp(1e18), EXP_1));
-        console2.log("solady exp(1)  delta wei", _d(WadMathSolady.exp(1e18), EXP_1));
+        console2.log("solady exp(1)  delta wei", _d(WadMath.exp(1e18), EXP_1));
         console2.log("prb    exp(10) delta wei", _d(WadMathPRB.exp(10e18), EXP_10));
-        console2.log("solady exp(10) delta wei", _d(WadMathSolady.exp(10e18), EXP_10));
+        console2.log("solady exp(10) delta wei", _d(WadMath.exp(10e18), EXP_10));
         console2.log("prb    ln(10)  delta wei", _d(uint256(WadMathPRB.ln(10e18)), uint256(LN_10)));
-        console2.log("solady ln(10)  delta wei", _d(uint256(WadMathSolady.ln(10e18)), uint256(LN_10)));
+        console2.log("solady ln(10)  delta wei", _d(uint256(WadMath.ln(10e18)), uint256(LN_10)));
         console2.log("prb    pow(1.25,3.5) delta wei", _d(WadMathPRB.pow(1.25e18, 3.5e18), POW_1_25_3_5));
-        console2.log("solady pow(1.25,3.5) delta wei", _d(WadMathSolady.pow(1.25e18, 3.5e18), POW_1_25_3_5));
+        console2.log("solady pow(1.25,3.5) delta wei", _d(WadMath.pow(1.25e18, 3.5e18), POW_1_25_3_5));
         console2.log("prb    pow(0.5,0.3)  delta wei", _d(WadMathPRB.pow(0.5e18, 0.3e18), POW_HALF_0_3));
-        console2.log("solady pow(0.5,0.3)  delta wei", _d(WadMathSolady.pow(0.5e18, 0.3e18), POW_HALF_0_3));
+        console2.log("solady pow(0.5,0.3)  delta wei", _d(WadMath.pow(0.5e18, 0.3e18), POW_HALF_0_3));
         console2.log("prb    Phi(1.96) delta wei", _d(GaussianPRB.cdf(1.96e18), PHI_1_96));
-        console2.log("solady Phi(1.96) delta wei", _d(GaussianSolady.cdf(1.96e18), PHI_1_96));
+        console2.log("solady Phi(1.96) delta wei", _d(Gaussian.cdf(1.96e18), PHI_1_96));
         console2.log("prb    PhiInv(0.975) delta wei", _d(uint256(GaussianPRB.icdf(0.975e18)), uint256(PHIINV_0_975)));
-        console2.log("solady PhiInv(0.975) delta wei", _d(uint256(GaussianSolady.icdf(0.975e18)), uint256(PHIINV_0_975)));
+        console2.log("solady PhiInv(0.975) delta wei", _d(uint256(Gaussian.icdf(0.975e18)), uint256(PHIINV_0_975)));
     }
 
     function _d(uint256 a, uint256 b) private pure returns (uint256) {
@@ -211,17 +211,17 @@ contract MathPrimitivesTest is Test {
     function test_Gas_Internal_Solady() public {
         uint256 g;
         uint256 r;
-        g = gasleft(); r = WadMathSolady.exp(u[1]); g -= gasleft(); _log("gas solady.exp(2.5)", g, r);
-        g = gasleft(); r = WadMathSolady.expNeg(u[1]); g -= gasleft(); _log("gas solady.expNeg(2.5)", g, r);
-        g = gasleft(); r = uint256(WadMathSolady.ln(u[2])); g -= gasleft(); _log("gas solady.ln(10)", g, r);
-        g = gasleft(); r = uint256(WadMathSolady.ln(u[3])); g -= gasleft(); _log("gas solady.ln(0.5)", g, r);
-        g = gasleft(); r = WadMathSolady.pow(u[5], u[6]); g -= gasleft(); _log("gas solady.pow(1.25,3.5)", g, r);
-        g = gasleft(); r = WadMathSolady.pow(u[3], u[4]); g -= gasleft(); _log("gas solady.pow(0.5,0.3)", g, r);
-        g = gasleft(); r = WadMathSolady.sqrt(u[7]); g -= gasleft(); _log("gas solady.sqrt(2)", g, r);
-        g = gasleft(); r = GaussianSolady.cdf(z[1]); g -= gasleft(); _log("gas solady.Phi(1.96)", g, r);
-        g = gasleft(); r = GaussianSolady.cdf(z[2]); g -= gasleft(); _log("gas solady.Phi(-3)", g, r);
-        g = gasleft(); r = uint256(GaussianSolady.icdf(u[8])); g -= gasleft(); _log("gas solady.PhiInv(0.975) 40 iters", g, r);
-        g = gasleft(); r = uint256(GaussianSolady.icdf(u[9])); g -= gasleft(); _log("gas solady.PhiInv(0.1) 40 iters", g, r);
+        g = gasleft(); r = WadMath.exp(u[1]); g -= gasleft(); _log("gas solady.exp(2.5)", g, r);
+        g = gasleft(); r = WadMath.expNeg(u[1]); g -= gasleft(); _log("gas solady.expNeg(2.5)", g, r);
+        g = gasleft(); r = uint256(WadMath.ln(u[2])); g -= gasleft(); _log("gas solady.ln(10)", g, r);
+        g = gasleft(); r = uint256(WadMath.ln(u[3])); g -= gasleft(); _log("gas solady.ln(0.5)", g, r);
+        g = gasleft(); r = WadMath.pow(u[5], u[6]); g -= gasleft(); _log("gas solady.pow(1.25,3.5)", g, r);
+        g = gasleft(); r = WadMath.pow(u[3], u[4]); g -= gasleft(); _log("gas solady.pow(0.5,0.3)", g, r);
+        g = gasleft(); r = WadMath.sqrt(u[7]); g -= gasleft(); _log("gas solady.sqrt(2)", g, r);
+        g = gasleft(); r = Gaussian.cdf(z[1]); g -= gasleft(); _log("gas solady.Phi(1.96)", g, r);
+        g = gasleft(); r = Gaussian.cdf(z[2]); g -= gasleft(); _log("gas solady.Phi(-3)", g, r);
+        g = gasleft(); r = uint256(Gaussian.icdf(u[8])); g -= gasleft(); _log("gas solady.PhiInv(0.975) 40 iters", g, r);
+        g = gasleft(); r = uint256(Gaussian.icdf(u[9])); g -= gasleft(); _log("gas solady.PhiInv(0.1) 40 iters", g, r);
     }
 
     function _log(string memory what, uint256 gas, uint256 result) private pure {
