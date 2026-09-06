@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { erc20Abi, formatUnits, type Address } from 'viem';
 import { useBalance, useReadContracts } from 'wagmi';
-import { aquaFork } from '@/lib/chain';
+import { aquaFork, type SupportedChainId } from '@/lib/chain';
 
 export interface TokenBalance {
   token: Address;
@@ -14,7 +14,7 @@ export interface TokenBalance {
 }
 
 export interface UseTokenBalancesOptions {
-  chainId?: number;
+  chainId?: SupportedChainId;
   /** ms, or false to disable polling (default 4000). */
   refetchInterval?: number | false;
   /** Also read the native ETH balance (default true). */

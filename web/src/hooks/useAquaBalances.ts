@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import type { Address, Hex } from 'viem';
 import { useReadContracts } from 'wagmi';
-import { aquaFork } from '@/lib/chain';
+import { aquaFork, type SupportedChainId } from '@/lib/chain';
 import { aquaAbi, DOCKED_TOKENS_COUNT, type AquaTokenBalance } from '@/lib/contracts';
 import { useDeployments } from './useDeployments';
 
 export interface UseAquaBalancesOptions {
-  chainId?: number;
+  chainId?: SupportedChainId;
   refetchInterval?: number | false;
 }
 

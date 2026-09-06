@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import type { Hex, TransactionReceipt } from 'viem';
 import { useConfig } from 'wagmi';
 import { waitForTransactionReceipt } from 'wagmi/actions';
-import { aquaFork } from '@/lib/chain';
+import { aquaFork, type SupportedChainId } from '@/lib/chain';
 
 export type TxStepStatus = 'idle' | 'signing' | 'pending' | 'success' | 'reverted' | 'error' | 'skipped';
 
@@ -35,7 +35,7 @@ export function errorMessage(e: unknown): string {
  * Runs a sequence of transactions (approve → ship, approve → swap, ...) and tracks per-step state:
  * hash once sent, receipt status once mined. Stops at the first revert/error.
  */
-export function useTxFlow(chainId: number = aquaFork.id) {
+export function useTxFlow(chainId: SupportedChainId = aquaFork.id) {
   const config = useConfig();
   const [steps, setSteps] = useState<TxStep[]>([]);
   const [isRunning, setIsRunning] = useState(false);

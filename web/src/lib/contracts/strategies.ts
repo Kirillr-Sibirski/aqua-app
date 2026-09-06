@@ -9,6 +9,7 @@
 import {
   decodeAbiParameters,
   getAbiItem,
+  getAddress,
   type Address,
   type Hex,
   type PublicClient,
@@ -134,6 +135,8 @@ export async function fetchShippedStrategiesDetailed(
     try {
       const order = decodeStrategyBytes(strategy);
       const decoded = decodeOrder(order);
+      // `decodeOrder` slices the addresses out of `order.data`, so they come back lowercase.
+      const tokens: [Address, Address] = [getAddress(decoded.tokenA), getAddress(decoded.tokenB)];
       partial.push({
         strategyHash,
         maker,
@@ -141,7 +144,7 @@ export async function fetchShippedStrategiesDetailed(
         strategy,
         order,
         decoded,
-        tokens: [decoded.tokenA, decoded.tokenB],
+        tokens,
         program: decoded.program,
         hashMatches: orderHashAqua(order).toLowerCase() === strategyHash.toLowerCase(),
         blockNumber: log.blockNumber,

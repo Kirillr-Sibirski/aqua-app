@@ -12,7 +12,8 @@ export const DEFAULT_DEPLOYMENTS_FILE = path.join('public', 'deployments', 'loca
 
 export function resolveDeploymentsFile(file?: string): string {
   const p = file ?? process.env.DEPLOYMENTS_FILE ?? DEFAULT_DEPLOYMENTS_FILE;
-  return path.isAbsolute(p) ? p : path.join(process.cwd(), p);
+  // turbopackIgnore: the manifest is read at request time from disk; do not trace the whole project.
+  return path.isAbsolute(p) ? p : path.join(/* turbopackIgnore: true */ process.cwd(), p);
 }
 
 export async function loadDeploymentsFromFile(file?: string): Promise<LoadedDeployments> {

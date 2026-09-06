@@ -2,9 +2,11 @@
  * wagmi v3 config: local Aqua fork (31337) + Base (8453), injected wallets (MetaMask / Rabby via
  * EIP-6963 discovery + generic window.ethereum) and a burner "demo mode" connector.
  *
- * SSR: `ssr: true` + cookie storage. `app/layout.tsx` reads the cookie on the server with
- * `cookieToInitialState` and hands it to `<Providers initialState>` so the connected state hydrates
- * without a flash; `providers.tsx` is the 'use client' boundary.
+ * SSR: `ssr: true` + cookie storage, so the server and the first client paint render the same
+ * (disconnected) markup and wagmi reconnects from the cookie on mount. `providers.tsx` is the
+ * 'use client' boundary and accepts an optional `initialState`; the root layout deliberately does
+ * NOT compute one with `cookieToInitialState`, because reading cookies would opt every route into
+ * dynamic rendering. A single route that wants flash-free hydration can pass it itself.
  */
 import { cookieStorage, createConfig, createStorage, http, injected } from 'wagmi';
 import { aquaFork, base, BASE_RPC_URL, FORK_RPC_URL } from './chains';
