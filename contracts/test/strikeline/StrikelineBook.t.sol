@@ -160,33 +160,102 @@ contract StrikelineBookTest is AquaSwapVMTestBase {
         console2.log("band (USDC):", minStableIn / RATE_STABLE);
     }
 
-    /// @notice The book: four legs on one wallet, deliberately over-allocated, and a fill on one leg
-    ///         immediately shrinks what the others can deliver. This is the property no pool can have.
-    function test_Book_SharedInventoryCouplesLegs() public {
+    /// @notice The thesis: three legs on one wallet, deliberately over-allocated, and a fill on leg 1
+    ///         shrinks what legs 2 and 3 can actually deliver — in the same block, with no keeper and no
+    ///         message between strategies. Proven by QUOTING the siblings before and after, not by
+    ///         re-reading a shared counter.
+    function test_Book_FillOnOneLegShrinksSiblingDepth() public {
         (ISwapVM.Order memory leg1,,) = _shipLeg(2600e18, 12e18, 8.41e18, 11);
         (ISwapVM.Order memory leg2,,) = _shipLeg(2800e18, 10e18, 9.22e18, 12);
         (ISwapVM.Order memory leg3,,) = _shipLeg(3000e18, 10e18, 9.88e18, 13);
 
         uint256 virtualWeth = 8.41e18 + 9.22e18 + 9.88e18;
         assertGt(virtualWeth, WALLET_WETH, "the book must be over-allocated for this to mean anything");
-        console2.log("virtual WETH shipped:", virtualWeth, "real wallet WETH:", WALLET_WETH);
 
+        // A size each sibling can deliver right now, but will not be able to after leg 1 is filled.
+        uint256 probe = 6e18;
+        bytes memory leg2Out = takerDataFor(leg2, address(usdc), false);
+        bytes memory leg3Out = takerDataFor(leg3, address(usdc), false);
+
+        (uint256 leg2CostBefore,,) = quote(leg2, probe, leg2Out);
+        (uint256 leg3CostBefore,,) = quote(leg3, probe, leg3Out);
+        assertGt(leg2CostBefore, 0, "leg 2 must be able to deliver the probe before the fill");
+        assertGt(leg3CostBefore, 0, "leg 3 must be able to deliver the probe before the fill");
+
+        // Fill leg 1 hard, moving real WETH out of the shared wallet.
         uint256 coverageBefore = sl.coverage(maker, weth);
-        assertEq(coverageBefore, WALLET_WETH, "coverage should equal the wallet balance");
-
-        // Fill leg 1, taking WETH out of the maker's wallet.
-        bytes memory td = takerDataFor(leg1, address(usdc), true);
-        (, uint256 got,) = swapAs(taker, leg1, 3000e6, td);
-        assertGt(got, 0);
+        bytes memory leg1Out = takerDataFor(leg1, address(usdc), false);
+        (uint256 spent,,) = swapAs(taker, leg1, 5e18, leg1Out);
+        assertGt(spent, 0);
 
         uint256 coverageAfter = sl.coverage(maker, weth);
-        assertEq(coverageAfter, coverageBefore - got, "a fill on leg 1 must shrink shared coverage");
+        assertEq(coverageAfter, coverageBefore - 5e18, "the fill must reduce the shared wallet");
+        assertLt(coverageAfter, probe, "the probe must now exceed what the wallet can deliver");
 
-        // Every sibling leg sees the smaller wallet in the same block, with no keeper and no message.
-        assertEq(sl.coverage(maker, weth), coverageAfter, "leg 2 reads the same wallet");
-        assertEq(sl.coverage(maker, weth), coverageAfter, "leg 3 reads the same wallet");
-        assertTrue(address(leg2.maker) == address(leg3.maker));
-        console2.log("coverage before fill:", coverageBefore, "after:", coverageAfter);
+        // The siblings were never touched: their own virtual reserves and curves are unchanged. What
+        // changed is the wallet behind all three, and both refuse the same size they just quoted.
+        vm.expectRevert();
+        this.quote(leg2, probe, leg2Out);
+
+        vm.expectRevert();
+        this.quote(leg3, probe, leg3Out);
+
+        // They are still live, just smaller: a size inside the remaining wallet still prices.
+        uint256 smaller = coverageAfter / 2;
+        (uint256 leg2CostAfter,,) = quote(leg2, smaller, leg2Out);
+        (uint256 leg3CostAfter,,) = quote(leg3, smaller, leg3Out);
+        assertGt(leg2CostAfter, 0, "leg 2 must still quote within the remaining wallet");
+        assertGt(leg3CostAfter, 0, "leg 3 must still quote within the remaining wallet");
+
+        console2.log("shared WETH before fill:", coverageBefore, "after:", coverageAfter);
+        console2.log("siblings refused:", probe, "but still fill:", smaller);
+    }
+
+    /// @notice The siblings' own liquidity is untouched by the fill: only the shared wallet moved.
+    ///         Without `Coverage` the same book would happily quote depth it cannot deliver.
+    function test_Book_WithoutCoverageTheDepthIsPhantom() public {
+        (ISwapVM.Order memory guarded,,) = _shipLeg(2800e18, 10e18, 9.22e18, 14);
+
+        // The same leg, same curve, same reserves, but without the Coverage wrapper.
+        bool riskyIsA = weth < address(usdc);
+        uint8 flags = (riskyIsA ? RmmSwap.FLAG_RISKY_IS_TOKEN_A : 0);
+        bytes memory bare = bytes.concat(
+            RmmSwap.build(
+                RmmSwap.Args({
+                    flags: flags,
+                    sigmaWad: SIGMA,
+                    maturity: maturity,
+                    strikeWad: 2800e18,
+                    liquidityWad: 10e18,
+                    rateRisky: RATE_RISKY,
+                    rateStable: RATE_STABLE
+                })
+            ),
+            Salt.build(15)
+        );
+        ISwapVM.Order memory unguarded = buildAquaOrder(maker, weth, address(usdc), bare);
+        uint256 y = sl.stableFor(2800e18, SIGMA, maturity, 10e18, 9.22e18);
+        (address a,) = orderTokens(unguarded);
+        (uint256 amountA, uint256 amountB) =
+            a == weth ? (uint256(9.22e18), y / RATE_STABLE) : (y / RATE_STABLE, uint256(9.22e18));
+        shipOrder(maker, unguarded, amountA, amountB);
+
+        // Drain the wallet down to less than either leg claims to hold.
+        vm.prank(maker);
+        IERC20(weth).transfer(address(0xdead), WALLET_WETH - 1e18);
+        assertEq(sl.coverage(maker, weth), 1e18);
+
+        // The unguarded leg still quotes 6 WETH it cannot possibly deliver: phantom depth.
+        bytes memory td = takerDataFor(unguarded, address(usdc), false);
+        (uint256 phantomCost,,) = quote(unguarded, 6e18, td);
+        assertGt(phantomCost, 0, "the unguarded leg quotes depth the wallet does not have");
+
+        // The guarded leg refuses the same size.
+        bytes memory tdG = takerDataFor(guarded, address(usdc), false);
+        vm.expectRevert();
+        this.quote(guarded, 6e18, tdG);
+
+        console2.log("unguarded quote for 6 WETH against a 1 WETH wallet:", phantomCost);
     }
 
     /// @notice Coverage refuses a quote the wallet cannot actually deliver, and says by how much.
