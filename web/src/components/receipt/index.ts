@@ -14,6 +14,8 @@ export { SigmaSweepTable, WindowSweepTable } from './SweepTables';
 
 export { ReceiptLinks } from './ReceiptLinks';
 
+export { Head, META, Section, Signed, SimBadge, Stat } from './kit';
+
 export {
   REPLAY,
   SIGMA_SWEEP,

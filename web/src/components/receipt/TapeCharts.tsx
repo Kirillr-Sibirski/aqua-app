@@ -51,7 +51,7 @@ export function TapeChart({ replay, height = 220 }: TapeChartProps) {
     <ChartFrame
       title="The price it was replayed against"
       description={`Chainlink ETH/USD as published on Base over ${lastDay.toFixed(1)} days, from ${formatChartNumber(points[0]?.y ?? 0)} to ${formatChartNumber(points[points.length - 1]?.y ?? 0)} US dollars, with a peak of ${formatChartNumber(high)}. A dashed rule marks ${formatChartNumber(nearestStrike)}, the lowest price the book offered to sell at.`}
-      subtitle="Real published rounds. Nothing here is modelled."
+      subtitle="Real published Chainlink rounds. The prices are not modelled; what is done with them on this page is."
       height={height}
       margin={MARGIN}
       footnote={
@@ -127,7 +127,7 @@ export function InventoryChart({ replay, height = 220 }: TapeChartProps) {
     <ChartFrame
       title="What the wallet was holding"
       description={`ETH in the maker's wallet over the same ${lastDay.toFixed(1)} days, starting at ${formatChartNumber(started)} and ending at ${formatChartNumber(ended)}. The line steps down when a taker bought ETH from the book and up when one sold ETH into it; the flat stretches are the hours when nobody crossed the spread.`}
-      subtitle="Simulated fills against the real curve."
+      subtitle="SIMULATION: modelled fills against the real curve, on the real price path."
       height={height}
       margin={MARGIN}
       footnote={

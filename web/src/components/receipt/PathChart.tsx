@@ -22,15 +22,8 @@ import { Grid } from '@/components/charts/Grid';
 import { formatChartNumber } from '@/components/charts/format';
 import { padDomain, finiteExtent } from '@/components/charts/geometry';
 import type { ChartPoint, ColorToken, DashStyle } from '@/components/charts/types';
-import {
-  SegmentedControl,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeaderCell,
-  TableRow,
-} from '@/components/ui';
+import { SegmentedControl, Table } from '@mantine/core';
+import { Head, META } from './kit';
 import { dailyRowIndices, daysFrom, difference, toDollars, usd, type Replay } from './replay';
 
 type Mode = 'value' | 'versus';
@@ -130,20 +123,21 @@ export function PathChart({ replay, height = 340 }: PathChartProps) {
           ? `Simulated mark of four strategies on identical capital over ${lastDay.toFixed(1)} days of real Base ETH prices: this option book, holding the coins untouched, and a constant-product position at ${replay.cpFeeLowBps} and ${replay.cpFeeHighBps} basis points. The vertical axis runs from ${formatChartNumber(yDomain[0])} to ${formatChartNumber(yDomain[1])} US dollars and does not start at zero.`
           : `The same simulation, with the value of simply holding subtracted from each of the other three, so a difference of a few hundred dollars on a fifty thousand dollar book is visible. Above the zero rule beats holding, below it loses to holding. The vertical axis runs from ${formatChartNumber(yDomain[0])} to ${formatChartNumber(yDomain[1])} US dollars.`
       }
-      subtitle="Simulation on a replayed price tape. Not a track record."
+      subtitle="SIMULATION on a replayed price tape. Not a track record: no capital ever traded this."
       height={height}
       margin={MARGIN}
       legend={<Legend specs={specs} />}
       actions={
         <SegmentedControl
-          label="View"
-          size="sm"
-          items={[
+          aria-label="What the chart plots"
+          size="xs"
+          radius="md"
+          data={[
             { value: 'value', label: 'What each was worth' },
             { value: 'versus', label: 'Difference from holding' },
           ]}
           value={mode}
-          onValueChange={(next) => setMode(next as Mode)}
+          onChange={(next) => setMode(next as Mode)}
         />
       }
       footnote={
@@ -242,31 +236,50 @@ function ValuesTable({ replay, days }: { replay: Replay; days: readonly number[]
   const last = days.length - 1;
 
   return (
-    <Table caption="Simulated mark of each strategy, one row per day">
-      <TableHead>
-        <TableRow>
-          <TableHeaderCell>Day</TableHeaderCell>
-          <TableHeaderCell numeric>ETH price</TableHeaderCell>
-          <TableHeaderCell numeric>This book</TableHeaderCell>
-          <TableHeaderCell numeric>Just holding</TableHeaderCell>
-          <TableHeaderCell numeric>{replay.cpFeeLowBps} bp pool</TableHeaderCell>
-          <TableHeaderCell numeric>{replay.cpFeeHighBps} bp pool</TableHeaderCell>
-          <TableHeaderCell numeric>Fills</TableHeaderCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {rows.map((i) => (
-          <TableRow key={i}>
-            <TableCell>{i === last ? 'end' : `${Math.round(days[i])}`}</TableCell>
-            <TableCell numeric>{usd(s.spot6[i])}</TableCell>
-            <TableCell numeric>{usd(s.strikeline6[i])}</TableCell>
-            <TableCell numeric>{usd(s.hodl6[i])}</TableCell>
-            <TableCell numeric>{usd(s.cpLow6[i])}</TableCell>
-            <TableCell numeric>{usd(s.cpHigh6[i])}</TableCell>
-            <TableCell numeric>{s.fills[i]}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <Table.ScrollContainer minWidth={620} type="native">
+      <Table verticalSpacing="xs" horizontalSpacing="md" tabularNums fz={META}>
+        <Table.Caption className="sr-only">
+          Simulated mark of each strategy, one row per day
+        </Table.Caption>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>
+              <Head>Day</Head>
+            </Table.Th>
+            <Table.Th>
+              <Head numeric>ETH price</Head>
+            </Table.Th>
+            <Table.Th>
+              <Head numeric>This book</Head>
+            </Table.Th>
+            <Table.Th>
+              <Head numeric>Just holding</Head>
+            </Table.Th>
+            <Table.Th>
+              <Head numeric>{replay.cpFeeLowBps} bp pool</Head>
+            </Table.Th>
+            <Table.Th>
+              <Head numeric>{replay.cpFeeHighBps} bp pool</Head>
+            </Table.Th>
+            <Table.Th>
+              <Head numeric>Fills</Head>
+            </Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {rows.map((i) => (
+            <Table.Tr key={i}>
+              <Table.Td>{i === last ? 'end' : `${Math.round(days[i])}`}</Table.Td>
+              <Table.Td ta="right">{usd(s.spot6[i])}</Table.Td>
+              <Table.Td ta="right">{usd(s.strikeline6[i])}</Table.Td>
+              <Table.Td ta="right">{usd(s.hodl6[i])}</Table.Td>
+              <Table.Td ta="right">{usd(s.cpLow6[i])}</Table.Td>
+              <Table.Td ta="right">{usd(s.cpHigh6[i])}</Table.Td>
+              <Table.Td ta="right">{s.fills[i]}</Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    </Table.ScrollContainer>
   );
 }
