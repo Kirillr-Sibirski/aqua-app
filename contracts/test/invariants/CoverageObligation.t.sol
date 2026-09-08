@@ -41,7 +41,7 @@ contract CoverageObligationTest is StrikelineLeg {
     address internal constant FEE_RECEIVER = address(0xFEE0);
 
     /// @dev A size well clear of the decay band in both directions.
-    uint256 internal constant BUY = 1940e6;
+    uint256 internal constant BUY = 1_940e6;
 
     function setUp() public override {
         super.setUp();

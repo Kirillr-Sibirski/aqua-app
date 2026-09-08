@@ -29,14 +29,14 @@ import { Coverage } from "../../src/instructions/Coverage.sol";
 ///      margin 957 -> 912) and turns both rows into `CoverageHaircutTooLarge(uint256)` carrying the offending
 ///      value, at quote time, before any curve evaluation is paid for.
 contract CoverageHaircutTest is StrikelineLeg {
-    uint256 internal constant BUY = 1940e6;
+    uint256 internal constant BUY = 1_940e6;
 
     /// @notice A haircut byte `build` would have refused is refused on the wire too, by name, carrying the
     ///         value — instead of bricking the leg with `NotCovered(x, 0)` or `Panic(0x11)`.
     function test_Haircut_OutOfRangeOnTheWireIsANamedError() public {
         (ISwapVM.Order memory dead,,) = shipLeg(_handEncoded(10_000, 606), K, L, X0);
         (ISwapVM.Order memory worse,,) = shipLeg(_handEncoded(10_001, 607), K, L, X0);
-        (ISwapVM.Order memory legal,,) = shipLeg(_handEncoded(9999, 608), K, L, X0);
+        (ISwapVM.Order memory legal,,) = shipLeg(_handEncoded(9_999, 608), K, L, X0);
 
         (bool okDead, bytes memory retDead) = quoteRaw(dead, BUY, takerDataFor(dead, address(usdc), true));
         assertFalse(okDead, "a 100% haircut must not quote");
@@ -64,11 +64,11 @@ contract CoverageHaircutTest is StrikelineLeg {
     /// @notice The haircut reserves the fraction it names, and `coverage()` publishes the wallet BEFORE any
     ///         per-leg haircut, so a UI that shows both numbers is showing two different things on purpose.
     function test_Haircut_ReservesTheFractionItNames() public {
-        (ISwapVM.Order memory leg,,) = shipLeg(_handEncoded(2500, 609), K, L, X0);
+        (ISwapVM.Order memory leg,,) = shipLeg(_handEncoded(2_500, 609), K, L, X0);
         deal(weth, maker, 4e18);
 
         assertEq(sl.coverage(maker, weth), 4e18, "coverage() publishes the wallet, before any per-leg haircut");
-        assertEq(Coverage.free(address(aqua), maker, weth, 2500), 3e18, "25% of 4 WETH is held back");
+        assertEq(Coverage.free(address(aqua), maker, weth, 2_500), 3e18, "25% of 4 WETH is held back");
 
         bytes memory out = takerDataFor(leg, address(usdc), false);
         (bool atBound,) = quoteRaw(leg, 3e18, out);
