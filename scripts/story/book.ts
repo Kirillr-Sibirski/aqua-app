@@ -197,6 +197,73 @@ export function buildLeg(
   };
 }
 
+/**
+ * Compile the whole ladder, sized by the chain.
+ *
+ * `x` is chosen off the replayed spot -- a maker picking moneyness, which is a choice and may be a
+ * float -- and `y` is then asked of the router's own `stableFor`, because the leg has to start exactly
+ * on the curve AS THE CHAIN COMPUTES IT, with the chain's approximated `Phi`. One wei low and every
+ * quote reverts for the life of the leg; one wei high and the surplus goes to the first taker; and a
+ * shipped hash can never be repaired, because `Aqua.ship` requires `tokensCount == 0` and `dock` writes
+ * `0xff` permanently.
+ *
+ * Scene 1 and scene 6 both call this, so a roll cannot drift from the original ship.
+ */
+export async function compileBook(opts: {
+  router: Address;
+  maker: Address;
+  pair: Pair;
+  maturity: number;
+  spotWad: bigint;
+  nowSeconds: number;
+  /** Monotonic across rolls: a docked strategy hash can never be re-shipped. */
+  generation: number;
+  specs?: readonly LegSpec[];
+}): Promise<Array<{ built: BuiltLeg; row: StoredLeg }>> {
+  const specs = opts.specs ?? BOOK;
+  const rows: Array<{ built: BuiltLeg; row: StoredLeg }> = [];
+  for (const [i, spec] of specs.entries()) {
+    const built = buildLeg(spec, {
+      maker: opts.maker,
+      pair: opts.pair,
+      maturity: opts.maturity,
+      spotWad: opts.spotWad,
+      nowSeconds: opts.nowSeconds,
+      salt: BigInt(opts.generation * 10 + i + 1),
+    });
+    const yWadOnCurve = await stableFor(opts.router, curveParamsOf(built.args), built.targetRiskyWad);
+    // Rounding the stable side DOWN to raw USDC leaves the reserves a hair inside the curve, which is
+    // the maker's side of a millionth of a cent.
+    const risky = toRawReserve(built.targetRiskyWad, opts.pair.rateRisky);
+    const stable = toRawReserve(yWadOnCurve, opts.pair.rateStable);
+    const [amountA, amountB] = opts.pair.riskyIsTokenA ? [risky.raw, stable.raw] : [stable.raw, risky.raw];
+    rows.push({
+      built,
+      row: {
+        id: spec.id,
+        kind: spec.kind,
+        label: spec.label,
+        strikeWad: built.args.strikeWad.toString(),
+        liquidityWad: built.args.liquidityWad.toString(),
+        sigmaWad: built.args.sigmaWad.toString(),
+        maturity: opts.maturity,
+        salt: built.salt.toString(),
+        xWad: risky.normalised.toString(),
+        yWad: stable.normalised.toString(),
+        tokenA: opts.pair.tokenA,
+        tokenB: opts.pair.tokenB,
+        amountA: amountA.toString(),
+        amountB: amountB.toString(),
+        order: storeOrder(built.order),
+        hash: built.hash,
+        shipTx: '0x' as Hex,
+        shipBlock: 0,
+      },
+    });
+  }
+  return rows;
+}
+
 /** Aqua-mode strategy hash: `keccak256(abi.encode(order))`, which is also `router.hash(order)`. */
 export function orderHash(order: Order): Hex {
   return keccak256(encodeStrategy(order));

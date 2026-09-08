@@ -72,8 +72,11 @@ async function main(): Promise<void> {
     const mod = await entry.load();
     await mod.run(ctx, argv);
   }
+  const finalState = loadState();
+  const liveLegs = finalState.legs.filter((l) => !l.docked).length;
+  const dockedLegs = finalState.legs.length - liveLegs;
   out();
-  out(`state: ${loadState().legs.length} legs on the books`);
+  out(`state: ${liveLegs} legs on the books${dockedLegs > 0 ? `, ${dockedLegs} docked` : ''}`);
   out();
 }
 

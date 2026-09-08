@@ -18,9 +18,8 @@
 import type { Hex } from 'viem';
 import { aquaAbi } from '../../../web/src/lib/swapvm/index.ts';
 import { explainProgram } from '../../../web/src/components/curve/program.ts';
-import { toRawReserve } from '../../../web/src/components/curve/rmm.ts';
 import { publicClient, rpc, walletFor } from '../../fork/lib.ts';
-import { BOOK, EXPIRY_DAYS, buildLeg, curveParamsOf, encodeStrategy, readReserves, stableFor, storeOrder } from '../book.ts';
+import { BOOK, EXPIRY_DAYS, compileBook, encodeStrategy, readReserves } from '../book.ts';
 import type { Ctx } from '../context.ts';
 import {
   amount,
@@ -70,46 +69,17 @@ export async function run(ctx: Ctx, argv: string[]): Promise<void> {
 
   // ---- compile ----
   step('compile four legs');
-  const built = BOOK.map((spec, i) =>
-    buildLeg(spec, {
-      maker: ctx.maker.address,
-      pair: ctx.pair,
-      maturity,
-      spotWad: reading.priceWad,
-      nowSeconds: Number(now.timestamp),
-      salt: BigInt(generation * 10 + i + 1),
-    }),
-  );
-
-  const rows: StoredLeg[] = [];
-  for (const b of built) {
-    // The chain says where the curve is. Rounding the stable side DOWN to raw USDC leaves the reserves a
-    // hair inside the curve, which is the maker's side of a millionth of a cent.
-    const yWadOnCurve = await stableFor(ctx.d.router, curveParamsOf(b.args), b.targetRiskyWad);
-    const risky = toRawReserve(b.targetRiskyWad, ctx.pair.rateRisky);
-    const stable = toRawReserve(yWadOnCurve, ctx.pair.rateStable);
-    const [amountA, amountB] = ctx.pair.riskyIsTokenA ? [risky.raw, stable.raw] : [stable.raw, risky.raw];
-    rows.push({
-      id: b.spec.id,
-      kind: b.spec.kind,
-      label: b.spec.label,
-      strikeWad: b.args.strikeWad.toString(),
-      liquidityWad: b.args.liquidityWad.toString(),
-      sigmaWad: b.args.sigmaWad.toString(),
-      maturity,
-      salt: b.salt.toString(),
-      xWad: risky.normalised.toString(),
-      yWad: stable.normalised.toString(),
-      tokenA: ctx.pair.tokenA,
-      tokenB: ctx.pair.tokenB,
-      amountA: amountA.toString(),
-      amountB: amountB.toString(),
-      order: storeOrder(b.order),
-      hash: b.hash,
-      shipTx: '0x' as Hex,
-      shipBlock: 0,
-    });
-  }
+  const compiled = await compileBook({
+    router: ctx.d.router,
+    maker: ctx.maker.address,
+    pair: ctx.pair,
+    maturity,
+    spotWad: reading.priceWad,
+    nowSeconds: Number(now.timestamp),
+    generation,
+  });
+  const built = compiled.map((c) => c.built);
+  const rows: StoredLeg[] = compiled.map((c) => c.row);
 
   for (const [i, b] of built.entries()) {
     const r = rows[i];
