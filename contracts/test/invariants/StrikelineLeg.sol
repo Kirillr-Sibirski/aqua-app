@@ -94,25 +94,51 @@ abstract contract StrikelineLeg is AquaSwapVMTestBase {
 
     /// @dev One leg: `Deadline . Coverage . RmmSwap . Salt`, the exact shape `StrikelineRouter` documents.
     function legProgram(uint128 strikeWad, uint128 liquidityWad, uint64 salt) internal view returns (bytes memory) {
-        uint8 flags = (weth < address(usdc) ? RmmSwap.FLAG_RISKY_IS_TOKEN_A : 0) | RmmSwap.FLAG_POST_EXPIRY_ONE_WAY
-            | RmmSwap.FLAG_POST_EXPIRY_OUT_IS_RISKY;
+        return legProgramAround(Coverage.build(0, 0), "", strikeWad, liquidityWad, salt);
+    }
 
-        return bytes.concat(
-            Deadline.build(uint40(maturity + 30 minutes)),
-            Coverage.build(0, 0),
-            RmmSwap.build(
-                RmmSwap.Args({
-                    flags: flags,
-                    sigmaWad: SIGMA,
-                    maturity: maturity,
-                    strikeWad: strikeWad,
-                    liquidityWad: liquidityWad,
-                    rateRisky: RATE_RISKY,
-                    rateStable: RATE_STABLE
-                })
-            ),
-            Salt.build(salt)
+    /// @dev The same leg with the guard supplied VERBATIM and an optional wrapper spliced between it and the
+    ///      curve: `Deadline . <guard> . <middle> . RmmSwap . Salt`.
+    ///
+    ///      Passing the guard as bytes rather than as arguments is what lets a test encode a `Coverage`
+    ///      argument that `Coverage.build` refuses to produce. That is not a hypothetical: Aqua ships program
+    ///      bytes without reading them, so the wire can carry values the encoder would never emit, and the
+    ///      instruction has to defend the wire rather than the builder.
+    function legProgramAround(
+        bytes memory guard,
+        bytes memory middle,
+        uint128 strikeWad,
+        uint128 liquidityWad,
+        uint64 salt
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes memory head = bytes.concat(Deadline.build(uint40(maturity + 30 minutes)), guard, middle);
+        return bytes.concat(head, curveOf(strikeWad, liquidityWad), Salt.build(salt));
+    }
+
+    /// @dev The `RmmSwap` instruction of a covered-call leg, on its own.
+    function curveOf(uint128 strikeWad, uint128 liquidityWad) internal view returns (bytes memory) {
+        return RmmSwap.build(
+            RmmSwap.Args({
+                flags: legFlags(),
+                sigmaWad: SIGMA,
+                maturity: maturity,
+                strikeWad: strikeWad,
+                liquidityWad: liquidityWad,
+                rateRisky: RATE_RISKY,
+                rateStable: RATE_STABLE
+            })
         );
+    }
+
+    /// @dev A covered call: the curve runs risky-side-first if WETH sorted low, and past maturity the leg only
+    ///      delivers the risky token, which is assignment rather than a free at-the-money straddle.
+    function legFlags() internal view returns (uint8) {
+        return (weth < address(usdc) ? RmmSwap.FLAG_RISKY_IS_TOKEN_A : 0) | RmmSwap.FLAG_POST_EXPIRY_ONE_WAY
+            | RmmSwap.FLAG_POST_EXPIRY_OUT_IS_RISKY;
     }
 
     /// @dev The bare curve with no `Coverage` wrapper, used to price what each instruction costs on its own.
@@ -159,6 +185,24 @@ abstract contract StrikelineLeg is AquaSwapVMTestBase {
     /// @notice The demo leg: `Deadline . Coverage . RmmSwap . Salt`, K = 2600, L = 12, x = 8.41 WETH.
     function shipDemoLeg(uint64 salt) internal returns (ISwapVM.Order memory order, bytes32 hash_, uint256 yWad) {
         return shipLeg(legProgram(K, L, salt), K, L, X0);
+    }
+
+    // ------------------------------------------------------------------ raw calls
+
+    /// @notice A `quote` that returns the revert bytes instead of bubbling them.
+    /// @dev Needed wherever the assertion is about the DECODED ERROR AND ITS ARGUMENTS rather than about the
+    ///      selector alone. `vm.expectRevert` compares, it does not hand the bytes back, so it cannot express
+    ///      "these two programs must refuse with byte-identical arguments".
+    function quoteRaw(
+        ISwapVM.Order memory order,
+        uint256 amount,
+        bytes memory takerTraitsAndData
+    )
+        internal
+        view
+        returns (bool ok, bytes memory ret)
+    {
+        (ok, ret) = address(sl).staticcall(abi.encodeCall(ISwapVM.quote, (order, amount, takerTraitsAndData)));
     }
 
     // ------------------------------------------------------------------ derived tolerances

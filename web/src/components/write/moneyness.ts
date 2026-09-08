@@ -112,13 +112,19 @@ export interface MoneynessChip {
 }
 
 /**
- * The ladder the writer offers: three calls above spot and one put below.
+ * The ladder the writer offers: the same three moneyness steps on each side of spot.
  *
- * Not a symmetric grid on purpose. The product is vol selling against inventory a maker already
- * holds, so the calls are the position and the put is the other half of the wheel — the leg that
- * accumulates below spot with stable collateral rather than competing for the same risky balance.
+ * Symmetric in the offsets, asymmetric in what they mean, and the asymmetry is the wheel rather
+ * than a design choice made here. Above spot the reserves start risky-heavy and the leg is a
+ * covered call written against inventory the maker already holds; below spot they start
+ * stable-heavy and the same 62 bytes are a cash-secured put, collateralised in the stable asset and
+ * therefore not competing for the same balance. `kind` records which side a chip lands on; nothing
+ * in the compiled program branches on it, because put-call parity has already done that work.
+ *
+ * Which of the six a maker picks is theirs. A ladder is usually two or three calls and one put.
  */
 export const MONEYNESS_CHIPS: readonly MoneynessChip[] = [
+  { offset: -0.2, label: '-20%', kind: 'put' },
   { offset: -0.1, label: '-10%', kind: 'put' },
   { offset: -0.05, label: '-5%', kind: 'put' },
   { offset: 0.05, label: '+5%', kind: 'call' },
