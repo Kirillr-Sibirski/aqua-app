@@ -1,9 +1,9 @@
 /**
- * The two visual conventions the book screen repeats, in one place so they cannot drift apart.
+ * The one visual convention the positions view repeats, in a single place so it cannot drift.
  *
  * A hatched fill means **written but not simultaneously deliverable**: the part of a claim that
  * sits beyond what the wallet can hand over right now. It is used at both scales — across the whole
- * inventory bar and inside a single leg's depth bar — and it survives greyscale, which is why it is
+ * backing bar and inside a single row's depth bar — and it survives greyscale, which is why it is
  * a hatch and not a lighter shade of the same blue.
  */
 import { colorMix } from '@/lib/ui';
