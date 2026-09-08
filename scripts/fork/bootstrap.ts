@@ -12,7 +12,7 @@
  * Re-running is idempotent: an existing router at the same fork block is reused, balances are topped up to target.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, dirname, resolve } from 'node:path';
+import { basename, dirname, relative, resolve } from 'node:path';
 import { encodeAbiParameters, getAddress, isAddress, keccak256, parseEther, parseUnits, type Abi, type Address, type Hex } from 'viem';
 import {
   ADDR,
@@ -40,6 +40,9 @@ import {
 } from './lib.ts';
 
 const ROUTER_ARTIFACT = resolve(process.env.ROUTER_ARTIFACT ?? PATHS.defaultRouterArtifact);
+/** What the manifest records. Repo-relative, because an absolute path is true on exactly one machine
+ *  and the reuse check below compares it. */
+const ROUTER_ARTIFACT_REL = relative(PATHS.root, ROUTER_ARTIFACT);
 const ROUTER_NAME = process.env.ROUTER_NAME ?? 'Aqua App SwapVM';
 const ROUTER_VERSION = process.env.ROUTER_VERSION ?? '1';
 const FORK_BLOCK = Number(process.env.ANVIL_FORK_BLOCK ?? 50946000);
@@ -57,6 +60,9 @@ const routerAbiMin = [
   { type: 'function', name: 'AQUA', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { type: 'function', name: 'WETH', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { type: 'function', name: 'owner', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  // The one call that separates a Strikeline router from any other SwapVM router deployed against the
+  // same Aqua. See `assertStrikeline` below.
+  { type: 'function', name: 'tauNow', stateMutability: 'view', inputs: [{ type: 'uint40' }], outputs: [{ type: 'uint256' }] },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -105,6 +111,26 @@ function constructorArgs(abi: Abi, deployer: Address): { args: unknown[]; descri
     return values[hit];
   });
   return { args, described: inputs.map((i, k) => `${i.name}=${String(args[k])}`).join(', ') };
+}
+
+/**
+ * Refuse to write a manifest for a router the app cannot use.
+ *
+ * Both ProbeRouter and StrikelineRouter deploy cleanly, answer `AQUA()` with the official registry,
+ * and land at the SAME address (deterministic nonce from account #0), so a fork bootstrapped with the
+ * wrong artifact looks entirely healthy until every read on every screen reverts with `0x`. `tauNow`
+ * is the cheapest call that only exists on `StrikelineViews`, so it is the discriminator.
+ */
+async function assertStrikeline(address: Address, contractName: string): Promise<void> {
+  try {
+    await publicClient.readContract({ address, abi: routerAbiMin, functionName: 'tauNow', args: [2_000_000_000] });
+  } catch {
+    die(
+      `${contractName} at ${address} does not answer tauNow(uint40): it is not a Strikeline router, so the app, ` +
+        `the surface and the story scenes would all read reverts.\n` +
+        `  set ROUTER_ARTIFACT=contracts/out/StrikelineRouter.sol/StrikelineRouter.json (the default), or run \`make story-setup\`.`,
+    );
+  }
 }
 
 async function routerLooksAlive(address: Address): Promise<boolean> {
@@ -223,7 +249,7 @@ async function main() {
   let deployNote = '';
   if (existsSync(PATHS.deploymentsLocal) && !process.env.FORCE_REDEPLOY) {
     const prev = JSON.parse(readFileSync(PATHS.deploymentsLocal, 'utf8')) as Deployments;
-    if (prev.chainId === fork.chainId && prev.blockNumber === FORK_BLOCK && prev.routerArtifact === ROUTER_ARTIFACT && (await routerLooksAlive(prev.router))) {
+    if (prev.chainId === fork.chainId && prev.blockNumber === FORK_BLOCK && prev.routerArtifact === ROUTER_ARTIFACT_REL && (await routerLooksAlive(prev.router))) {
       router = getAddress(prev.router);
       deployNote = `reused from ${PATHS.deploymentsLocal} (set FORCE_REDEPLOY=1 to redeploy)`;
     }
@@ -237,6 +263,7 @@ async function main() {
   }
   const routerAqua = await publicClient.readContract({ address: router, abi: routerAbiMin, functionName: 'AQUA' });
   if (routerAqua.toLowerCase() !== ADDR.aqua.toLowerCase()) die(`router.AQUA() = ${routerAqua} != official Aqua`);
+  await assertStrikeline(router, artifact.contractName);
   let routerWeth = 'n/a';
   let routerOwner: Address = ANVIL_ACCOUNTS[0].address;
   try {
@@ -300,7 +327,7 @@ async function main() {
     officialRouter: ADDR.officialRouter,
     router,
     routerName: artifact.contractName,
-    routerArtifact: ROUTER_ARTIFACT,
+    routerArtifact: ROUTER_ARTIFACT_REL,
     routerOwner,
     weth: ADDR.weth,
     usdc: ADDR.usdc,

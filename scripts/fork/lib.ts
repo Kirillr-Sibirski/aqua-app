@@ -31,7 +31,10 @@ export const PATHS = {
   deploymentsLocal: resolve(HERE, 'deployments.local.json'),
   deploymentsWeb: resolve(HERE, '../../web/public/deployments/local.json'),
   snapshotFile: resolve(HERE, '.snapshot.json'),
-  defaultRouterArtifact: resolve(HERE, '../../contracts/out/ProbeRouter.sol/ProbeRouter.json'),
+  // StrikelineRouter, not ProbeRouter: the app reads `tauNow`/`coverage`/`bandFor` and settles through
+  // opcodes 0x55 and 0x93, none of which exist on the probe. Both land at the same deterministic
+  // address from account #0, so a probe deployment looks correct right up until every read reverts.
+  defaultRouterArtifact: resolve(HERE, '../../contracts/out/StrikelineRouter.sol/StrikelineRouter.json'),
 } as const;
 
 // ---------------------------------------------------------------------------

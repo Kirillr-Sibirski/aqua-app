@@ -30,6 +30,8 @@ export
 
 SCRIPTS := $(ROOT)scripts
 TSX := $(SCRIPTS)/node_modules/.bin/tsx
+# Scripts that import the app's own encoders through the `@/` alias need the web tsconfig's paths.
+TSX_ALIASED := $(TSX) --tsconfig $(SCRIPTS)/tsconfig.json
 ARGS ?=
 
 .PHONY: help install fork fork-state build build-src bootstrap smoke oracle time snapshot test test-unit test-fork test-surface web typecheck \
@@ -57,7 +59,11 @@ fork:
 fork-state:
 	bash $(SCRIPTS)/fork/start.sh --state
 
-ROUTER_ARTIFACT ?= contracts/out/ProbeRouter.sol/ProbeRouter.json
+# The app's router. ProbeRouter also deploys and also answers `AQUA()`, and lands at the SAME
+# deterministic address, so pointing this at it produces a fork where nothing looks wrong and every
+# Strikeline read reverts. `bootstrap.ts` now refuses to write a manifest for a router that cannot
+# answer `tauNow`, but the default has to be right too.
+ROUTER_ARTIFACT ?= contracts/out/StrikelineRouter.sol/StrikelineRouter.json
 
 build:
 	cd $(ROOT)contracts && forge build
@@ -71,7 +77,7 @@ bootstrap: $(TSX)
 	cd $(ROOT) && $(TSX) scripts/fork/bootstrap.ts
 
 smoke: $(TSX)
-	cd $(ROOT) && $(TSX) scripts/fork/smoke.ts
+	cd $(ROOT) && $(TSX_ALIASED) scripts/fork/smoke.ts
 
 oracle: $(TSX)
 	cd $(ROOT) && $(TSX) scripts/fork/oracle.ts $(ARGS)
@@ -137,7 +143,7 @@ test-surface:
 # scripts/story drives the scenes; scripts/arb is the arbitrage bot and the replayed Base price tape.
 # Both import the app's own SwapVM/RmmSwap encoders through the `@/` alias, hence --tsconfig.
 
-STORY := $(TSX) --tsconfig $(SCRIPTS)/tsconfig.json
+STORY := $(TSX_ALIASED)
 STRIKELINE_ARTIFACT ?= contracts/out/StrikelineRouter.sol/StrikelineRouter.json
 
 # Re-capture the real Chainlink ETH/USD rounds from Base. Committed, so this is rarely needed.
