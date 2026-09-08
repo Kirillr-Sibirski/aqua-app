@@ -160,8 +160,9 @@ FORK_RPC_URL=https://ethereum-rpc.publicnode.com make test-fork   # 11 fork test
 
 | | |
 |---|---|
-| Router runtime size | **23,664 B** — 912 B under EIP-170, mainnet-deployable, no size override |
-| Gas per RMM fill | 657-667k (~$0.01 on Base at 0.005 gwei) |
+| Router runtime size | **23,851 B** — 725 B under EIP-170, mainnet-deployable, no size override |
+| Gas: quote / swap, the shipped leg | **113,283 / 211,317** (`docs/OPCODES.md`; ~$0.01 on Base at 0.005 gwei) |
+| Of which `RmmSwap` itself | 100,632 gas, over the official `XYCSwap` baseline of 106,848 |
 | Curve accuracy | ~5e-12 relative error vs a 50-digit mpmath reference |
 | Φ approximation error | 6.95e-8; Φ⁻¹ round-trip 1.18e-6, which sets the maker-favouring epsilon |
 
