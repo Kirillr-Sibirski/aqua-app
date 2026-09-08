@@ -15,7 +15,7 @@
  * Not on it: anything computed from a model. The curve's shape comes from `stableFor`, the band's
  * size from `bandFor`, and the points from `Pushed`/`Pulled`.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { scaleLinear } from 'd3-scale';
 import { line as d3line, curveLinear } from 'd3-shape';
 import { Axis } from '@/components/charts/Axis';
@@ -25,6 +25,7 @@ import { Grid } from '@/components/charts/Grid';
 import { formatChartNumber } from '@/components/charts/format';
 import { round, type ChartPoint } from '@/components/charts/types';
 import {
+  SegmentedControl,
   Table,
   TableBody,
   TableCell,
@@ -76,6 +77,12 @@ export interface CurveChartProps {
 
 const MARGIN = { top: 14, right: 20, bottom: 34, left: 68 };
 
+/** A theta wedge thinner than this many pixels is not a mark; the legend must not claim it is. */
+const WEDGE_VISIBLE_PX = 2;
+
+/** How much of the full risky range the zoomed view keeps either side of what it has to contain. */
+const ZOOM_PAD = 0.06;
+
 function toPoints(samples: readonly CurveSample[]): ChartPoint[] {
   return samples.map((s) => ({ x: s.x, y: s.y }));
 }
@@ -96,6 +103,7 @@ export function CurveChart({
 }: CurveChartProps) {
   const livePoints = useMemo(() => toPoints(live), [live]);
   const settlementPoints = useMemo(() => toPoints(settlement), [settlement]);
+  const [zoom, setZoom] = useState<Zoom>('full');
 
   // The settlement line runs from (0, L*K) to (L, 0) and always contains the live curve, so
   // anchoring the domains to it keeps the axes still while the scrubber moves.
@@ -105,6 +113,27 @@ export function CurveChart({
 
   const empty = livePoints.length === 0 && settlementPoints.length === 0;
   const resolvedState: ChartState = state === 'ready' && empty ? 'empty' : state;
+
+  const canZoom = Boolean(reserve) && maxX > 0 && maxY > 0;
+  const zoomed = canZoom && zoom === 'reserve';
+  const domain = useMemo(
+    () =>
+      zoomed && reserve
+        ? reserveWindow({ live: livePoints, settlement: settlementPoints, reserve, band, maxX, maxY })
+        : { x: [0, maxX || 1] as const, y: [0, maxY || 1] as const },
+    [zoomed, reserve, band, livePoints, settlementPoints, maxX, maxY],
+  );
+
+  // The wedge in pixels, not in reserve units. On a full-range y-domain of 0..L*K the band right
+  // after a ship is a few thousandths of one percent of the range, so the legend used to advertise
+  // an ochre swatch pointing at a path with a 0x0 bounding box. Measured here rather than guessed:
+  // this is the same domain the marks are drawn against.
+  const plotHeight = height - MARGIN.top - MARGIN.bottom;
+  const wedgePx =
+    band && reserve
+      ? ((band.yOnCurve - reserve.y) / (domain.y[1] - domain.y[0] || 1)) * plotHeight
+      : 0;
+  const wedgeVisible = Boolean(band) && wedgePx >= WEDGE_VISIBLE_PX;
 
   return (
     <ChartFrame
@@ -116,11 +145,37 @@ export function CurveChart({
       state={resolvedState}
       errorMessage={errorMessage}
       emptyMessage="The router returned no curve samples for this leg."
-      legend={<Legend scrubbed={scrubbed} hasBand={Boolean(band)} />}
+      legend={<Legend scrubbed={scrubbed} hasBand={wedgeVisible} />}
+      actions={
+        canZoom ? (
+          <SegmentedControl
+            label="Scale"
+            size="sm"
+            items={[
+              { value: 'full', label: 'Full curve' },
+              { value: 'reserve', label: 'At the reserve' },
+            ]}
+            value={zoom}
+            onValueChange={(next) => setZoom(next as Zoom)}
+          />
+        ) : undefined
+      }
       footnote={
         <>
+          {band && reserve && !wedgeVisible ? (
+            <>
+              The theta band here is{' '}
+              <span className="font-mono tnum">
+                {formatChartNumber(band.yOnCurve - reserve.y, { significantDigits: 3, maxFractionDigits: 6 })}{' '}
+                {stableSymbol}
+              </span>
+              , under one pixel at this scale, so the wedge is not drawn and the legend does not claim
+              it. Scrub toward expiry to watch it open.{' '}
+            </>
+          ) : null}
           Every point is a <span className="font-mono">stableFor</span> call into the router, sampled over
           one multicall. No curve maths runs in the browser.
+          {zoomed ? ' The axes are windowed on the reserve point and do not start at zero.' : null}
         </>
       }
       table={
@@ -137,11 +192,12 @@ export function CurveChart({
     >
       {(geometry) => {
         const x = scaleLinear()
-          .domain([0, maxX || 1])
+          .domain([domain.x[0], domain.x[1]])
           .range([geometry.inner.x, geometry.inner.x + geometry.inner.width]);
         const y = scaleLinear()
-          .domain([0, maxY || 1])
+          .domain([domain.y[0], domain.y[1]])
           .range([geometry.inner.y + geometry.inner.height, geometry.inner.y]);
+        const compact = geometry.inner.width < 380;
 
         return (
           <>
@@ -180,12 +236,15 @@ export function CurveChart({
               {reserve ? <ReserveDot cx={x(reserve.x)} cy={y(reserve.y)} /> : null}
             </PlotArea>
 
+            {/* Below ~380px the unit doubles every label's width and the axis smears. It moves to
+                the axis name, which is said once. */}
             <Axis
               geometry={geometry}
               scale={x}
               orientation="bottom"
-              count={5}
-              unit={riskySymbol}
+              count={compact ? 3 : 5}
+              unit={compact ? undefined : riskySymbol}
+              label={compact ? riskySymbol : undefined}
             />
             <Axis geometry={geometry} scale={y} orientation="left" count={4} />
             <text
@@ -202,6 +261,48 @@ export function CurveChart({
       }}
     </ChartFrame>
   );
+}
+
+type Zoom = 'full' | 'reserve';
+
+/**
+ * Axis domains windowed on the reserve point.
+ *
+ * The full range is 0..L on x and 0..L*K on y, and the RMM curvature is about 3% of that: on a
+ * 320px plot the whole mechanism is eight pixels of bow, and the gap between now and expiry — the
+ * thing the screen exists to show — is invisible. This keeps the reserve point, both band corners
+ * and enough curve either side to read the shape, and lets the axis labels say the rest.
+ */
+function reserveWindow({
+  live,
+  settlement,
+  reserve,
+  band,
+  maxX,
+  maxY,
+}: {
+  live: readonly ChartPoint[];
+  settlement: readonly ChartPoint[];
+  reserve: ReservePoint;
+  band?: BandCorner;
+  maxX: number;
+  maxY: number;
+}): { x: readonly [number, number]; y: readonly [number, number] } {
+  const padX = maxX * ZOOM_PAD;
+  const lo = Math.max(0, Math.min(reserve.x, band?.xOnCurve ?? reserve.x) - padX);
+  const hi = Math.min(maxX, Math.max(reserve.x, band?.xOnCurve ?? reserve.x) + padX);
+
+  const inWindow = [...live, ...settlement].filter((p) => p.x >= lo && p.x <= hi);
+  const ys = [reserve.y, ...(band ? [band.yOnCurve] : []), ...inWindow.map((p) => p.y)];
+  const yLo = Math.min(...ys);
+  const yHi = Math.max(...ys);
+  // A floor on the y span, so a band of a few wei does not blow the axis up into pure rounding.
+  const padY = Math.max((yHi - yLo) * 0.15, maxY * 1e-4);
+
+  return {
+    x: [lo, hi] as const,
+    y: [Math.max(0, yLo - padY), Math.min(maxY, yHi + padY)] as const,
+  };
 }
 
 /**
