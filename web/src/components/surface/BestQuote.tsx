@@ -48,10 +48,35 @@ export interface BestQuoteProps {
   priced: boolean;
 }
 
+/**
+ * The cell to show when nobody has picked one.
+ *
+ * Not simply the first: the panel's whole point is the comparison across makers, so it opens on the
+ * cell where the most of them are quoting the same option. Ties go to the nearest expiry and then
+ * to the lowest strike, so the choice is stable between renders rather than dependent on log order.
+ */
+export function pickQuotePoint(
+  points: readonly SurfacePoint[],
+  selected?: string,
+): SurfacePoint | undefined {
+  const live = points.filter((p) => p.liveLegs.length > 0);
+  const chosen = live.find((p) => p.key === selected);
+  if (chosen) return chosen;
+
+  return live.reduce<SurfacePoint | undefined>((best, point) => {
+    if (!best) return point;
+    if (point.liveLegs.length !== best.liveLegs.length) {
+      return point.liveLegs.length > best.liveLegs.length ? point : best;
+    }
+    if (point.maturity !== best.maturity) return point.maturity < best.maturity ? point : best;
+    return point.strikeWad < best.strikeWad ? point : best;
+  }, undefined);
+}
+
 export function BestQuote({ points, deployments, nowSeconds, selected, onSelect, priced }: BestQuoteProps) {
   const live = useMemo(() => points.filter((p) => p.liveLegs.length > 0), [points]);
 
-  const current = live.find((p) => p.key === selected) ?? live[0];
+  const current = useMemo(() => pickQuotePoint(points, selected), [points, selected]);
 
   // Both selects stay inside the current pair. A strike is normalised stable per risky, so 2,800 on
   // WETH and 2,800 on cbBTC are different options, and offering them in one list would imply a

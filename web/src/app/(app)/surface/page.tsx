@@ -20,7 +20,15 @@
 import { useMemo, useState } from 'react';
 import { useConnection } from 'wagmi';
 import { AppShell, PageHeader, useIsHydrated } from '@/components/shell';
-import { BestQuote, SourceStrip, SurfaceChart, SurfaceTable, useSurface } from '@/components/surface';
+import {
+  BestQuote,
+  ReadLayer,
+  SourceStrip,
+  SurfaceChart,
+  SurfaceTable,
+  pickQuotePoint,
+  useSurface,
+} from '@/components/surface';
 import { Callout, ErrorState, Pill } from '@/components/ui';
 import { useDeployments } from '@/hooks';
 import { tokenInfo } from '@/lib/contracts';
@@ -41,6 +49,10 @@ export default function SurfacePage() {
       stableSymbol: first ? tokenInfo(first.tokenStable, deployments).symbol : 'USDC',
     };
   }, [surface.legs, deployments]);
+
+  // The cell the quote panel is showing. Lifted so the provenance panel underneath can print the
+  // query that answers it, with this strike and this expiry substituted in.
+  const point = useMemo(() => pickQuotePoint(surface.points, selected), [surface.points, selected]);
 
   const loading = !hydrated || surface.isLoading;
 
@@ -120,14 +132,6 @@ export default function SurfacePage() {
               </Callout>
             ) : null}
 
-            <SurfaceChart
-              points={surface.points}
-              legs={surface.legs}
-              nowSeconds={surface.nowSeconds}
-              stableSymbol={stableSymbol}
-              state={loading ? 'loading' : 'ready'}
-            />
-
             <BestQuote
               points={surface.points}
               deployments={deployments}
@@ -135,6 +139,25 @@ export default function SurfacePage() {
               selected={selected}
               onSelect={setSelected}
               priced={surface.priced}
+            />
+
+            <ReadLayer
+              source={surface.source}
+              subgraphError={surface.subgraphError}
+              indexedBlock={surface.indexedBlock}
+              blockNumber={surface.blockNumber}
+              lensVia={surface.lensVia}
+              point={point}
+              legs={surface.census.liveLegs}
+              loading={loading}
+            />
+
+            <SurfaceChart
+              points={surface.points}
+              legs={surface.legs}
+              nowSeconds={surface.nowSeconds}
+              stableSymbol={stableSymbol}
+              state={loading ? 'loading' : 'ready'}
             />
 
             <SurfaceTable

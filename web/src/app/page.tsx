@@ -197,6 +197,13 @@ function Book() {
         title="Connect a wallet to see your offers"
         description="An offer to sell your ETH at a price you choose. Your tokens stay in your wallet until someone takes it, so there is nothing to show until a wallet is connected."
         action={<ConnectButton size="md" />}
+        // The one screen that shows something without a wallet, because it reads a public log
+        // rather than an account. A visitor with nothing connected should not be at a dead end.
+        secondaryAction={
+          <Link href="/surface" className={buttonVariants({ variant: 'secondary', size: 'md' })}>
+            See what everyone else is offering
+          </Link>
+        }
         note="No extension? The picker offers a demo wallet that signs locally against the Base fork."
       />
     );

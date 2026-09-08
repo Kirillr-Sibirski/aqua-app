@@ -20,11 +20,16 @@ export interface NavItem {
   match: 'exact' | 'prefix';
 }
 
+/**
+ * Market sits second, directly after Overview, because it is the only screen that shows something
+ * without a wallet: every offer anyone has made, rebuilt from the chain's log. A visitor who lands
+ * here with nothing connected has one destination that is not empty, and it should not be fourth.
+ */
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/', label: 'Overview', ready: true, match: 'exact' },
+  { href: '/surface', label: 'Market', ready: true, match: 'prefix' },
   { href: '/book', label: 'Offers', ready: true, match: 'prefix' },
   { href: '/write', label: 'Name a price', ready: true, match: 'prefix' },
-  { href: '/surface', label: 'Market', ready: true, match: 'prefix' },
   { href: '/activity', label: 'Activity', ready: false, match: 'prefix' },
 ];
 

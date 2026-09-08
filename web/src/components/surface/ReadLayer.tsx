@@ -19,6 +19,7 @@
  * prints the query itself — with the strike and expiry currently on screen substituted in, so it can
  * be pasted into a Graph playground and checked against what the page is showing.
  */
+import type { ReactNode } from 'react';
 import { Card, CopyButton, Pill, Skeleton } from '@/components/ui';
 import { formatUnits } from '@/lib/ui';
 import { SUBGRAPH_URL } from './subgraph';
@@ -243,9 +244,9 @@ function Path({
   children,
 }: {
   name: string;
-  status: React.ReactNode;
-  detail?: React.ReactNode;
-  children: React.ReactNode;
+  status: ReactNode;
+  detail?: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">

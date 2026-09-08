@@ -9,8 +9,11 @@
 export { SurfaceChart } from './SurfaceChart';
 export type { SurfaceChartProps } from './SurfaceChart';
 
-export { BestQuote } from './BestQuote';
+export { BestQuote, pickQuotePoint } from './BestQuote';
 export type { BestQuoteProps } from './BestQuote';
+
+export { ReadLayer, bestBidQuery } from './ReadLayer';
+export type { ReadLayerProps } from './ReadLayer';
 
 export { SurfaceTable } from './SurfaceTable';
 export type { SurfaceTableProps } from './SurfaceTable';
@@ -37,7 +40,7 @@ export type { DecodeResult, SkipReason } from './decode';
 export { readBook, pricingOf, describeLensRevert, surfaceLensAbi } from './lens';
 export type { LensLeg, ReadBookParams, ReadBookResult } from './lens';
 
-export { fetchSubgraphSurface, SubgraphError, SUBGRAPH_URL } from './subgraph';
+export { fetchSubgraphSurface, SubgraphError, SUBGRAPH_URL, SURFACE_QUERY } from './subgraph';
 export type { SubgraphSurface } from './subgraph';
 
 export type { LegPricing, SurfaceCensus, SurfaceLeg, SurfacePoint, SurfaceSource } from './types';
