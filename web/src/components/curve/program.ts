@@ -142,7 +142,7 @@ function genericFields(opcode: number, args: Hex): DecodedField[] {
  * Throws on a truncated program rather than returning what it managed to read: a half-decoded
  * program on a review screen is worse than an error, because it would be shipped.
  */
-export function disassemble(program: Hex): DecodedInstruction[] {
+export function explainProgram(program: Hex): DecodedInstruction[] {
   const total = size(program);
   const out: DecodedInstruction[] = [];
   let offset = 0;
@@ -193,7 +193,7 @@ export function disassemble(program: Hex): DecodedInstruction[] {
 /** The `RmmSwap` instruction in a program, or `undefined` when it carries none. */
 export function findRmmArgs(program: Hex): Hex | undefined {
   try {
-    return disassemble(program).find((i) => i.opcode === RMM_SWAP_OPCODE)?.args;
+    return explainProgram(program).find((i) => i.opcode === RMM_SWAP_OPCODE)?.args;
   } catch {
     return undefined;
   }

@@ -201,74 +201,16 @@ export function buildLegProgram({ rmm, coverage, deadline, salt }: LegProgramArg
 // ---------------------------------------------------------------------------
 
 /**
- * `StrikelineViews`, the read-only surface on the router.
+ * `StrikelineViews` and the two instructions' custom errors, owned by `src/hooks/strikeline.ts`
+ * and re-exported here so the writer and the leg screen do not carry a second copy of an ABI.
  *
- * `stableFor` is the important one and the reason this ABI exists: it is the trading function
- * evaluated with the router's own approximated `Phi`, rounded up. Every leg is sized through it,
- * and every curve pixel that is not a `quote()` is sampled from it.
+ * `stableFor` is the one that matters: the trading function evaluated with the router's own
+ * approximated `Phi`, rounded up. Every leg is sized through it, and every curve pixel that is not
+ * a `quote()` is sampled from it. `strikelineErrorsAbi` is what turns a refused quote into
+ * `NotCovered(needed, free)` on screen rather than an undecoded blob — and `free` is an answer, not
+ * an outage.
  */
-export const strikelineViewsAbi = [
-  {
-    type: 'function',
-    name: 'stableFor',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'strikeWad', type: 'uint128' },
-      { name: 'sigmaWad', type: 'uint64' },
-      { name: 'maturity', type: 'uint40' },
-      { name: 'liquidityWad', type: 'uint128' },
-      { name: 'xWad', type: 'uint256' },
-    ],
-    outputs: [{ name: 'yWad', type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'riskyFor',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'strikeWad', type: 'uint128' },
-      { name: 'sigmaWad', type: 'uint64' },
-      { name: 'maturity', type: 'uint40' },
-      { name: 'liquidityWad', type: 'uint128' },
-      { name: 'yWad', type: 'uint256' },
-    ],
-    outputs: [{ name: 'xWad', type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'tauNow',
-    stateMutability: 'view',
-    inputs: [{ name: 'maturity', type: 'uint40' }],
-    outputs: [{ name: '', type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'coverage',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'maker', type: 'address' },
-      { name: 'token', type: 'address' },
-    ],
-    outputs: [{ name: '', type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'bandFor',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'strikeWad', type: 'uint128' },
-      { name: 'sigmaWad', type: 'uint64' },
-      { name: 'maturity', type: 'uint40' },
-      { name: 'liquidityWad', type: 'uint128' },
-      { name: 'xWad', type: 'uint256' },
-      { name: 'yWad', type: 'uint256' },
-    ],
-    outputs: [
-      { name: 'minRiskyIn', type: 'uint256' },
-      { name: 'minStableIn', type: 'uint256' },
-    ],
-  },
-] as const;
+export { strikelineErrorsAbi, strikelineViewsAbi } from '@/hooks/strikeline';
 
 // ---------------------------------------------------------------------------
 // Leg shape

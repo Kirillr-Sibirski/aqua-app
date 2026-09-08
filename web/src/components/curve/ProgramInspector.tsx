@@ -17,7 +17,7 @@ import { useMemo } from 'react';
 import { size, type Hex } from 'viem';
 import { Card, CopyButton, ErrorState, Pill } from '@/components/ui';
 import { cn } from '@/lib/ui';
-import { disassemble, type DecodedInstruction } from './program';
+import { explainProgram, type DecodedInstruction } from './program';
 
 export interface ProgramInspectorProps {
   program: Hex;
@@ -37,7 +37,7 @@ export function ProgramInspector({
 }: ProgramInspectorProps) {
   const decoded = useMemo(() => {
     try {
-      return { instructions: disassemble(program), error: undefined };
+      return { instructions: explainProgram(program), error: undefined };
     } catch (error) {
       return { instructions: [], error };
     }

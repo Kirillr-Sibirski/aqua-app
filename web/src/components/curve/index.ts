@@ -31,12 +31,13 @@ export {
   rateFor,
   remainingSeconds,
   strikelineViewsAbi,
+  strikelineErrorsAbi,
   tauWad,
   toRawReserve,
 } from './rmm';
 export type { CoverageArgs, LegKind, LegProgramArgs, RmmArgs } from './rmm';
 
-export { disassemble, findRmmArgs } from './program';
+export { explainProgram, findRmmArgs } from './program';
 export type { DecodedField, DecodedInstruction } from './program';
 
 export { ProgramInspector } from './ProgramInspector';

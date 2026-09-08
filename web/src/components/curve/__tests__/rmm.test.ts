@@ -36,7 +36,7 @@ import {
   toRawReserve,
   type RmmArgs,
 } from '../rmm';
-import { disassemble } from '../program';
+import { explainProgram } from '../program';
 
 const CALL_LEG: RmmArgs = {
   flags: FLAG_RISKY_IS_TOKEN_A | FLAG_POST_EXPIRY_ONE_WAY | FLAG_POST_EXPIRY_OUT_IS_RISKY, // 0x07
@@ -116,7 +116,7 @@ describe('the leg program', () => {
   });
 
   it('is Deadline . Coverage . RmmSwap . Salt, in that order', () => {
-    expect(disassemble(program).map((i) => i.name)).toEqual([
+    expect(explainProgram(program).map((i) => i.name)).toEqual([
       'Deadline',
       'Coverage',
       'RmmSwap',
@@ -125,20 +125,20 @@ describe('the leg program', () => {
   });
 
   it('puts Coverage before the curve it wraps', () => {
-    const opcodes = disassemble(program).map((i) => i.opcode);
+    const opcodes = explainProgram(program).map((i) => i.opcode);
     expect(opcodes.indexOf(COVERAGE_OPCODE)).toBeLessThan(opcodes.indexOf(RMM_SWAP_OPCODE));
   });
 
   it('carries no fee instruction', () => {
     // A flat fee would push the reserves off the absolute curve and leak the accrued theta to the
     // next taker. The arbitrageur pays theta, not a fee.
-    for (const instruction of disassemble(program)) {
+    for (const instruction of explainProgram(program)) {
       expect(instruction.name).not.toMatch(/^Fee/);
     }
   });
 
   it('accounts for every byte', () => {
-    const decoded = disassemble(program);
+    const decoded = explainProgram(program);
     const total = decoded.reduce((sum, i) => sum + i.byteLength, 0);
     expect(total).toBe((program.length - 2) / 2);
     expect(decoded.at(-1)?.offset).toBe(total - (decoded.at(-1)?.byteLength ?? 0));
