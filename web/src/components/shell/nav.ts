@@ -26,10 +26,9 @@ export interface NavItem {
  * here with nothing connected has one destination that is not empty, and it should not be fourth.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
-  { href: '/', label: 'Overview', ready: true, match: 'exact' },
+  { href: '/', label: 'Make an offer', ready: true, match: 'exact' },
   { href: '/surface', label: 'Market', ready: true, match: 'prefix' },
-  { href: '/book', label: 'Offers', ready: true, match: 'prefix' },
-  { href: '/write', label: 'Name a price', ready: true, match: 'prefix' },
+  { href: '/offers', label: 'Offers', ready: true, match: 'prefix' },
   // Last, and one word on purpose: the bar is a fixed-height flex row that neither wraps nor shrinks,
   // so a fifth item is bought with header width. "Was it worth it" is the plainer label and it costs
   // about 40px more than this one, which is the difference between fitting and not fitting on a
