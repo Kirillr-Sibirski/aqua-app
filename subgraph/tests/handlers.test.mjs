@@ -62,21 +62,26 @@ const foreign = `0x${'fa'.repeat(32)}`;
 /** The golden leg, exactly as Foundry shipped it: maker A, K 2,600, 60% vol, L 12. */
 const strategyA = strategyBytes;
 
-/** The same option from a second maker, quoting a wider vol: the one a taker should be shown. */
+// Three makers write the 2,800 call: B at 72%, C at 68%, A at 60%. B withdraws before the end, so
+// the best bid a taker can actually reach is C's. That is the query this whole layer exists for.
+
+/** Maker B, one strike up from the golden leg, quoting the widest vol - until it docks. */
 const strategyB = patch(strategyA, [
   [MAKER_AT, hexBytes(MAKER_B)],
   [SIGMA_AT, beBytes((72n * WAD) / 100n, 8)],
+  [STRIKE_AT, beBytes(2800n * WAD, 16)],
   [SALT_AT, beBytes(2n, 8)],
 ]);
 
-/** A third maker at the same strike and expiry as A, quoting between the two: a live competitor. */
+/** Maker C, same option, quoting between the other two, and still standing at the end. */
 const strategyD = patch(strategyA, [
   [MAKER_AT, hexBytes(MAKER_C)],
   [SIGMA_AT, beBytes((68n * WAD) / 100n, 8)],
+  [STRIKE_AT, beBytes(2800n * WAD, 16)],
   [SALT_AT, beBytes(4n, 8)],
 ]);
 
-/** Maker A again, one strike up: a different cell of the surface, not a competing quote. */
+/** Maker A again, same option as B and C, at the vol the golden leg was written with. */
 const strategyC = patch(strategyA, [
   [STRIKE_AT, beBytes(2800n * WAD, 16)],
   [SALT_AT, beBytes(3n, 8)],
@@ -165,28 +170,28 @@ test('the fill joins its leg by orderHash, and is counted once', () => {
   assert.equal(leg.volumeOut, AMOUNT_OUT);
 });
 
-test('two makers who wrote the same option land in one cell of the surface', () => {
-  const point = entity('SurfacePoint', `${WETH}-${USDC}-${golden.expected.strikeWad}-${golden.expected.maturity}`);
-  assert.ok(point, 'the 2,600 / 7-day cell exists');
+test('every maker who wrote the same option lands in one cell of the surface', () => {
+  const point = entity('SurfacePoint', pointId(2800n * WAD));
+  assert.ok(point, 'the 2,800 / 7-day cell exists');
   assert.equal(point.legCount, 3, 'three makers wrote the same option');
-  assert.deepEqual(point.legIds, [legA, legB, legD]);
-  assert.equal(point.strikeWad, BigInt(golden.expected.strikeWad));
+  assert.deepEqual(point.legIds, [legB, legD, legC], 'in the order they shipped');
+  assert.equal(point.strikeWad, 2800n * WAD);
 });
 
 test('the cell knows the best bid, which is the widest live vol at that strike and expiry', () => {
-  // Three quotes on the same option: A at 60%, C at 68%, B at 72% until B withdrew. The widest live
-  // vol is the maker paying the most theta to whoever takes the other side, so it ranks first.
+  // Three quotes on the 2,800 call: A at 60%, C at 68%, B at 72% until B withdrew. The widest live
+  // vol is the maker paying the most for the wait, so it is the one a taker should be shown.
   assert.equal(entity('Leg', legB).sigmaWad, (72n * WAD) / 100n, 'the patched vol decoded as written');
   assert.equal(entity('Leg', legD).sigmaWad, (68n * WAD) / 100n);
   assert.equal(entity('Leg', legD).maker, MAKER_C);
-  assert.equal(entity('Leg', legD).strikeWad, BigInt(golden.expected.strikeWad), 'same strike as maker A');
+  assert.equal(entity('Leg', legD).strikeWad, 2800n * WAD, 'the patched strike decoded as written');
 
-  const point = entity('SurfacePoint', `${WETH}-${USDC}-${golden.expected.strikeWad}-${golden.expected.maturity}`);
-  assert.equal(point.liveLegCount, 2, 'B docked; A and C are still quoting');
+  const point = entity('SurfacePoint', pointId(2800n * WAD));
+  assert.equal(point.liveLegCount, 2, 'B withdrew; A and C are still quoting');
   assert.equal(point.bestLeg, legD, 'the widest vol still live');
   assert.equal(point.maxSigmaWad, (68n * WAD) / 100n);
-  assert.equal(point.minSigmaWad, BigInt(golden.expected.sigmaWad));
-  assert.equal(point.liveLiquidityWad, 24n * WAD, 'notional written at this point across all makers');
+  assert.equal(point.minSigmaWad, BigInt(golden.expected.sigmaWad), 'A, the tightest of the three');
+  assert.equal(point.liveLiquidityWad, 24n * WAD, 'size written at this point across all makers');
 });
 
 test('a dock takes the quote off the book without moving a token', () => {
@@ -203,11 +208,11 @@ test('a dock takes the quote off the book without moving a token', () => {
 });
 
 test('a different strike is a different cell, not a competing quote', () => {
-  const point = entity('SurfacePoint', `${WETH}-${USDC}-${2800n * WAD}-${golden.expected.maturity}`);
-  assert.ok(point, 'the 2,800 cell exists on its own');
+  const point = entity('SurfacePoint', pointId(BigInt(golden.expected.strikeWad)));
+  assert.ok(point, 'the golden leg is on the 2,600 cell, alone');
   assert.equal(point.legCount, 1);
-  assert.equal(point.bestLeg, legC);
-  assert.equal(entity('Leg', legC).strikeWad, 2800n * WAD, 'the patched strike decoded as written');
+  assert.equal(point.bestLeg, legA);
+  assert.equal(point.maxSigmaWad, BigInt(golden.expected.sigmaWad));
 });
 
 test('the app filter keeps another app’s strategies out, since Aqua indexes no parameters', () => {
@@ -267,11 +272,17 @@ test('the best-bid query has an answer, and it is the one the README prints', ()
   };
 
   assert.equal(response.data.surfacePoints.length, 2, 'two live cells: the 2,600 and the 2,800');
-  assert.equal(response.data.surfacePoints[0].bestLeg.maker.id, MAKER_C, 'the widest live vol at 2,600');
+  assert.equal(response.data.surfacePoints[0].bestLeg.maker.id, MAKER_A, 'alone on the 2,600');
+  assert.equal(response.data.surfacePoints[1].bestLeg.maker.id, MAKER_C, 'the widest live vol at 2,800');
   writeFileSync(join(root, 'tests/build/surface.query.json'), `${JSON.stringify(response, null, 2)}\n`);
 });
 
 // --------------------------------------------------------------------------------------- helpers
+
+/** The id the mapping gives a cell of the surface: pair, then strike, then expiry. */
+function pointId(strikeWad) {
+  return `${WETH}-${USDC}-${strikeWad}-${golden.expected.maturity}`;
+}
 
 function ship(maker, app, hash, strategy, block, timestamp) {
   resetArgs();
