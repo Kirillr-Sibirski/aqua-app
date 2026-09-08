@@ -245,7 +245,7 @@ export default function DevPage() {
                 <tr key={String(label)}>
                   <td className="pr-4">{String(label)}</td>
                   <td className="pr-4">{feed.price ? feed.price.formatted : '—'}</td>
-                  <td className="pr-4 opacity-60">{feed.price ? `updatedAt ${String(feed.price.updatedAt)}${feed.price.stale ? ' (stale vs browser clock)' : ''}` : ''}</td>
+                  <td className="pr-4 opacity-60">{feed.price ? `updatedAt ${String(feed.price.updatedAt)}` : ''}</td>
                   <td className="opacity-60">{feed.price?.feed ?? ''}</td>
                 </tr>
               );

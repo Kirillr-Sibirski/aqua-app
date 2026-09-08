@@ -110,7 +110,11 @@ export function KpiStrip({ kpis, connected = true, blockTimestamp, loading = fal
             label="Backed"
             loading={loading}
             value={figure(kpis.backedToken ? backedText(kpis.backed) : undefined)}
-            empty={connected ? '100.0%' : '—'}
+            // Never '100.0%'. A connected wallet with no legs has nothing to back, and a
+            // measurement-shaped figure for a book that does not exist is a fabricated number --
+            // this file's own docstring says a book at 99.97% must not print 100%. The detail line
+            // below already carries the meaning.
+            empty="—"
             detail={
               detail(
                 kpis.backedToken ? (

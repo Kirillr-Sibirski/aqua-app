@@ -16,18 +16,22 @@ export interface OraclePrice {
   roundId: bigint;
   updatedAt: bigint;
   description?: string;
-  /** Seconds between the feed's `updatedAt` and the moment this answer was fetched. */
-  ageSeconds: number;
-  /** ageSeconds > staleAfter (default 3600). Fork clocks drift, so this is informational. */
-  stale: boolean;
 }
+
+/*
+ * There is deliberately no `ageSeconds` / `stale` here.
+ *
+ * Both were computed from react-query's `dataUpdatedAt` -- the browser's wall clock -- against a
+ * chain `updatedAt`. On the pinned fork those differ by the fork offset, so `stale` was effectively
+ * always true, and it was the one clock in the app that was not the chain's while five other
+ * docstrings state the opposite rule. Nothing rendered either field. If an age is wanted, take
+ * `nowSeconds` from the watched block, the way `KpiStrip` does for "last fill".
+ */
 
 export interface UseOraclePriceOptions {
   chainId?: SupportedChainId;
   /** ms, or false to disable polling (default 10000). */
   refetchInterval?: number | false;
-  /** Age (seconds) beyond which `stale` flips (default 3600). */
-  staleAfter?: number;
   enabled?: boolean;
 }
 
@@ -53,17 +57,12 @@ export function useOraclePrice(feed: Address | undefined, options: UseOraclePric
     query: { enabled, refetchInterval: options.refetchInterval ?? 10_000 },
   });
 
-  const fetchedAt = query.dataUpdatedAt;
-
   const data = useMemo<OraclePrice | undefined>(() => {
     if (!feed || !query.data) return undefined;
     const [round, dec, desc] = query.data;
     if (round?.status !== 'success') return undefined;
     const [roundId, answer, , updatedAt] = round.result as readonly [bigint, bigint, bigint, bigint, bigint];
     const decimals = dec?.status === 'success' ? Number(dec.result) : 8;
-    // react-query's fetch timestamp — reading it keeps the render pure (no `Date.now()` here).
-    const fetchedAtSeconds = Math.floor(fetchedAt / 1000);
-    const ageSeconds = fetchedAtSeconds > 0 ? fetchedAtSeconds - Number(updatedAt) : 0;
     const formatted = formatUnits(answer, decimals);
     return {
       feed,
@@ -74,10 +73,8 @@ export function useOraclePrice(feed: Address | undefined, options: UseOraclePric
       roundId,
       updatedAt,
       ...(desc?.status === 'success' ? { description: String(desc.result) } : {}),
-      ageSeconds,
-      stale: ageSeconds > (options.staleAfter ?? 3600),
     };
-  }, [feed, query.data, fetchedAt, options.staleAfter]);
+  }, [feed, query.data]);
 
   const error = query.error ?? (query.data?.[0]?.status === 'failure' ? query.data[0].error : undefined);
 
