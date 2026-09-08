@@ -21,7 +21,7 @@ it reads the same events through viem and says so on screen ([how to deploy one]
 |---|---|
 | `/` | The book you already have, or the one action that produces one |
 | `/write` | Pick the price you would sell at, the vol and the date. Sizes the leg, ships it to Aqua |
-| `/book` | Every leg you have written: terms, deliverable depth, the decay band each one has accrued |
+| `/offers` | **The second tab, never the front door.** One bar per token — the real wallet balance with every offer's claim stacked inside it — over a table of what you are selling, at what price, by when, how much can actually be taken right now, and what has been earned. Every figure pinned to one block |
 | `/leg/[hash]` | One leg. The curve, the fills, and the roll to the next expiry |
 | `/surface` | **Market.** Every offer anyone has made on this router, with the best bid across all makers, rebuilt from the chain's log. Needs no wallet, which is why it is second in the nav |
 | `/kitchen-sink` | Every primitive in all five states, server-rendered, no wallet. `noindex` |
