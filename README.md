@@ -285,7 +285,8 @@ Plus mainnet-fork suites that fill **real WETH/USDC through the official contrac
 against a live third-party maker strategy via the unmodified official router.
 
 ```bash
-make test                                                   # 78 offline tests
+make install                                                # once, before anything else
+make test                                                   # 170 offline tests
 FORK_RPC_URL=https://ethereum-rpc.publicnode.com make test-fork   # 11 fork tests, real tokens
 ```
 
@@ -334,7 +335,8 @@ holds the tokens, which box holds the price, and which boxes are 1inch's and not
 ## Running it
 
 ```bash
-make install && make build
+make install       # required first: Foundry deps resolve through contracts/node_modules
+make build
 make fork          # anvil, Base pinned at block 50946000, chain id 31337
 make bootstrap     # deploy the router against the OFFICIAL Aqua, fund wallets
 make smoke         # ship a strategy, quote it, swap it, print the receipt

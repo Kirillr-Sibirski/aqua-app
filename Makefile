@@ -102,6 +102,11 @@ test:
 test-unit:
 	cd $(ROOT)contracts && forge test --skip 'test/fork/**' -vv
 
+# the Uniswap v4 leg: curve parity against the Aqua instruction, the venue experiment, the two
+# findings in FEEDBACK.md that are backed by tests rather than opinion
+test-hook:
+	cd $(ROOT)contracts && forge test --match-path 'test/hook/*' -vv
+
 # FORK_RPC_URL defaults to Ethereum publicnode inside contracts/Makefile (the fork suite uses mainnet addresses)
 test-fork:
 	$(MAKE) -C $(ROOT)contracts test-fork
