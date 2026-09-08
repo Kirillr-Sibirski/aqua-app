@@ -59,7 +59,6 @@ export function Outcome({
           <span className={classes.outcomeLabel}>What you give up</span>
           {loading ? <Skeleton height={14} width={148} radius="sm" /> : <span className={classes.outcomeValue}>—</span>}
         </div>
-        <p className={classes.outcomeNote}>{NOBODY_HAS_TO}</p>
       </div>
     );
   }
@@ -98,18 +97,9 @@ export function Outcome({
         <span className={classes.outcomeLabel}>What you give up</span>
         <span className={`${classes.outcomeValue} ${classes.mono}`}>above {each}</span>
       </div>
-      <p className={classes.outcomeNote}>
-        At that point the {riskySymbol} is sold, so none of the move past it is yours.
-      </p>
-
-      <p className={classes.outcomeNote} style={{ marginTop: '0.5rem' }}>
-        {NOBODY_HAS_TO}
-      </p>
     </div>
   );
 }
 
 const WAD = BigInt(10) ** BigInt(18);
 
-const NOBODY_HAS_TO =
-  'Nobody has to take it. If no one does you keep everything and earn nothing, and that is the real risk here.';

@@ -255,7 +255,7 @@ export function OfferCard() {
     // Without a spot there is no reserve point to choose `L` at, so no offer is ever produced and
     // the branch below would sit on "Pricing it on chain" forever, describing an activity that is
     // not happening. The button names the blocker instead.
-    if (spot === undefined) return oracle.error ? "Today's price could not be read" : "Reading today's price";
+    if (spot === undefined) return oracle.error ? "Price unavailable" : "—";
     if (!offer) return sizingLoading || !sizingError ? 'Pricing it on chain' : 'Could not price this';
     return undefined;
   })();
@@ -313,7 +313,7 @@ export function OfferCard() {
           ) : (
             // Not "connect a wallet" — the card has already priced this amount against the chain
             // and the two lines below it are real. What is missing is the balance, not the quote.
-            'Priced for anyone. Connect to publish it.'
+            'Connect to publish'
           )
         }
         action={
@@ -352,9 +352,9 @@ export function OfferCard() {
         hint={
           spot === undefined ? (
             oracle.error ? (
-              "Today's price could not be read"
+              "Price unavailable"
             ) : (
-              "Reading today's price"
+              "—"
             )
           ) : belowSpot ? (
             `That is at or below today's ${spotLabel}`
@@ -387,7 +387,7 @@ export function OfferCard() {
         hint={
           maturity !== undefined && nowSeconds !== undefined
             ? `${daysUntil(maturity, nowSeconds)} days away, 08:00 UTC`
-            : 'Reading the chain clock'
+            : '—'
         }
       >
         <div className={classes.dateWrap}>
@@ -427,17 +427,9 @@ export function OfferCard() {
           {/* The decoded custom error, not viem's generic restatement of it: an offer the router
               refuses to size refuses with `RmmOutOfDomain` or `RmmInsideSpread`, and the name is
               the whole answer. */}
-          <Text size="sm">The chain refused to price this offer: {explainError(sizingError)}</Text>
+          <Text size="sm">{explainError(sizingError)}</Text>
         </Alert>
       ) : null}
-
-      {/* The sentence that answers the question that stops a first-timer, in the place they ask it.
-          It used to appear once, on the receipt, which is exactly backwards: the reassurance has to
-          land before the commitment, not after it. */}
-      <p className={classes.assurance}>
-        Your {pair?.risky.symbol ?? 'ETH'} stays in your wallet. Nothing moves until somebody takes
-        the offer, and you can take it down at any time.
-      </p>
 
       {/* Not Mantine's `loading`, which swaps the label for a spinner: the label is the only place
           that says which of the three transactions is live and whether it is waiting on the wallet
