@@ -12,7 +12,7 @@
 #   make subgraph        graph codegen && graph build — the vol surface, indexed out of Aqua's Shipped bytes
 #   make subgraph-local  point the manifest at the running fork's router first, then codegen + build
 #   make subgraph-node   create + deploy to a graph-node on localhost (needs one running)
-#   make test-surface    SurfaceLens (Foundry) + the read path against the fork (vitest)
+#   make test-surface    the mappings (node), SurfaceLens (Foundry), the read path against the fork (vitest)
 #
 #   THE DEMO (scripts/story/README.md has the runbook and the timings)
 #   make story-setup     deploy StrikelineRouter, seed the wallets, anchor the price tape, freeze the fork
@@ -134,8 +134,10 @@ subgraph-local: $(GRAPH)
 subgraph-node: $(GRAPH)
 	cd $(SUBGRAPH) && npm run create-local && npm run deploy-local
 
-# The read layer's own tests: the lens in Foundry, then the path the screen runs, against the fork.
-test-surface:
+# The read layer's own tests: the mappings run in WebAssembly (no fork needed), the lens in Foundry,
+# then the path the screen runs, against the fork.
+test-surface: $(GRAPH)
+	cd $(SUBGRAPH) && npm test
 	cd $(ROOT)contracts && forge test --match-path 'test/surface/*' -vv
 	cd $(ROOT)web && SURFACE_RPC_URL=$${ANVIL_RPC_URL:-http://127.0.0.1:8545} npx vitest run src/components/surface
 

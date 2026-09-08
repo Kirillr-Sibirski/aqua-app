@@ -249,6 +249,8 @@ contracts/          Foundry. The router, the two instructions, the math, the tes
   test/fork/        mainnet-fork fills through the official Aqua + official router
 subgraph/           The Graph. Decodes the shipped bytes in the mapping into Leg / Maker /
                     Fill / SurfacePoint. schema.graphql, subgraph.yaml, src/*.ts (AssemblyScript).
+  tests/            the mappings run in WebAssembly against a Node host: 18 tests, one golden
+                    abi.encode(Order) shared with the Solidity and TypeScript decoders.
 web/                Next.js 16 / React 19 / wagmi 3. Verified TypeScript SwapVM encoder.
 scripts/fork/       anvil Base fork, bootstrap, oracle mock, time warp, smoke test.
 docs/               ARCHITECTURE.md, CONCEPT.md, OPCODES.md, research, AI-usage disclosure.
