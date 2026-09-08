@@ -132,8 +132,20 @@ export function useOffer({
     return { xWad, liquidityWad, riskyRaw: amountRaw };
   }, [pair, amountRaw, strikeWad, sigmaWad, tau, spot]);
 
-  const ready =
-    enabled && !!router && !!maker && !!pair && !!chosen && maturity !== undefined && sigmaWad !== undefined;
+  /*
+   * A wallet is NOT a precondition for pricing.
+   *
+   * `StrikelineViews.stableFor` is a view: it takes five numbers and returns a reserve, and no part
+   * of it reads an account. The card used to gate this whole query on `maker`, so a first-time
+   * visitor saw two em dashes where "what you earn" and "what you give up" belong — on a page that
+   * was already printing today's price from the feed and next Friday from the block clock. Uniswap
+   * quotes you a real rate from the pool before you connect anything, and that live number is what
+   * makes you stay; ours showed a form with two blanks and asked for a wallet first.
+   *
+   * So the reads run either way. Only the identity needs a maker, and `preview` marks the offers
+   * that do not have one.
+   */
+  const ready = enabled && !!router && !!pair && !!chosen && maturity !== undefined && sigmaWad !== undefined;
 
   const contracts = useMemo(() => {
     const args = [
@@ -182,7 +194,7 @@ export function useOffer({
   });
 
   const offer = useMemo<SizedOffer | undefined>(() => {
-    if (!query.data || !pair || !chosen || !maker || maturity === undefined) return undefined;
+    if (!query.data || !pair || !chosen || maturity === undefined) return undefined;
     if (strikeWad === undefined || sigmaWad === undefined) return undefined;
 
     const [yWanted, ySettlementWanted] = query.data as unknown as readonly [bigint, bigint];
@@ -218,7 +230,10 @@ export function useOffer({
 
     const tokenA = pair.riskyIsTokenA ? pair.risky.address : pair.stable.address;
     const tokenB = pair.riskyIsTokenA ? pair.stable.address : pair.risky.address;
-    const order = buildAquaOrder({ maker, tokenA, tokenB, program });
+    // Without a wallet the order is a shape rather than a publishable thing: `preview` says so, and
+    // the one surface that renders the hash hides it in that state instead of printing a reference
+    // that resolves to nothing.
+    const order = buildAquaOrder({ maker: maker ?? ZERO_ADDRESS, tokenA, tokenB, program });
     const strategyHash = keccak256(encodeStrategyForShip(order)) as Hex;
 
     return {
@@ -234,6 +249,7 @@ export function useOffer({
       riskyRaw: chosen.riskyRaw,
       stableRaw,
       tokens: [tokenA, tokenB] as const,
+      preview: !maker,
       amounts: (pair.riskyIsTokenA
         ? ([chosen.riskyRaw, stableRaw] as const)
         : ([stableRaw, chosen.riskyRaw] as const)) satisfies readonly [bigint, bigint],

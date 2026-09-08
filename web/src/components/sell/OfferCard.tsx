@@ -29,7 +29,7 @@ import { useDeploymentChain, useIsHydrated } from '@/components/shell';
 import { useDeployments, useOraclePrice, useTokenBalances } from '@/hooks';
 import { aquaFork } from '@/lib/chain';
 import { addressLt } from '@/lib/swapvm';
-import { formatUnits, parseDecimalInput, toDecimalString } from '@/lib/ui';
+import { explainError, formatUnits, parseDecimalInput, toDecimalString } from '@/lib/ui';
 import { Details } from './Details';
 import { Field } from './Field';
 import { Outcome } from './Outcome';
@@ -46,35 +46,11 @@ import classes from './sell.module.css';
 import type { OfferPair, SizedOffer } from './types';
 import { useOffer } from './useOffer';
 import { usePublishOffer, type PublishResult } from './usePublish';
-import { useRealisedVol } from './useRealisedVol';
+import { FALLBACK_VOL, MIN_VOL_SPAN_SECONDS, useRealisedVol } from './useRealisedVol';
 import { ConnectModal, NetworkNotice } from './WalletButton';
 
 /** How far above today's price the card opens. A price below it would be taken immediately. */
 const DEFAULT_OVER_SPOT = 0.05;
-
-/**
- * Where the volatility opens before the feed's history has been read.
- *
- * The one figure on the card that is not a chain read, so it does not get to pass for one: when the
- * feed has enough history the measurement replaces it, and *Details* always says which of the two
- * the field is showing. Someone who types their own number owns it from that keystroke on. 60% is
- * the level the project's own replay is written at, and the level its vol sweep brackets on both
- * sides, so it is a disclosed starting point rather than a guess.
- */
-const FALLBACK_VOL = '60';
-
-/**
- * How much history a measurement needs before it is allowed to set the default.
- *
- * `estimateRealisedVol` annualises `sum(r^2)/sum(dt)`, which is arithmetic that works on any span
- * at all -- and that is the problem. Two hours of a feed annualises to whatever those two hours
- * did; on the warped demo fork, where the price is moved deliberately, it reads 141%, and a week's
- * offer priced off it would put a spread in front of itself that nobody ever crosses. A day is the
- * shortest window that is a measurement of the asset rather than of the morning. Below it the field
- * opens at the fallback and *Details* says the measurement was too short, with the number, so
- * nothing is hidden -- only declined as a default.
- */
-const MIN_VOL_SPAN_SECONDS = 86_400;
 
 export function OfferCard() {
   const hydrated = useIsHydrated();
@@ -128,8 +104,20 @@ export function OfferCard() {
   const [dateDraft, setDateDraft] = useState<string | null>();
   const [volDraft, setVolDraft] = useState<string>();
 
+  /**
+   * What the field opens at, and why it is never blank.
+   *
+   * With a wallet: the whole balance, floored at the eighth place. Nothing moves when an offer is
+   * published and it can be withdrawn at any moment, so offering all of it is a real default rather
+   * than a dare — and the line above the button now says both of those things.
+   *
+   * Without one: 1. `stableFor` is a view and needs no signer, so the card can price a real offer
+   * for a visitor who has connected nothing, and it should — a swap page that quotes you before you
+   * connect is the reason you stay on it. One unit is the amount that makes the two lines under the
+   * fields read as a rate.
+   */
   const defaultAmount =
-    riskyBalance !== undefined && pair ? roundedDown(riskyBalance, pair.risky.decimals) : '';
+    riskyBalance !== undefined && pair ? roundedDown(riskyBalance, pair.risky.decimals) : '1';
   const amount = amountDraft ?? defaultAmount;
 
   const defaultPrice = spot === undefined ? '' : String(strikeFrom(spot, DEFAULT_OVER_SPOT));
@@ -144,6 +132,18 @@ export function OfferCard() {
   const vol = volDraft ?? measuredVol ?? FALLBACK_VOL;
 
   const amountRaw = pair ? (parseDecimalInput(amount, pair.risky.decimals) ?? BigInt(0)) : BigInt(0);
+  const overBalance = riskyBalance !== undefined && amountRaw > riskyBalance;
+
+  /**
+   * What the chain is asked to price, which is never an offer that cannot be published.
+   *
+   * Typing more than the wallet holds used to send the typed number straight through, so the most
+   * motivating line on the card advertised a five-figure payout for a trade the button was already
+   * refusing — a quote for something that does not exist, on a page whose whole claim is that every
+   * number is a chain read of something that does. The quote is clamped to the balance instead, the
+   * outcome block is dimmed and says so, and the button says what to type.
+   */
+  const quotedRaw = overBalance && riskyBalance !== undefined ? riskyBalance : amountRaw;
   const strikeWad = parseDecimalInput(price, 18) ?? undefined;
   const volWad = parseDecimalInput(vol, 18);
   const sigmaWad = volWad === null || volWad <= BigInt(0) ? undefined : volWad / BigInt(100);
@@ -172,7 +172,7 @@ export function OfferCard() {
     router: deployments?.router,
     maker: address,
     pair,
-    amountRaw,
+    amountRaw: quotedRaw,
     strikeWad,
     sigmaWad,
     maturity,
@@ -188,12 +188,18 @@ export function OfferCard() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
 
-  const sentence = useMemo(
-    () => describeOffer({ offer, pair, strikeWad, maturity }),
-    [offer, pair, strikeWad, maturity],
-  );
+  // Plain, not memoised: the React Compiler holds it steady, and a manual dependency list here was
+  // one it declined to preserve.
+  const sentence = describeOffer({ offer, pair, strikeWad, maturity });
 
-  const onPublish = useCallback(async () => {
+  /*
+   * Plain functions rather than `useCallback`/`useMemo`.
+   *
+   * The React Compiler memoizes both automatically, and once the quote is clamped to the balance it
+   * declines to preserve the hand-written dependency lists — a skipped compilation for the whole
+   * component, which costs more than the lists were buying.
+   */
+  const onPublish = async () => {
     if (!deployments || !pair || !offer) return;
     try {
       const result = await publisher.publish({
@@ -207,7 +213,7 @@ export function OfferCard() {
     } catch {
       // `useTxFlow` recorded which step failed and why; the strip below the button renders it.
     }
-  }, [deployments, pair, offer, publisher, sentence]);
+  };
 
   const onAgain = useCallback(() => {
     setPublished(undefined);
@@ -217,7 +223,6 @@ export function OfferCard() {
   // --- what the button is, right now ---------------------------------------
 
   const wrongNetwork = hydrated && !!address && walletChainId !== deployment.chainId;
-  const overBalance = riskyBalance !== undefined && amountRaw > riskyBalance;
   const priceNumber = Number(price);
   const belowSpot = spot !== undefined && Number.isFinite(priceNumber) && priceNumber > 0 && priceNumber <= spot;
 
@@ -225,11 +230,18 @@ export function OfferCard() {
     if (!hydrated || deploymentsLoading) return 'Loading';
     if (!pair) return 'No deployment to publish against';
     if (amountRaw <= BigInt(0)) return 'Enter an amount';
-    if (overBalance && pair)
-      return `You hold ${formatUnits(riskyBalance ?? BigInt(0), pair.risky.decimals, { significantDigits: 8 })} ${pair.risky.symbol}`;
+    // An instruction, not a balance. `roundedDown` rather than `formatUnits` so the number here and
+    // the one in the field's own caption four lines above are produced by the same function: they
+    // used to be 9.3364125 and 9.33641248, which reads as a bug.
+    if (overBalance && pair && riskyBalance !== undefined)
+      return `Enter ${roundedDown(riskyBalance, pair.risky.decimals)} or less`;
     if (strikeWad === undefined || strikeWad <= BigInt(0)) return 'Enter a price';
     if (belowSpot) return `Name a price above ${spotLabel}`;
     if (sigmaWad === undefined) return 'Set the movement under Details';
+    // Without a spot there is no reserve point to choose `L` at, so no offer is ever produced and
+    // the branch below would sit on "Pricing it on chain" forever, describing an activity that is
+    // not happening. The button names the blocker instead.
+    if (spot === undefined) return oracle.error ? "Today's price could not be read" : "Reading today's price";
     if (!offer) return sizingLoading || !sizingError ? 'Pricing it on chain' : 'Could not price this';
     return undefined;
   })();
@@ -285,7 +297,9 @@ export function OfferCard() {
           ) : hydrated && address ? (
             'Reading your balance'
           ) : (
-            'Connect a wallet to sell your own'
+            // Not "connect a wallet" — the card has already priced this amount against the chain
+            // and the two lines below it are real. What is missing is the balance, not the quote.
+            'Priced for anyone. Connect to publish it.'
           )
         }
         action={
@@ -303,7 +317,11 @@ export function OfferCard() {
         <NumberInput
           aria-label="How much to sell"
           variant="unstyled"
+          // The field steps down a size rather than scrolling: at 390px a fourteen-character amount
+          // scrolled its own left edge out of view, so the card displayed a different number than
+          // the one that had just been typed.
           classNames={{ input: classes.bigInput }}
+          data-len={amount.length > 17 ? 'xl' : amount.length > 11 ? 'l' : undefined}
           value={amount}
           onChange={(next) => setAmountDraft(String(next))}
           placeholder="0"
@@ -385,6 +403,7 @@ export function OfferCard() {
         riskyDecimals={pair?.risky.decimals ?? 18}
         strikeWad={strikeWad}
         loading={sizingLoading && !sizingError}
+        clamped={overBalance}
       />
 
       {hydrated && address && wrongNetwork ? (
@@ -395,9 +414,20 @@ export function OfferCard() {
 
       {sizingError ? (
         <Alert color="ember" variant="light" radius="lg" mb="xs">
-          <Text size="sm">The chain refused to price this offer: {sizingError.message.split('\n')[0]}</Text>
+          {/* The decoded custom error, not viem's generic restatement of it: an offer the router
+              refuses to size refuses with `RmmOutOfDomain` or `RmmInsideSpread`, and the name is
+              the whole answer. */}
+          <Text size="sm">The chain refused to price this offer: {explainError(sizingError)}</Text>
         </Alert>
       ) : null}
+
+      {/* The sentence that answers the question that stops a first-timer, in the place they ask it.
+          It used to appear once, on the receipt, which is exactly backwards: the reassurance has to
+          land before the commitment, not after it. */}
+      <p className={classes.assurance}>
+        Your {pair?.risky.symbol ?? 'ETH'} stays in your wallet. Nothing moves until somebody takes
+        the offer, and you can take it down at any time.
+      </p>
 
       {/* Not Mantine's `loading`, which swaps the label for a spinner: the label is the only place
           that says which of the three transactions is live and whether it is waiting on the wallet

@@ -215,6 +215,31 @@ export async function readBlockHistory(
 // The hook
 // ---------------------------------------------------------------------------
 
+/**
+ * Where the volatility field opens before the feed's history has been read.
+ *
+ * The one figure on the card that is not a chain read, so it does not get to pass for one: when the
+ * feed has enough history the measurement replaces it, and *Details* always says which of the two
+ * the field is showing. Someone who types their own number owns it from that keystroke on. 60% is
+ * the level the project's own replay is written at, and the level its vol sweep brackets on both
+ * sides, so it is a disclosed starting point rather than a guess.
+ *
+ * It lives here rather than in the card because *Details* names it too, in the affordance that
+ * takes a typed number back to it, and two literals would drift.
+ */
+export const FALLBACK_VOL = '60';
+
+/**
+ * How much history a measurement needs before it is allowed to set the default.
+ *
+ * `estimateRealisedVol` annualises `sum(r^2)/sum(dt)`, which is arithmetic that works on any span
+ * at all -- and that is the problem. Two hours of a feed annualises to whatever those two hours
+ * did; on the warped demo fork, where the price is moved deliberately, it reads 141%, and a week's
+ * offer priced off it would put a spread in front of itself that nobody ever crosses. A day is the
+ * shortest window that is a measurement of the asset rather than of the morning.
+ */
+export const MIN_VOL_SPAN_SECONDS = 86_400;
+
 export function useRealisedVol(
   feed: Address | undefined,
   {

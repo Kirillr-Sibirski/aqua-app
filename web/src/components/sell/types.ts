@@ -42,4 +42,15 @@ export interface SizedOffer {
   /** Aqua's own `(tokenA, tokenB)` order, and the amounts in it. */
   tokens: readonly [Address, Address];
   amounts: readonly [bigint, bigint];
+  /**
+   * True when this was priced without a wallet attached.
+   *
+   * `stableFor` is a view and needs no signer, so the card can quote a real offer before anyone
+   * connects — which is the thing that makes a swap page worth staying on. Everything numeric is
+   * therefore honest in this state. What is NOT honest is the identity: `order.maker` is the zero
+   * address, so `strategyHash` is the hash of a program nobody could publish. The flag exists so
+   * the one surface that shows the hash and the bytes can decline to show them rather than print a
+   * reference that resolves to nothing.
+   */
+  preview: boolean;
 }

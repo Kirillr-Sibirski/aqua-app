@@ -63,19 +63,23 @@
   color: var(--ink-3);
 }
 
-/* The unit the field is denominated in. Static: this is not a token picker. */
+/*
+ * The unit the field is denominated in.
+ *
+ * A label, and it has to look like one. It used to be a bordered white pill on a grey well, which
+ * is the exact shape of the token picker on every swap page ever built — so it invited a click, and
+ * the click did nothing. The pair here is fixed. No border, no ground, no affordance: just the
+ * denomination, in the family every number on the card is set in.
+ */
 .unit {
   flex: none;
   display: inline-flex;
   align-items: center;
   height: 2rem;
-  padding: 0 0.75rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--surface);
+  padding: 0;
   font-family: var(--font-mono);
-  font-size: var(--text-meta);
-  color: var(--ink-2);
+  font-size: var(--text-lead);
+  color: var(--ink-3);
 }
 
 /* --- the numbers people type --------------------------------------------- */
@@ -97,6 +101,23 @@
   line-height: var(--text-display--line-height);
   letter-spacing: var(--text-display--letter-spacing);
   color: var(--ink);
+}
+
+/*
+ * A long amount steps down a size rather than scrolling.
+ *
+ * An input scrolls to keep the caret in view, so at 390px typing fourteen characters pushed the
+ * first six off the left edge and the card displayed a different number than the one that had just
+ * been typed. Two steps are enough to hold 18 characters, which is a WETH balance to the wei.
+ */
+.bigInput[data-len='l'] {
+  font-size: var(--text-section);
+  line-height: var(--text-section--line-height);
+}
+
+.bigInput[data-len='xl'] {
+  font-size: var(--text-lead);
+  line-height: var(--text-lead--line-height);
 }
 
 .bigInput::placeholder {
@@ -125,10 +146,16 @@
   min-width: 0;
 }
 
+/*
+ * "Max" was a 24x18 target on a phone. The hit area is padded out to 44px in both directions and
+ * pulled back with a negative margin, so the thing a thumb lands on is the size a thumb needs while
+ * the thing an eye sees is unchanged.
+ */
 .maxButton {
   border: 0;
   background: none;
-  padding: 0;
+  padding: 0.8125rem 1rem;
+  margin: -0.8125rem -1rem;
   font: inherit;
   color: var(--accent);
   cursor: pointer;
@@ -143,6 +170,32 @@
 
 .outcome {
   padding: 0.75rem 0.875rem 0.25rem;
+}
+
+/*
+ * Quoted, but not for the number in the field.
+ *
+ * When the amount typed is more than the wallet holds the block below prices the largest offer that
+ * could actually be published instead, and it has to look like a fallback rather than like the
+ * answer — including the green earned figure, which is the most motivating thing on the card and
+ * must never advertise a trade the button is refusing.
+ */
+.outcome[data-clamped] .outcomeValue,
+.outcome[data-clamped] .outcomeNote {
+  color: var(--ink-3);
+}
+
+.outcome[data-clamped] .earned {
+  color: var(--ink-3);
+}
+
+/* The one sentence that answers "what happens to my ETH", directly above the button that asks. */
+.assurance {
+  margin: 0.375rem 0 0;
+  padding: 0 0.25rem;
+  font-size: var(--text-mini);
+  line-height: 1.05rem;
+  color: var(--ink-3);
 }
 
 .outcomeRow {

@@ -28,6 +28,15 @@ export interface OutcomeProps {
   /** The price named, WAD, so the note can restate it. */
   strikeWad?: bigint;
   loading?: boolean;
+  /**
+   * True when the amount typed is more than the wallet holds, so what is quoted below is the
+   * largest offer that could actually be published rather than the number in the field.
+   *
+   * This used to price the typed amount, which meant an over-balance entry printed a green
+   * five-figure payout for a trade the button was refusing in the same frame. No number on this
+   * card is allowed to describe something that cannot happen.
+   */
+  clamped?: boolean;
 }
 
 export function Outcome({
@@ -37,6 +46,7 @@ export function Outcome({
   riskyDecimals,
   strikeWad,
   loading,
+  clamped,
 }: OutcomeProps) {
   if (!offer || strikeWad === undefined) {
     return (
@@ -67,7 +77,12 @@ export function Outcome({
   });
 
   return (
-    <div className={classes.outcome}>
+    <div className={classes.outcome} data-clamped={clamped || undefined}>
+      {clamped ? (
+        <p className={classes.outcomeNote} style={{ marginTop: 0, marginBottom: '0.25rem' }}>
+          That is more than you hold. Below is the largest offer you could publish.
+        </p>
+      ) : null}
       <div className={classes.outcomeRow}>
         <span className={classes.outcomeLabel}>If it is taken in full</span>
         <span className={`${classes.outcomeValue} ${classes.mono} ${classes.earned}`}>

@@ -13,8 +13,8 @@
  * check. Every receipt's logs are scanned for the ERC-20 `Transfer` topic and the number is printed
  * — a publish that had moved tokens would say so here.
  */
-import { Button, Text } from '@mantine/core';
-import { CopyButton, Anchor } from '@mantine/core';
+import { Anchor, Button, CopyButton, Group, Text } from '@mantine/core';
+import Link from 'next/link';
 import { truncateHash } from '@/lib/ui';
 import classes from './sell.module.css';
 import type { PublishResult } from './usePublish';
@@ -44,7 +44,12 @@ export function Published({ result, sentence, onAgain }: PublishedProps) {
       </div>
       <div className={classes.resultRow}>
         <span className={classes.detailKey}>Your offer</span>
-        <span className={classes.detailValue}>{truncateHash(result.strategyHash)}</span>
+        {/* The hash is the offer's identity and `/offer/[hash]` is a real page about it, so it is a
+            link. It used to be inert text, which asked a person who had just published something to
+            find it for themselves. */}
+        <Anchor component={Link} href={`/offer/${result.strategyHash}`} className={classes.detailValue}>
+          {truncateHash(result.strategyHash)}
+        </Anchor>
       </div>
       <div className={classes.resultRow}>
         <span className={classes.detailKey}>Tokens moved</span>
@@ -66,9 +71,22 @@ export function Published({ result, sentence, onAgain }: PublishedProps) {
         </Text>
       ) : null}
 
-      <Button fullWidth size="md" radius="lg" variant="default" mt="md" onClick={onAgain}>
-        Make another offer
+      {/* The one thing a person wants after publishing is to look at what they published. */}
+      <Button
+        component={Link}
+        href={`/offer/${result.strategyHash}`}
+        fullWidth
+        size="md"
+        radius="lg"
+        mt="md"
+      >
+        View your offer
       </Button>
+      <Group justify="center" mt="xs">
+        <Anchor component="button" type="button" size="sm" onClick={onAgain}>
+          Make another offer
+        </Anchor>
+      </Group>
     </div>
   );
 }
