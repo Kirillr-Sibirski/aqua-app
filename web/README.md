@@ -41,4 +41,5 @@ subgraph; unset, it reads the same events straight through viem and says so on s
 | `src/components/ui/` | The primitives DESIGN.md specifies, including the five states every data surface ships |
 | `src/app/globals.css` | The OKLCH tokens. Nothing in the app hard-codes a colour |
 
-`AGENTS.md` in this directory carries the house rules for changing any of it.
+`AGENTS.md` is not ours: `next dev` writes it and re-creates it on every run, so it is committed
+to keep the tree clean. `CLAUDE.md` is a one-line include of it.
