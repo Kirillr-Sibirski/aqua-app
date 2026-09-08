@@ -9,8 +9,8 @@ import { MemoryPtr, MemoryPtrLib } from "@1inch/swap-vm/src/libs/MemoryPtr.sol";
 import { InstructionBuilder } from "@1inch/swap-vm/src/libs/InstructionBuilder.sol";
 import { InstructionArgs } from "@1inch/swap-vm/src/libs/InstructionArgs.sol";
 
-import { WadMathPRB as M } from "../probe/WadMathPRB.sol";
-import { GaussianPRB as G } from "../probe/GaussianPRB.sol";
+import { WadMathPRB as M } from "./WadMathPRB.sol";
+import { GaussianPRB as G } from "./GaussianPRB.sol";
 
 /// @notice THROWAWAY probe opcode 0xd1 (PRBMath UD60x18 backend): fixed-point curves that need pow/exp/ln/sqrt/Phi.
 /// @dev Encoding: [uint8 fn][uint256 a][uint256 b][uint256 c]  (97 arg bytes; header makes 99 program bytes)

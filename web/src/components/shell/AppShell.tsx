@@ -66,6 +66,7 @@ export function AppShell({ children, bleed = false, className }: AppShellProps) 
         {children}
       </main>
 
+      <span data-probe>{typeof window === 'undefined' ? 'SERVER' : 'CLIENT'}</span>
       <Footer />
       <Toaster />
     </div>

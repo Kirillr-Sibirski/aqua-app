@@ -1,11 +1,16 @@
 'use client';
 
 /**
- * The app entry. Not a landing page: a maker opens this to see what their inventory is doing, so
- * the first thing on screen is either their book or the one action that produces one.
+ * The app entry.
+ *
+ * It opens with the promise, the risk and the one action, in that order, because a blind
+ * comprehension study found the app read worse than the README for exactly the reason DESIGN.md's
+ * no-hero rule intended to prevent: a terminal that never says what it is for. Three lines of
+ * purpose under a page title is a label, not a hero — no gradient, no glass, no 72px yield number,
+ * no payoff cartoon. Everything below it is still the maker's own inventory and offers.
  *
  * Every figure here is a chain read. Wallet balances come from `useTokenBalances` (a multicall of
- * `balanceOf`/`decimals`/`symbol`), the legs come from Aqua's own `Shipped` logs decoded with the
+ * `balanceOf`/`decimals`/`symbol`), the offers come from Aqua's own `Shipped` logs decoded with the
  * verified encoder, and the depth column is `Aqua.rawBalances` for each leg's two tokens. Nothing
  * is modelled, defaulted or filled in.
  */
@@ -21,6 +26,7 @@ import { ConnectButton } from '@/components/wallet';
 import {
   Address as AddressText,
   Button,
+  buttonVariants,
   Card,
   EmptyState,
   ErrorState,
@@ -46,8 +52,29 @@ export default function OverviewPage() {
   return (
     <AppShell>
       <PageHeader
-        title="Overview"
-        subtitle="Legs shipped from this wallet, and the inventory backing all of them at once."
+        title="Name the price you'd sell at. Get paid to wait."
+        subtitle={
+          <>
+            <span className="block">
+              Covered calls written from the ETH in your own wallet. You pick the price and the
+              date; every day nobody takes it, the next buyer pays more. Nothing is custodied — the
+              tokens never move until someone fills.
+            </span>
+            <span className="mt-2 block">
+              If ETH runs past your price, you sell at your price and keep what you were paid. That
+              is the trade. If it moves more than the volatility you chose, you lose.
+            </span>
+            <span className="mt-2 block text-ink-3">
+              You are not paid up front. What you earn accrues inside your own quote and only
+              becomes real when somebody trades against it.
+            </span>
+          </>
+        }
+        actions={
+          <Link href="/write" className={buttonVariants({ variant: 'primary', size: 'md' })}>
+            Name your price
+          </Link>
+        }
       />
       <div className="mt-8 flex flex-col gap-8">
         <Inventory />
@@ -62,8 +89,8 @@ export default function OverviewPage() {
 // ---------------------------------------------------------------------------
 
 /**
- * What the wallet holds. This is the number every leg is margined against: `Coverage` reads exactly
- * this balance at quote time, so a fill on one leg shrinks what its siblings can deliver.
+ * What the wallet holds. This is the number every offer is margined against: `Coverage` reads
+ * exactly this balance at quote time, so a fill on one offer shrinks what the others can deliver.
  */
 function Inventory() {
   const hydrated = useIsHydrated();
@@ -84,10 +111,10 @@ function Inventory() {
 
   if (error) {
     return (
-      <Card title="Inventory">
+      <Card title="What you hold">
         <ErrorState
           error={error}
-          title="Could not read wallet balances"
+          title="Could not read your wallet balances"
           onRetry={() => void refetch()}
           bare
         />
@@ -99,8 +126,8 @@ function Inventory() {
 
   return (
     <Card
-      title="Inventory"
-      description="Read from the wallet, not from a vault. Coverage prices every leg against these balances."
+      title="What you hold"
+      description="This is what you would be selling, and it stays where it is. Every offer you make is priced against these balances, and no token moves until somebody takes one."
     >
       <StatRow>
         <StatTile
@@ -112,7 +139,7 @@ function Inventory() {
             ) : undefined
           }
           unit={native?.symbol}
-          detail="Gas, not collateral"
+          detail="For gas. Not part of any offer."
         />
         {(loading ? [0, 1, 2] : balances).map((entry, i) =>
           typeof entry === 'number' ? (
@@ -123,7 +150,7 @@ function Inventory() {
               label={entry.symbol}
               value={<TokenAmount value={entry.balance} decimals={entry.decimals} size="lg" />}
               unit={entry.symbol}
-              detail={entry.error ? 'Read failed' : 'Backing every leg'}
+              detail={entry.error ? 'Read failed' : 'Stands behind every offer'}
             />
           ),
         )}
@@ -155,9 +182,9 @@ function Book() {
   // the disconnected branch is what both emit until the first client commit.
   if (!hydrated) {
     return (
-      <Card title="Book" flush>
+      <Card title="Your offers" flush>
         <BookTable>
-          <TableSkeletonRows rows={3} columns={COLUMNS} label="book" />
+          <TableSkeletonRows rows={3} columns={COLUMNS} label="your offers" />
         </BookTable>
       </Card>
     );
@@ -167,8 +194,8 @@ function Book() {
     return (
       <EmptyState
         icon={Layers}
-        title="Connect a wallet to see your book"
-        description="Strikeline reads the legs you have shipped straight from Aqua's own logs, then prices each one's deliverable depth against the balance still sitting in your wallet. Nothing is custodied, so there is nothing to read until a wallet is connected."
+        title="Connect a wallet to see your offers"
+        description="An offer to sell your ETH at a price you choose. Your tokens stay in your wallet until someone takes it, so there is nothing to show until a wallet is connected."
         action={<ConnectButton size="md" />}
         note="No extension? The picker offers a demo wallet that signs locally against the Base fork."
       />
@@ -177,10 +204,10 @@ function Book() {
 
   if (error) {
     return (
-      <Card title="Book">
+      <Card title="Your offers">
         <ErrorState
           error={error}
-          title="Could not read shipped strategies"
+          title="Could not read your offers"
           onRetry={() => void refetch()}
           bare
         />
@@ -190,9 +217,9 @@ function Book() {
 
   if (isLoading) {
     return (
-      <Card title="Book" flush>
+      <Card title="Your offers" flush>
         <BookTable>
-          <TableSkeletonRows rows={3} columns={COLUMNS} label="book" />
+          <TableSkeletonRows rows={3} columns={COLUMNS} label="your offers" />
         </BookTable>
       </Card>
     );
@@ -202,22 +229,22 @@ function Book() {
     return (
       <EmptyState
         icon={Layers}
-        title="No legs shipped from this wallet"
-        description="A leg is a SwapVM program shipped to Aqua against tokens that never leave your wallet. Ship a ladder of them and one balance margins the whole book."
+        title="You have not made an offer yet"
+        description="An offer to sell your ETH at a price you choose. Your tokens stay in your wallet until someone takes it, and one balance can stand behind several offers at once."
         action={
           <Button variant="secondary" onClick={() => void refetch()}>
             Check again
           </Button>
         }
-        note="On the local fork, `make smoke` ships the demo ladder and this table fills in."
+        note="On the local fork, `make smoke` publishes the demo offers and this table fills in."
       />
     );
   }
 
   return (
     <Card
-      title="Book"
-      description={`${strategies.length} ${strategies.length === 1 ? 'strategy' : 'strategies'} shipped to the Strikeline router by this wallet, read from Aqua's Shipped logs. The terms are decoded from the bytes the event carried.`}
+      title="Your offers"
+      description={`${strategies.length} ${strategies.length === 1 ? 'offer' : 'offers'} published from this wallet. The price and the date are read back out of the bytes the chain itself published, not out of a database beside the app.`}
       flush
     >
       <BookTable>
@@ -239,19 +266,23 @@ function Book() {
 function BookTable({ children }: { children: React.ReactNode }) {
   return (
     <Table
-      caption="Legs shipped from this wallet"
+      caption="Offers published from this wallet"
       hideCaption
       minWidth="56rem"
-      scrollHint="reserves, block"
+      scrollHint="size on offer, block"
     >
       <TableHead>
         <TableRow>
-          <TableHeaderCell>Leg</TableHeaderCell>
-          <TableHeaderCell>Terms</TableHeaderCell>
+          <TableHeaderCell>Offer</TableHeaderCell>
+          <TableHeaderCell title="Strike, implied volatility, time to expiry and notional L">
+            You sell at
+          </TableHeaderCell>
           <TableHeaderCell>Pair</TableHeaderCell>
           <TableHeaderCell>Status</TableHeaderCell>
-          <TableHeaderCell numeric>Recorded in Aqua</TableHeaderCell>
-          <TableHeaderCell numeric>Shipped at block</TableHeaderCell>
+          <TableHeaderCell numeric title="The strategy's virtual balances in Aqua">
+            Size on offer
+          </TableHeaderCell>
+          <TableHeaderCell numeric>Published at block</TableHeaderCell>
         </TableRow>
       </TableHead>
       <TableBody>{children}</TableBody>
@@ -272,8 +303,8 @@ function LegRow({
   const [tokenA, tokenB] = strategy.tokens;
   const a = tokenInfo(tokenA, deployments);
   const b = tokenInfo(tokenB, deployments);
-  // The terms are in the bytes Aqua published; a table that shows only the hash is asking the
-  // reader to take the most interesting thing on the row on trust.
+  // The price and the date are in the bytes Aqua published; a table that shows only the hash is
+  // asking the reader to take the most interesting thing on the row on trust.
   const rmm = decodeLegProgram(strategy.program).rmm;
   const risky = rmm ? (rmm.flags & 1 ? a : b) : undefined;
   const stable = rmm ? (rmm.flags & 1 ? b : a) : undefined;
@@ -323,7 +354,7 @@ function LegRow({
             </span>
           </span>
         ) : (
-          <span className="text-mini text-ink-3">not an option leg</span>
+          <span className="text-mini text-ink-3">not a Strikeline offer</span>
         )}
       </TableCell>
 
@@ -337,8 +368,8 @@ function LegRow({
 
       <TableCell>
         {strategy.docked ? (
-          <Pill tone="neutral" dot>
-            Docked
+          <Pill tone="neutral" dot title="Docked in Aqua">
+            Withdrawn
           </Pill>
         ) : strategy.active ? (
           <Pill tone="positive" dot>

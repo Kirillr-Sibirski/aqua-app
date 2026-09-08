@@ -6,12 +6,13 @@
  * flag on their entry and nothing else changes. The bar hides the nav entirely while only one
  * destination is ready, so a single highlighted item never reads as a broken menu.
  *
- * Labels use the app's own verbs. Aqua's vocabulary is ship and dock, so the screen where a leg is
- * written is "Ship", not "New position".
+ * Labels are the words a person who has never traded an option would use. Aqua's own vocabulary is
+ * ship and dock, and it is kept on the developer-facing surfaces, but the nav is not one of them:
+ * a reader who cannot name the screen cannot get to it.
  */
 export interface NavItem {
   href: string;
-  /** Sentence case, one or two words, names the screen not the action. */
+  /** Sentence case, three words at most, names the screen in words a newcomer already has. */
   label: string;
   /** Whether the route exists. */
   ready: boolean;
@@ -21,9 +22,9 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/', label: 'Overview', ready: true, match: 'exact' },
-  { href: '/book', label: 'Book', ready: true, match: 'prefix' },
-  { href: '/write', label: 'Write', ready: true, match: 'prefix' },
-  { href: '/surface', label: 'Surface', ready: true, match: 'prefix' },
+  { href: '/book', label: 'Offers', ready: true, match: 'prefix' },
+  { href: '/write', label: 'Name a price', ready: true, match: 'prefix' },
+  { href: '/surface', label: 'Market', ready: true, match: 'prefix' },
   { href: '/activity', label: 'Activity', ready: false, match: 'prefix' },
 ];
 

@@ -6,10 +6,10 @@ import { console2 } from "forge-std/Test.sol";
 import { ISwapVM } from "@1inch/swap-vm/src/interfaces/ISwapVM.sol";
 import { Salt } from "@1inch/swap-vm/src/instructions/Controls.sol";
 
-import { ProbeRouter } from "../../src/ProbeRouter.sol";
-import { CurveProbeRouterPRB } from "../../src/CurveProbeRouterPRB.sol";
-import { CurveProbeRouterSolady } from "../../src/CurveProbeRouterSolady.sol";
-import { CurveProbePRB } from "../../src/instructions/CurveProbePRB.sol";
+import { ProbeRouter } from "../../src/spikes/ProbeRouter.sol";
+import { CurveProbeRouterPRB } from "../../src/spikes/CurveProbeRouterPRB.sol";
+import { CurveProbeRouterSolady } from "../../src/spikes/CurveProbeRouterSolady.sol";
+import { CurveProbePRB } from "../../src/spikes/CurveProbePRB.sol";
 import { AquaSwapVMTestBase } from "../base/AquaSwapVMTestBase.sol";
 
 /// @title CurveProbeAquaTest

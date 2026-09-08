@@ -15,8 +15,8 @@ import { Opcode } from "@1inch/swap-vm/src/libs/OpcodeList.sol";
 import { MemoryPtr, MemoryPtrLib } from "@1inch/swap-vm/src/libs/MemoryPtr.sol";
 import { InstructionBuilder } from "@1inch/swap-vm/src/libs/InstructionBuilder.sol";
 
-import { ProbeRouter } from "../../src/ProbeRouter.sol";
-import { ProbeScale } from "../../src/instructions/ProbeScale.sol";
+import { ProbeRouter } from "../../src/spikes/ProbeRouter.sol";
+import { ProbeScale } from "../../src/spikes/ProbeScale.sol";
 import { WETHMock } from "../../src/mocks/WETHMock.sol";
 import { TokenMockDecimals } from "../../src/mocks/TokenMockDecimals.sol";
 
@@ -411,7 +411,7 @@ abstract contract AquaSwapVMTestBase is Test {
     // ------------------------------------------------------------------ instruction builders
 
     /// @notice Encode the custom ProbeScale instruction: [opcode 0xd0][argsLen 4][uint32 factor], 1e9 == 1x.
-    /// @dev KNOWN ISSUE: `ProbeScale.build()` in src/instructions/ProbeScale.sol resolves the *start* pointer
+    /// @dev KNOWN ISSUE: `ProbeScale.build()` in src/spikes/ProbeScale.sol resolves the *start* pointer
     ///      (`start.resolve()`) and always reverts with MemoryPtrStrictResolveFailed; the library requires
     ///      resolving the *end* pointer (`ptr.resolve()`, as XYCSwap/FeeFlatIn do). This helper is the correct
     ///      encoding and is byte-for-byte what the fixed `ProbeScale.build` would return.

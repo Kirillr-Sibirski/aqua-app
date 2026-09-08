@@ -56,8 +56,8 @@ import {
     PatchSwapRegisters
 } from "@1inch/swap-vm/src/instructions/Debug.sol";
 
-import { ProbeRouter } from "../../src/ProbeRouter.sol";
-import { ProbeScale } from "../../src/instructions/ProbeScale.sol";
+import { ProbeRouter } from "../../src/spikes/ProbeRouter.sol";
+import { ProbeScale } from "../../src/spikes/ProbeScale.sol";
 
 contract EncodingVectorsTest is Test {
     using MemoryPtrLib for MemoryPtr;

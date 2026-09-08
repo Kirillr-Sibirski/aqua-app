@@ -18,6 +18,7 @@ fs_permissions = [
     { access = "read-write", path = "./deployments" },
     { access = "read-write", path = "./test/encoding" },
     { access = "read", path = "./node_modules/@uniswap/v4-core/out" },
+    { access = "read", path = "../scripts/arb/series" },
 ]
 
 [fmt]

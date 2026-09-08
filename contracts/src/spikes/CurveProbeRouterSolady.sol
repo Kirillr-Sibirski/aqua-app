@@ -6,7 +6,7 @@ import { Context } from "@1inch/swap-vm/src/libs/VM.sol";
 import { Opcode, OpcodeOps } from "@1inch/swap-vm/src/libs/OpcodeList.sol";
 import { SwapVM } from "@1inch/swap-vm/src/SwapVM.sol";
 import { AquaOpcodes } from "@1inch/swap-vm/src/opcodes/AquaOpcodes.sol";
-import { CurveProbeSolady } from "./instructions/CurveProbeSolady.sol";
+import { CurveProbeSolady } from "./CurveProbeSolady.sol";
 
 /// @notice Size/gas probe: official SwapVM + AquaOpcodes + opcode 0xd1 = CurveProbeSolady (solady 0.1.26 FixedPointMathLib).
 contract CurveProbeRouterSolady is Simulator, SwapVM, AquaOpcodes {

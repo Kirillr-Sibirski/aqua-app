@@ -13,7 +13,7 @@ import { XYCSwap } from "@1inch/swap-vm/src/instructions/XYCSwap.sol";
 import { FeeFlatIn } from "@1inch/swap-vm/src/instructions/FeeFlat.sol";
 import { Salt } from "@1inch/swap-vm/src/instructions/Controls.sol";
 
-import { ProbeScale } from "../src/instructions/ProbeScale.sol";
+import { ProbeScale } from "../src/spikes/ProbeScale.sol";
 import { MockCallbackTaker } from "../src/mocks/MockCallbackTaker.sol";
 import { AquaSwapVMTestBase } from "./base/AquaSwapVMTestBase.sol";
 

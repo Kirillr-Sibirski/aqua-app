@@ -16,7 +16,7 @@ import { ISwapVM } from "@1inch/swap-vm/src/interfaces/ISwapVM.sol";
 import { Salt } from "@1inch/swap-vm/src/instructions/Controls.sol";
 
 import { AquaSwapVMTestBase } from "../base/AquaSwapVMTestBase.sol";
-import { ProbeRouter } from "../../src/ProbeRouter.sol";
+import { ProbeRouter } from "../../src/spikes/ProbeRouter.sol";
 import { StrikelineRouter } from "../../src/StrikelineRouter.sol";
 import { StrikelineHook } from "../../src/hooks/StrikelineHook.sol";
 import { RmmPricer } from "../../src/hooks/RmmPricer.sol";

@@ -9,7 +9,7 @@ import { XYCSwap } from "@1inch/swap-vm/src/instructions/XYCSwap.sol";
 
 import { AquaSwapVMTestBase } from "../base/AquaSwapVMTestBase.sol";
 import { StrikelineRouter } from "../../src/StrikelineRouter.sol";
-import { ProbeRouter } from "../../src/ProbeRouter.sol";
+import { ProbeRouter } from "../../src/spikes/ProbeRouter.sol";
 import { SurfaceLens } from "../../src/SurfaceLens.sol";
 import { RmmSwap } from "../../src/instructions/RmmSwap.sol";
 import { Coverage } from "../../src/instructions/Coverage.sol";

@@ -10,7 +10,7 @@ import { Salt, Deadline } from "@1inch/swap-vm/src/instructions/Controls.sol";
 
 import { AquaSwapVMTestBase } from "../base/AquaSwapVMTestBase.sol";
 import { StrikelineRouter } from "../../src/StrikelineRouter.sol";
-import { ProbeRouter } from "../../src/ProbeRouter.sol";
+import { ProbeRouter } from "../../src/spikes/ProbeRouter.sol";
 import { RmmSwap } from "../../src/instructions/RmmSwap.sol";
 import { Coverage } from "../../src/instructions/Coverage.sol";
 

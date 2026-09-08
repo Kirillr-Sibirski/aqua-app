@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     template: "%s · Strikeline",
   },
   description:
-    "A covered call written as a price curve, living in your own wallet. Strikeline compiles an option ladder to 1inch SwapVM programs on Aqua: no vault, no option token, no oracle, no keeper. The tokens never move until a fill.",
+    "Name a price you would be happy to sell your ETH at. Whoever takes it pays you for the wait, and the ETH never leaves your wallet. If you already trade options: covered calls written as price curves inside 1inch Aqua, with no vault, no option token, no oracle and no keeper.",
   applicationName: "Strikeline",
 };
 

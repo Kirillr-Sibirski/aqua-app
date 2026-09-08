@@ -3,11 +3,11 @@ pragma solidity 0.8.30;
 
 import { Test, console2 } from "forge-std/Test.sol";
 
-import { WadMathPRB } from "../../src/probe/WadMathPRB.sol";
+import { WadMathPRB } from "../../src/spikes/WadMathPRB.sol";
 import { WadMath } from "../../src/math/WadMath.sol";
-import { GaussianPRB } from "../../src/probe/GaussianPRB.sol";
+import { GaussianPRB } from "../../src/spikes/GaussianPRB.sol";
 import { Gaussian } from "../../src/math/Gaussian.sol";
-import { MathBench } from "../../src/probe/MathBench.sol";
+import { MathBench } from "../../src/spikes/MathBench.sol";
 
 /// @title MathPrimitivesTest
 /// @notice Accuracy (vs mpmath, 50 digits) and gas (gasleft deltas on INTERNAL calls) of PRBMath v4.2.0 UD60x18 and
