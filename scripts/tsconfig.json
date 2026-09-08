@@ -12,5 +12,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["fork/**/*.ts", "../web/src/lib/swapvm/**/*.ts"]
+  "include": ["fork/**/*.ts", "story/**/*.ts", "arb/**/*.ts", "../web/src/lib/swapvm/**/*.ts"]
 }
