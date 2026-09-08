@@ -20,7 +20,7 @@ import { useMemo } from 'react';
 import { formatUnits, type Address } from 'viem';
 import { useReadContracts } from 'wagmi';
 import { aquaFork, type SupportedChainId } from '@/lib/chain';
-import { strikelineViewsAbi } from '@/components/curve/rmm';
+import { strikelineReadAbi } from '@/components/curve/rmm';
 
 /** One measured point on the trading function, in normalised WAD units and as floats to draw with. */
 export interface CurveSample {
@@ -103,7 +103,7 @@ export function useCurveSamples({
         (xWad) =>
           ({
             address: router ?? ZERO_ADDRESS,
-            abi: strikelineViewsAbi,
+            abi: strikelineReadAbi,
             functionName: 'stableFor',
             args: [
               strikeWad ?? BigInt(0),

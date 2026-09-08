@@ -45,8 +45,9 @@ import {
   decodeRmmSwapArgs,
   findRmmArgs,
   formatDuration,
+  FLAG_POST_EXPIRY_ONE_WAY,
+  FLAG_POST_EXPIRY_OUT_IS_RISKY,
   FLAG_RISKY_IS_TOKEN_A,
-  legKindFor,
   useCoverage,
   useDebounced,
   useLegFills,
@@ -56,9 +57,10 @@ import {
 } from '@/components/curve';
 import { formatExpiry } from '@/components/write';
 import { useCurveSamples } from '@/hooks/useCurveSamples';
-import { useDeployments, useOraclePrice, useShippedStrategies } from '@/hooks';
+import { useDeployments, useShippedStrategies } from '@/hooks';
 import { aquaFork } from '@/lib/chain';
 import { tokenInfo, type ShippedStrategy } from '@/lib/contracts';
+import { formatChartNumber } from '@/components/charts/format';
 import { formatPercent, truncateHash } from '@/lib/ui';
 import { RollPanel } from './RollPanel';
 
@@ -140,8 +142,6 @@ function Leg({
   const block = useBlock({ chainId: aquaFork.id, watch: true, query: { staleTime: 4_000 } });
   const chainNow = block.data ? Number(block.data.timestamp) : undefined;
 
-  const oracle = useOraclePrice(deployments.chainlink.ethUsd, { chainId: aquaFork.id });
-
   // Which token is which is a flag in the program, not a guess from the symbol.
   const riskyIsTokenA = rmm ? (rmm.flags & FLAG_RISKY_IS_TOKEN_A) !== 0 : true;
   const riskyToken = riskyIsTokenA ? strategy.tokens[0] : strategy.tokens[1];
@@ -160,9 +160,11 @@ function Leg({
   const xWad = rmm ? riskyRaw * rmm.rateRisky : BigInt(0);
   const yWad = rmm ? stableRaw * rmm.rateStable : BigInt(0);
 
+  // `tauNow` is displayed as the router's own answer; the scrubber's arithmetic uses the block
+  // timestamp directly, because tau is floored at an hour and would freeze the last hour of a leg.
   const tau = useTauNow(deployments.router, rmm?.maturity);
   const remainingNow =
-    tau.tauWad === undefined ? undefined : Math.round((Number(tau.tauWad) / 1e18) * 365 * 86_400);
+    chainNow === undefined || rmm === undefined ? undefined : Math.max(rmm.maturity - chainNow, 0);
 
   // Scrubbing changes which leg we ask the router about, not how we interpret its answer: a leg
   // maturing sooner is a real sample, and one that has already matured returns the closed form.
@@ -228,10 +230,15 @@ function Leg({
     );
   }
 
-  const kind = legKindFor(
-    rmm.strikeWad,
-    oracle.price ? BigInt(Math.round(oracle.price.price * 1e6)) * BigInt(1e12) : rmm.strikeWad,
-  );
+  // Which side of the wheel this is comes out of the program, not out of a price feed. The maker
+  // declared it when they set the one-way settlement flags, and that declaration is what the
+  // instruction will enforce at expiry — so it is also the honest thing to put in the title.
+  const kind: 'call' | 'put' | undefined =
+    rmm.flags & FLAG_POST_EXPIRY_ONE_WAY
+      ? rmm.flags & FLAG_POST_EXPIRY_OUT_IS_RISKY
+        ? 'call'
+        : 'put'
+      : undefined;
   const strike = Number(viemFormatUnits(rmm.strikeWad, 18));
   const sigma = Number(viemFormatUnits(rmm.sigmaWad, 18));
   const liquidity = Number(viemFormatUnits(rmm.liquidityWad, 18));
@@ -257,12 +264,20 @@ function Leg({
         title={
           <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span>
-              {risky.symbol} {kind === 'call' ? 'call' : 'put'}
+              {risky.symbol} {kind ?? 'leg'}
             </span>
-            <span className="font-mono tnum text-ink-2">K {strike.toLocaleString('en-US')}</span>
+            <span className="font-mono tnum text-ink-2">
+              K {formatChartNumber(strike, { significantDigits: 12, maxFractionDigits: 2 })}
+            </span>
           </span>
         }
-        subtitle={`A covered ${kind} written as a price curve. The reserves below are virtual balances in Aqua; the tokens themselves have never left the maker's wallet.`}
+        subtitle={
+          kind === 'call'
+            ? 'A covered call written as a price curve. The reserves below are virtual balances in Aqua; the tokens themselves have never left the maker\u2019s wallet.'
+            : kind === 'put'
+              ? 'A cash-secured put written as a price curve, from the same 62 bytes as a call. Which one it is was decided only by the side of the strike its reserves started on.'
+              : 'A price curve with no one-way settlement gate, so at expiry it trades in both directions. The reserves below are virtual balances in Aqua.'
+        }
         meta={
           <>
             {strategy.docked ? (
@@ -315,7 +330,7 @@ function Leg({
               subtitle={
                 scrubbedSeconds === undefined
                   ? 'Sampling…'
-                  : `${formatDuration(scrubbedSeconds)} to maturity · sigma ${formatPercent(sigma, { fractionDigits: 0 })} · L ${liquidity}`
+                  : `${formatDuration(scrubbedSeconds)} to maturity · sigma ${formatPercent(sigma, { fractionDigits: 0 })} · L ${formatChartNumber(liquidity)} ${risky.symbol}`
               }
               state={live.error ? 'error' : live.isLoading ? 'loading' : 'ready'}
               errorMessage={
@@ -414,7 +429,8 @@ function Leg({
             <dl className="flex flex-col">
               <CardRow label="Strike">
                 <span className="font-mono tnum">
-                  {strike.toLocaleString('en-US')} {stable.symbol}
+                  {formatChartNumber(strike, { significantDigits: 12, maxFractionDigits: 2 })}{' '}
+                  {stable.symbol}
                 </span>
               </CardRow>
               <CardRow label="Implied vol">
@@ -422,7 +438,7 @@ function Leg({
               </CardRow>
               <CardRow label="Liquidity (L)">
                 <span className="font-mono tnum">
-                  {liquidity} {risky.symbol}
+                  {formatChartNumber(liquidity)} {risky.symbol}
                 </span>
               </CardRow>
               <CardRow label="Expiry">
@@ -431,6 +447,13 @@ function Leg({
               <CardRow label="Time left">
                 <span className="font-mono tnum">
                   {remainingNow === undefined ? '—' : formatDuration(remainingNow)}
+                </span>
+              </CardRow>
+              <CardRow label="tau (router)">
+                <span className="font-mono tnum">
+                  {tau.tauWad === undefined
+                    ? '—'
+                    : `${(Number(tau.tauWad) / 1e18).toFixed(6)} y`}
                 </span>
               </CardRow>
               <CardRow label="Maker">

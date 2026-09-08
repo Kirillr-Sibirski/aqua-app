@@ -29,7 +29,7 @@ import {
   buildLegProgram,
   expiryFlagsFor,
   rateFor,
-  strikelineViewsAbi,
+  strikelineReadAbi,
   toRawReserve,
   type RmmArgs,
 } from '@/components/curve';
@@ -122,7 +122,7 @@ export function useLegSizing({
         ({ leg, xWad }) =>
           ({
             address: router ?? ZERO_ADDRESS,
-            abi: strikelineViewsAbi,
+            abi: strikelineReadAbi,
             functionName: 'stableFor',
             args: [leg.strikeWad, sigmaWad ?? BigInt(0), maturity ?? 0, leg.liquidityWad, xWad],
             chainId,

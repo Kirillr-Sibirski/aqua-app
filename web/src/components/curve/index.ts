@@ -30,8 +30,9 @@ export {
   legKindFor,
   rateFor,
   remainingSeconds,
-  strikelineViewsAbi,
   strikelineErrorsAbi,
+  strikelineReadAbi,
+  strikelineViewsAbi,
   tauWad,
   toRawReserve,
 } from './rmm';

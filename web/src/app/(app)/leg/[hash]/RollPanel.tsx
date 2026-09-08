@@ -36,7 +36,7 @@ import {
   ASSIGNMENT_WINDOW_SECONDS,
   ProgramInspector,
   buildLegProgram,
-  strikelineViewsAbi,
+  strikelineReadAbi,
   toRawReserve,
   type RmmArgs,
 } from '@/components/curve';
@@ -110,7 +110,7 @@ export function RollPanel({
 
   const stableFor = useReadContract({
     address: router,
-    abi: strikelineViewsAbi,
+    abi: strikelineReadAbi,
     functionName: 'stableFor',
     args: [rmm.strikeWad, rmm.sigmaWad, newMaturity ?? 0, rmm.liquidityWad, xWad],
     chainId: aquaFork.id,

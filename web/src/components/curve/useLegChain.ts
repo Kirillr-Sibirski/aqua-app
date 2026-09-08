@@ -15,7 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { usePublicClient, useReadContract, useReadContracts } from 'wagmi';
 import { aquaFork, type SupportedChainId } from '@/lib/chain';
 import { aquaAbi } from '@/lib/contracts';
-import { strikelineViewsAbi } from './rmm';
+import { strikelineReadAbi } from './rmm';
 
 const ZERO_ADDRESS: Address = '0x0000000000000000000000000000000000000000';
 
@@ -38,7 +38,7 @@ export function useTauNow(
 ) {
   const query = useReadContract({
     address: router ?? ZERO_ADDRESS,
-    abi: strikelineViewsAbi,
+    abi: strikelineReadAbi,
     functionName: 'tauNow',
     args: [maturity ?? 0],
     chainId: options.chainId ?? aquaFork.id,
@@ -91,7 +91,7 @@ export function useThetaBand(
 ) {
   const query = useReadContract({
     address: router ?? ZERO_ADDRESS,
-    abi: strikelineViewsAbi,
+    abi: strikelineReadAbi,
     functionName: 'bandFor',
     args: params
       ? [params.strikeWad, params.sigmaWad, params.maturity, params.liquidityWad, params.xWad, params.yWad]
@@ -141,7 +141,7 @@ export function useCoverage(
       (token) =>
         ({
           address: router ?? ZERO_ADDRESS,
-          abi: strikelineViewsAbi,
+          abi: strikelineReadAbi,
           functionName: 'coverage',
           args: [maker ?? ZERO_ADDRESS, token],
           chainId,

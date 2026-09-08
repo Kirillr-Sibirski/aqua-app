@@ -210,7 +210,19 @@ export function buildLegProgram({ rmm, coverage, deadline, salt }: LegProgramArg
  * `NotCovered(needed, free)` on screen rather than an undecoded blob — and `free` is an answer, not
  * an outage.
  */
-export { strikelineErrorsAbi, strikelineViewsAbi } from '@/hooks/strikeline';
+import { strikelineErrorsAbi, strikelineViewsAbi } from '@/hooks/strikeline';
+
+export { strikelineErrorsAbi, strikelineViewsAbi };
+
+/**
+ * The views with the instructions' errors attached, which is what every read in these screens uses.
+ *
+ * viem decodes a revert only against the ABI it was handed, so a `stableFor` that hits
+ * `RmmOutOfDomain`, or a quote that hits `NotCovered(needed, free)`, comes back as an undecoded
+ * `0x...` blob unless the error definitions travel with the function ones. On this app a revert is
+ * usually the answer rather than an outage, so it has to arrive readable.
+ */
+export const strikelineReadAbi = [...strikelineViewsAbi, ...strikelineErrorsAbi] as const;
 
 // ---------------------------------------------------------------------------
 // Leg shape
