@@ -97,6 +97,82 @@ export function focusables(container: HTMLElement | null): HTMLElement[] {
   );
 }
 
+/**
+ * Keep Tab and Shift+Tab inside `container` while `active`, and move focus into it on open.
+ *
+ * A body portal is what lets an overlay escape an `overflow: hidden` ancestor, but it also puts the
+ * overlay after the page in DOM order, so without this a Tab from the last control walks into the
+ * page behind the scrim. The container itself is given `tabIndex={-1}` by the caller so there is
+ * always somewhere to land, even for an overlay whose body is pure text.
+ */
+export function useFocusTrap(
+  active: boolean,
+  container: RefObject<HTMLElement | null>,
+  initialFocus?: RefObject<HTMLElement | null>,
+): void {
+  useEffect(() => {
+    if (!active) return;
+    const node = container.current;
+    if (!node) return;
+
+    const first = initialFocus?.current ?? focusables(node)[0] ?? node;
+    first.focus({ preventScroll: true });
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const items = focusables(node);
+      if (items.length === 0) {
+        event.preventDefault();
+        node.focus({ preventScroll: true });
+        return;
+      }
+      const activeEl = document.activeElement as HTMLElement | null;
+      const index = activeEl ? items.indexOf(activeEl) : -1;
+      const last = items.length - 1;
+
+      if (!event.shiftKey && (index === last || index === -1)) {
+        event.preventDefault();
+        items[0].focus();
+      } else if (event.shiftKey && (index === 0 || index === -1)) {
+        event.preventDefault();
+        items[last].focus();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [active, container, initialFocus]);
+}
+
+/**
+ * Freeze the page behind an overlay while `active`, compensating for the scrollbar so the layout
+ * does not jump sideways as it disappears. Nested overlays are counted, so closing an inner dialog
+ * does not unlock the page under the outer one.
+ */
+let scrollLocks = 0;
+
+export function useBodyScrollLock(active: boolean): void {
+  useEffect(() => {
+    if (!active) return;
+    scrollLocks += 1;
+    const { body } = document;
+    if (scrollLocks === 1) {
+      const gutter = window.innerWidth - document.documentElement.clientWidth;
+      body.dataset.uiScrollLock = `${body.style.overflow}|${body.style.paddingRight}`;
+      body.style.overflow = 'hidden';
+      if (gutter > 0) body.style.paddingRight = `${gutter}px`;
+    }
+    return () => {
+      scrollLocks -= 1;
+      if (scrollLocks > 0) return;
+      const [overflow = '', paddingRight = ''] = (body.dataset.uiScrollLock ?? '').split('|');
+      body.style.overflow = overflow;
+      body.style.paddingRight = paddingRight;
+      delete body.dataset.uiScrollLock;
+    };
+  }, [active]);
+}
+
 // ---------------------------------------------------------------------------
 // Anchored positioning
 // ---------------------------------------------------------------------------

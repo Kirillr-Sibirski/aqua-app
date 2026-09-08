@@ -65,3 +65,61 @@
     background: none;
   }
 }
+
+/* --- overlay entrances ---------------------------------------------------- */
+
+/*
+ * Overlays are the one place elevation exists, so they are also the one place something moves in
+ * rather than simply appearing. Exits are not animated: an overlay unmounts the moment it closes,
+ * and holding a dismissed dialog on screen for another 200ms reads as lag, not as polish.
+ */
+
+@keyframes ui-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes ui-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+}
+
+@keyframes ui-sheet-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes ui-sheet-in-bottom {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+.scrimIn {
+  animation: ui-scrim-in var(--duration-base) var(--ease-out-quart);
+}
+
+.panelIn {
+  animation: ui-panel-in var(--duration-slow) var(--ease-out-quart);
+}
+
+.sheetInRight {
+  animation: ui-sheet-in-right var(--duration-slow) var(--ease-out-quart);
+}
+
+.sheetInBottom {
+  animation: ui-sheet-in-bottom var(--duration-slow) var(--ease-out-quart);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No slide, no scale. The scrim still crossfades at 1ms, which is effectively a cut. */
+  .panelIn,
+  .sheetInRight,
+  .sheetInBottom {
+    animation: ui-scrim-in 1ms linear;
+  }
+}
