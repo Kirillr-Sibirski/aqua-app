@@ -70,11 +70,6 @@ async function main(): Promise<void> {
     const dump = JSON.parse(readFileSync(path, 'utf8')) as Dump;
     const ok = await rpc<boolean>('anvil_loadState', [dump.state]);
     check(ok, `anvil_loadState accepted ${((dump.state.length - 2) / 2 / 1024).toFixed(0)} KiB taken at ${dump.takenAt}`);
-    // A dump-only reload cannot undo a fill against an account it never held, so re-arm the snapshot path.
-    writeFileSync(
-      PATHS.snapshot,
-      JSON.stringify({ id: await rpc<string>('evm_snapshot', []), takenAt: new Date().toISOString(), blockNumber: dump.blockNumber, timestamp: dump.timestamp }, null, 2) + '\n',
-    );
     frozen = dump;
   }
 
@@ -82,6 +77,26 @@ async function main(): Promise<void> {
     copyFileSync(PATHS.storyStateBackup, PATHS.state);
     check(loadState().legs.length === 0, 'story state restored: no legs shipped');
   }
+
+  // `anvil_setBlockTimestampInterval` is node configuration, not chain state, so neither `evm_revert` nor
+  // `anvil_loadState` brings it back -- and after a restart anvil is timestamping blocks from the WALL
+  // CLOCK again. Measured: three seconds of thinking time became three seconds of theta. Re-pin it here
+  // and prove it with two blocks, because a demo whose numbers depend on how long the presenter talked is
+  // not reproducible. The two blocks are then rewound, so this check costs the demo nothing.
+  await rpc('anvil_setBlockTimestampInterval', [1]);
+  const probe = await rpc<string>('evm_snapshot', []);
+  const t0 = (await forkNow()).timestamp;
+  await rpc('evm_mine', []);
+  const t1 = (await forkNow()).timestamp;
+  const pinned = t1 - t0 === 1n;
+  await rpc('evm_revert', [probe]);
+  check(pinned, 'one block is one second again, so the clock cannot drift with the wall clock');
+
+  // `evm_revert` consumes the id it was given, so re-arm the retake snapshot at the state we just proved.
+  writeFileSync(
+    PATHS.snapshot,
+    JSON.stringify({ id: await rpc<string>('evm_snapshot', []), takenAt: new Date().toISOString(), blockNumber: frozen.blockNumber, timestamp: frozen.timestamp }, null, 2) + '\n',
+  );
 
   const after = await forkNow();
   kv([
