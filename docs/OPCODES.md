@@ -184,6 +184,32 @@ error on dust.
 `RmmInsideSpread` is the normal, expected refusal. `StrikelineViews.bandFor` publishes both sides of that band
 so a caller can size analytically instead of probing with reverting calls.
 
+### Domain
+
+`strikeWad` and `liquidityWad` are `uint128`, and that width is what makes the curve's two products safe
+rather than any runtime check:
+
+```
+(2^128 − 1)^2 = 2^256 − 2^129 + 1 < 2^256
+```
+
+so `L·K` cannot overflow for **any** pair the wire can carry, and `(L·K/WAD)·Φ` inherits it because `Φ ≤ WAD`.
+Neither `stableOf` nor `riskyOf` bounds the strike or the liquidity, and nothing pays for a check that the
+type system already gives. Widening either field to `uint256` would break more than the wire format.
+
+The reserve is not bounded by the types. `stableOf` scales `x` by `WAD` before it can compare it to `L`, so the
+named `RmmOutOfDomain` stops at
+
+```
+115792089237316195423570985008687907853269984665640564039457   normalised units
+                                                              ≈ 1.158e41 whole 18-decimal tokens
+```
+
+and one unit above that, `x · WAD` overflows and Solidity 0.8.30's checked arithmetic panics. It does not wrap
+— which is the property that matters — and the boundary is asserted in
+`contracts/test/invariants/RmmDomain.t.sol` so it cannot move unnoticed. It is documented rather than checked
+because no ERC-20 supply reaches it and a named error there would cost every real quote a comparison.
+
 ---
 
 ## `Coverage` — opcode `0x93`
@@ -219,7 +245,29 @@ free(token) = min( IERC20(token).balanceOf(maker), IERC20(token).allowance(maker
 and requires `swap.amountOut` (plus `fee.feeTotal` when `FeeMetaLib.decodeIsTokenOut(fee.meta)`) to fit inside
 `free(tokenOut)`.
 
-Two consequences worth stating explicitly:
+**The fee is part of the obligation, and it has to be.** With `FeeProtocol` in `tokenOut` mode the maker pays
+twice out of one wallet, from two different places in SwapVM: `_transferOut` sends `amountOut` to the taker,
+and `resolveOutAquaPullMaker` separately calls `Aqua.pull(maker, hash, tokenOut, fee, receiver)`. Neither is a
+`try`. So the real obligation is the **gross** output of the curve while `quote` returns the **net**, and a
+guard reading `amountOut` alone would pass a wallet holding exactly the net and then revert inside the fee
+pull. A `tokenIn` fee comes off the taker's side and is deliberately not counted.
+
+`contracts/test/invariants/CoverageObligation.t.sol` measures it at 1% in `tokenOut`:
+
+```
+gross the curve priced   776345163273158212 wei WETH
+net the taker receives   768581711640426630
+fee pulled separately      7763451632731582
+```
+
+a wallet holding exactly the net is refused with `NotCovered(gross, net)`; exactly the gross fills and leaves
+the wallet at zero to the wei. The same file shows the bound is reached by both nesting orders —
+`Coverage . FeeProtocol . RmmSwap` reads `amountOut` already net and adds `feeTotal`, while
+`FeeProtocol . Coverage . RmmSwap` reads the gross directly with `feeTotal` still zero, because `FeeProtocol`
+writes `ctx.fee.meta` *before* its own `runLoop`. A maker cannot weaken their own solvency check by reordering
+two instructions.
+
+Two more consequences worth stating explicitly:
 
 - **It runs after the curve on purpose.** Clamping `balanceOut` before the curve would move the reserve point and
   therefore change the **price**, not just the size — quoting a different option than the maker wrote.
@@ -237,7 +285,22 @@ the same block**, with no keeper, no shared storage and no message passing betwe
 | Selector | Error | Raised when |
 |---|---|---|
 | `0x09d16e81` | `NotCovered(uint256 needed, uint256 free)` | the priced output exceeds what the maker's wallet can actually deliver. Both numbers are in `tokenOut` units |
-| `0xb1f0d0c9` | `CoverageHaircutTooLarge(uint256 haircutBps)` | **build time only**: `haircutBps >= 10000` |
+| `0xb1f0d0c9` | `CoverageHaircutTooLarge(uint256 haircutBps)` | `haircutBps >= 10000`, in `build` **and** in `parse` |
+
+`CoverageHaircutTooLarge` is raised on the wire, not only by the encoder, and that is the point. `build`
+guards whoever calls `build`; the strategy hash commits to the *bytes*, and Aqua ships program bytes without
+reading them, so a leg assembled by hand or by another SDK can carry any two bytes in that slot. Measured on
+this router with the bound in `build` only:
+
+| `haircutBps` | return data | reads as |
+|---:|---|---|
+| `9_999` | `0x09d16e81 …0ac621d00ffd3e44 …0003b1dfde910000` | `NotCovered(needed, free)` — correct, and recoverable |
+| `10_000` | `0x09d16e81 …0ac621d00ffd3e44 …0000000000000000` | `NotCovered(needed, 0)` — a full 10.4 WETH wallet reported as empty, permanently |
+| `10_001` | `0x4e487b71 …0000000000000011` | `Panic(0x11)` — a maker parameter reported as a contract bug |
+
+Both bad rows now decode to `CoverageHaircutTooLarge` carrying the offending value, before any Gaussian is
+evaluated. `9_999` stays legal and still refuses on **size**. Cost: 45 bytes of router runtime and 135 gas
+per quote. `contracts/test/invariants/CoverageHaircut.t.sol` pins all three rows.
 
 ---
 
@@ -320,19 +383,28 @@ find warm.
 | Program | quote | swap |
 |---|---:|---:|
 | `RmmSwap . Salt` | 109,440 | 207,480 |
-| `Coverage . RmmSwap . Salt` | 112,702 | 210,738 |
-| `Deadline . Coverage . RmmSwap . Salt` (the shipped leg) | 113,148 | 211,182 |
+| `Coverage . RmmSwap . Salt` | 112,837 | 210,873 |
+| `Deadline . Coverage . RmmSwap . Salt` (the shipped leg) | 113,283 | 211,317 |
 | `XYCSwap . Salt` (official instruction, same router, reference) | 8,809 | 106,848 |
 
 | Instruction | quote | swap |
 |---|---:|---:|
 | `RmmSwap` (over `XYCSwap`) | 100,631 | 100,632 |
-| `Coverage` | 3,262 | 3,258 |
+| `Coverage` | 3,397 | 3,393 |
 | `Deadline` | 446 | 444 |
 
-The two columns agree to within two gas per instruction, which is what a view-only instruction should look
+The two columns agree to within four gas per instruction, which is what a view-only instruction should look
 like. Of `RmmSwap`'s 100,631, the Gaussian is **99,062**: at `τ = 0` the curve degenerates to the closed form
-`Y = K·(L − X)` and a quote costs 14,056.
+`Y = K·(L − X)` and a quote costs 14,191.
 
-`StrikelineRouter` runtime code is **23,633 bytes**, 943 under the EIP-170 limit of 24,576, with no size
-override anywhere in `foundry.toml`. `test_Size_RouterIsUnderEip170` asserts it against the deployed contract.
+## Size
+
+`StrikelineRouter` runtime code is **23,664 bytes**, **912 under** the EIP-170 limit of 24,576, with no size
+override anywhere in `foundry.toml`.
+
+`test_Size_RouterIsUnderEip170` asserts the **compiled artifact**, read with `vm.getDeployedCode`, not the
+copy a test deploys with `new StrikelineRouter(...)`. Those are two different builds: `new` inlines the
+creation code into the test file's own compilation unit, where `via_ir`'s inlining decisions can differ. The
+gap was 14 bytes before `Coverage` gained its wire-level check and is 0 now, and it moves when unrelated code
+is added to the same test file. `forge build --sizes`, `forge script` and every real deployment use the
+artifact, so the artifact is the number this document quotes.

@@ -122,13 +122,14 @@ contract GasReportTest is StrikelineLeg {
     /// @dev THE NUMBER THAT COUNTS IS THE ARTIFACT'S, not the one this test contract deploys. A test that says
     ///      `new StrikelineRouter(...)` does not load `out/StrikelineRouter.sol/StrikelineRouter.json`: solc
     ///      inlines the router's creation code into the TEST contract, so it is generated inside the test file's
-    ///      compilation unit, and under `via_ir` the Yul optimiser's inlining decisions there differ from the
-    ///      standalone build. That is worth 14 bytes here, and it moves when unrelated test code is added to
-    ///      the same file.
+    ///      compilation unit, and under `via_ir` the Yul optimiser's inlining decisions there can differ from
+    ///      the standalone build. The gap is not a constant: it was 14 bytes (23,619 artifact vs 23,633 in
+    ///      test) before `Coverage` gained its wire-level haircut check, and it is 0 after. It also moves when
+    ///      unrelated code is added to this file.
     ///
     ///      `forge build --sizes`, `forge script` and every real deployment all use the standalone artifact, so
-    ///      that is the figure asserted. Both are printed, because the difference is otherwise invisible and
-    ///      quoting the test-context number overstates the code by 14 bytes and understates the margin by 14.
+    ///      that is the figure asserted. Both are printed, because the difference is otherwise invisible and a
+    ///      README quoting whichever one happened to be larger is quoting a number that drifts on its own.
     function test_Size_RouterIsUnderEip170() public view {
         uint256 artifact = vm.getDeployedCode("StrikelineRouter.sol:StrikelineRouter").length;
         uint256 inTest = address(sl).code.length;
