@@ -189,6 +189,17 @@ async function main(): Promise<void> {
   check((await balanceOf(d.weth, LIVE.resHolder)) >= LIVE_TAKER_WETH, `RES holder funded with ${weth(LIVE_TAKER_WETH, 2)}`);
   check((await allowance(LIVE.resHolder, OFFICIAL_ROUTER, d.weth)) >= LIVE_TAKER_WETH, 'RES holder approved the official router');
 
+  // ---- a deterministic clock ----
+  step('clock');
+  // Anvil derives a new block's timestamp from the wall clock by default, so the fork drifts by however
+  // long the presenter spent talking. A fixed one-second interval makes the demo reproducible take to
+  // take: the clock moves only when a block is mined or a scene warps it deliberately.
+  await rpc('anvil_setBlockTimestampInterval', [1]);
+  const t0 = (await forkNow()).timestamp;
+  await rpc('evm_mine', []);
+  const t1 = (await forkNow()).timestamp;
+  check(t1 - t0 === 1n, `one block is one second (${t0} -> ${t1}), so the fork clock cannot drift with the wall clock`);
+
   // ---- the tape, and the feed that reports it ----
   step('price tape');
   const series = loadSeries();
