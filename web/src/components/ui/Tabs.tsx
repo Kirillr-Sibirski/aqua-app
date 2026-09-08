@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useId,
+  useMemo,
   useRef,
   type KeyboardEvent,
   type ReactNode,
@@ -16,8 +17,6 @@ interface TabsContextValue {
   baseId: string;
   value: string;
   setValue: (next: string) => void;
-  register: (value: string, disabled: boolean) => number;
-  order: { value: string; disabled: boolean }[];
 }
 
 const TabsContext = createContext<TabsContextValue | null>(null);
@@ -49,20 +48,13 @@ export interface TabsProps {
 export function Tabs({ value, defaultValue, onValueChange, className, children }: TabsProps) {
   const baseId = useId();
   const [current, setCurrent] = useControllableState(value, defaultValue ?? '', onValueChange);
-  const order = useRef<{ value: string; disabled: boolean }[]>([]);
-
-  // Tabs register on render so arrow keys know the DOM order without children having to declare it.
-  order.current = [];
-  const register = (tabValue: string, disabled: boolean) => {
-    const index = order.current.length;
-    order.current.push({ value: tabValue, disabled });
-    return index;
-  };
+  const context = useMemo(
+    () => ({ baseId, value: current, setValue: setCurrent }),
+    [baseId, current, setCurrent],
+  );
 
   return (
-    <TabsContext.Provider
-      value={{ baseId, value: current, setValue: setCurrent, register, order: order.current }}
-    >
+    <TabsContext.Provider value={context}>
       <div className={cn('flex flex-col', className)}>{children}</div>
     </TabsContext.Provider>
   );
@@ -76,24 +68,33 @@ export interface TabListProps {
 }
 
 export function TabList({ label, className, children }: TabListProps) {
-  const { value, setValue, order } = useTabs('TabList');
+  const { value, setValue } = useTabs('TabList');
   const listRef = useRef<HTMLDivElement>(null);
-  const activeIndex = Math.max(
-    0,
-    order.findIndex((tab) => tab.value === value),
-  );
 
+  /**
+   * The tab order comes from the DOM at keypress time rather than from a registry the children
+   * write during render. It is the same list `focusItem` moves focus through, it is correct for
+   * conditionally rendered tabs without any bookkeeping, and reading it from an event handler never
+   * touches a ref during render.
+   */
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const next = rovingIndex(
-      event.key,
-      activeIndex,
-      order.length,
-      'horizontal',
-      (index) => Boolean(order[index]?.disabled),
+    const items = Array.from(
+      listRef.current?.querySelectorAll<HTMLElement>('[data-roving-item]') ?? [],
     );
+    if (items.length === 0) return;
+
+    const disabled = (index: number) => items[index]?.getAttribute('aria-disabled') === 'true';
+    const activeIndex = Math.max(
+      0,
+      items.findIndex((item) => item.dataset.value === value),
+    );
+
+    const next = rovingIndex(event.key, activeIndex, items.length, 'horizontal', disabled);
     if (next === null) return;
+    const target = items[next].dataset.value;
+    if (target === undefined) return;
     event.preventDefault();
-    setValue(order[next].value);
+    setValue(target);
     focusItem(listRef, next);
   }
 
@@ -122,7 +123,6 @@ export interface TabProps {
 
 export function Tab({ value, icon: Icon, count, disabled = false, className, children }: TabProps) {
   const context = useTabs('Tab');
-  const index = context.register(value, disabled);
   const selected = context.value === value;
 
   return (
@@ -130,10 +130,11 @@ export function Tab({ value, icon: Icon, count, disabled = false, className, chi
       type="button"
       role="tab"
       data-roving-item=""
+      data-value={value}
       id={`${context.baseId}-tab-${value}`}
       aria-controls={`${context.baseId}-panel-${value}`}
       aria-selected={selected}
-      aria-disabled={disabled || undefined}
+      aria-disabled={disabled}
       disabled={disabled}
       tabIndex={selected ? 0 : -1}
       onClick={() => setSelected(context, value, disabled)}
@@ -146,7 +147,6 @@ export function Tab({ value, icon: Icon, count, disabled = false, className, chi
         disabled && 'cursor-not-allowed border-transparent text-ink-3 hover:border-transparent hover:text-ink-3',
         className,
       )}
-      data-index={index}
     >
       {Icon ? <Icon size={16} strokeWidth={ICON_STROKE} aria-hidden="true" /> : null}
       {children}

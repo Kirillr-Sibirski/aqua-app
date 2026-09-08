@@ -10,6 +10,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type RefObject,
 } from 'react';
 
@@ -51,17 +52,29 @@ export function useControllableState<T>(
   return [current, set];
 }
 
-/** False during SSR and the first client render, true afterwards. Gate portals on it. */
+const subscribeNoop = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
+/**
+ * False during SSR and the hydration render, true from the first client commit. Gate portals on it.
+ *
+ * `useSyncExternalStore` rather than `useState` + an effect: the store contract is exactly what is
+ * wanted here (the server and the client disagree, and React is told so), and it avoids the
+ * cascading render an effect that immediately calls `setState` would cause.
+ */
 export function useMounted(): boolean {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  return mounted;
+  return useSyncExternalStore(subscribeNoop, clientSnapshot, serverSnapshot);
 }
 
 /** Run `handler` on Escape, at the document level, while `enabled`. */
 export function useEscapeKey(enabled: boolean, handler: () => void): void {
   const ref = useRef(handler);
-  ref.current = handler;
+  // Written in an effect, not during render: the listener below only ever reads it from a browser
+  // event, which is always after the commit that stored the latest handler.
+  useEffect(() => {
+    ref.current = handler;
+  });
   useEffect(() => {
     if (!enabled) return;
     const onKeyDown = (event: KeyboardEvent) => {
