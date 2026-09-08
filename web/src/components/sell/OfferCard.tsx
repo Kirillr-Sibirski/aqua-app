@@ -116,8 +116,22 @@ export function OfferCard() {
    * connect is the reason you stay on it. One unit is the amount that makes the two lines under the
    * fields read as a rate.
    */
-  const defaultAmount =
-    riskyBalance !== undefined && pair ? roundedDown(riskyBalance, pair.risky.decimals) : '1';
+  /**
+   * The largest amount this card will offer, as a string and as raw units.
+   *
+   * The balance floored at the eighth place, which is what *Max* sets, what the field opens at, and
+   * what the button names when the number typed is bigger. One value behind all four, because a
+   * balance printed at 8 places in the caption and at 8 significant digits in the button reads as a
+   * bug, and a quote priced at the wei balance while the button says 9.33641248 is the same bug one
+   * layer down. A wallet is out by at most a hundred-millionth of a token, the same floor the
+   * default has always carried.
+   */
+  const maxAmount =
+    riskyBalance !== undefined && pair ? roundedDown(riskyBalance, pair.risky.decimals) : undefined;
+  const maxRaw =
+    maxAmount !== undefined && pair ? (parseDecimalInput(maxAmount, pair.risky.decimals) ?? BigInt(0)) : undefined;
+
+  const defaultAmount = maxAmount ?? '1';
   const amount = amountDraft ?? defaultAmount;
 
   const defaultPrice = spot === undefined ? '' : String(strikeFrom(spot, DEFAULT_OVER_SPOT));
@@ -132,7 +146,7 @@ export function OfferCard() {
   const vol = volDraft ?? measuredVol ?? FALLBACK_VOL;
 
   const amountRaw = pair ? (parseDecimalInput(amount, pair.risky.decimals) ?? BigInt(0)) : BigInt(0);
-  const overBalance = riskyBalance !== undefined && amountRaw > riskyBalance;
+  const overBalance = maxRaw !== undefined && amountRaw > maxRaw;
 
   /**
    * What the chain is asked to price, which is never an offer that cannot be published.
@@ -143,7 +157,7 @@ export function OfferCard() {
    * number is a chain read of something that does. The quote is clamped to the balance instead, the
    * outcome block is dimmed and says so, and the button says what to type.
    */
-  const quotedRaw = overBalance && riskyBalance !== undefined ? riskyBalance : amountRaw;
+  const quotedRaw = overBalance && maxRaw !== undefined ? maxRaw : amountRaw;
   const strikeWad = parseDecimalInput(price, 18) ?? undefined;
   const volWad = parseDecimalInput(vol, 18);
   const sigmaWad = volWad === null || volWad <= BigInt(0) ? undefined : volWad / BigInt(100);
@@ -233,8 +247,8 @@ export function OfferCard() {
     // An instruction, not a balance. `roundedDown` rather than `formatUnits` so the number here and
     // the one in the field's own caption four lines above are produced by the same function: they
     // used to be 9.3364125 and 9.33641248, which reads as a bug.
-    if (overBalance && pair && riskyBalance !== undefined)
-      return `Enter ${roundedDown(riskyBalance, pair.risky.decimals)} or less`;
+    if (overBalance && pair && maxAmount !== undefined)
+      return `Enter ${maxAmount} ${pair.risky.symbol} or less`;
     if (strikeWad === undefined || strikeWad <= BigInt(0)) return 'Enter a price';
     if (belowSpot) return `Name a price above ${spotLabel}`;
     if (sigmaWad === undefined) return 'Set the movement under Details';
@@ -290,9 +304,9 @@ export function OfferCard() {
         unit={pair?.risky.symbol ?? <Skeleton height={12} width={40} />}
         invalid={overBalance}
         hint={
-          hydrated && riskyBalance !== undefined && pair ? (
+          hydrated && maxAmount !== undefined && pair ? (
             <>
-              You hold {roundedDown(riskyBalance, pair.risky.decimals)} {pair.risky.symbol}
+              You hold {maxAmount} {pair.risky.symbol}
             </>
           ) : hydrated && address ? (
             'Reading your balance'
@@ -303,12 +317,8 @@ export function OfferCard() {
           )
         }
         action={
-          riskyBalance !== undefined && pair && riskyBalance > BigInt(0) ? (
-            <button
-              type="button"
-              className={classes.maxButton}
-              onClick={() => setAmountDraft(roundedDown(riskyBalance, pair.risky.decimals))}
-            >
+          maxAmount !== undefined && riskyBalance !== undefined && riskyBalance > BigInt(0) ? (
+            <button type="button" className={classes.maxButton} onClick={() => setAmountDraft(maxAmount)}>
               Max
             </button>
           ) : null
