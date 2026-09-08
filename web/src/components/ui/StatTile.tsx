@@ -62,23 +62,13 @@ export function StatTile({
 }
 
 /**
- * A row of tiles separated by hairlines rather than by card borders. Wraps to two per line on a
- * narrow viewport; the rules follow.
+ * A row of tiles separated by hairlines rather than by card borders. Two per line on a narrow
+ * viewport, four from `md`; the rules follow, and the tile that starts a row never has one.
+ *
+ * The geometry lives in the `stat-row` utility in `globals.css` rather than in arbitrary variants
+ * here. See the comment there: expressed as variants, the border and its colour came from different
+ * utilities and the first tile ended up with an off-token near-white stripe.
  */
 export function StatRow({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div
-      className={cn(
-        'grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-4',
-        '[&>*+*]:border-l [&>*+*]:border-line [&>*+*]:pl-6',
-        'md:[&>*:nth-child(3)]:border-l md:[&>*:nth-child(3)]:pl-6',
-        '[&>*:nth-child(2n+1)]:border-l-0 [&>*:nth-child(2n+1)]:pl-0',
-        'md:[&>*:nth-child(2n+1)]:border-l md:[&>*:nth-child(2n+1)]:pl-6',
-        'md:[&>*:first-child]:border-l-0 md:[&>*:first-child]:pl-0',
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
+  return <div className={cn('stat-row', className)}>{children}</div>;
 }
