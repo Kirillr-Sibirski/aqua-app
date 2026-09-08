@@ -87,8 +87,8 @@ export function BestQuote({ points, deployments, nowSeconds, selected, onSelect,
       <Card title="Best quote">
         <EmptyState
           icon={Layers}
-          title="Nothing is quoted yet"
-          description="This panel ranks every maker who has written the same option. It fills in as soon as one live leg exists on the router."
+          title="Nobody is quoting yet"
+          description="This panel lines up everyone offering the same price on the same date, so you can see who is paying most for the wait. It fills in as soon as one live offer exists on the router."
           bare
         />
       </Card>
@@ -102,11 +102,11 @@ export function BestQuote({ points, deployments, nowSeconds, selected, onSelect,
 
   return (
     <Card
-      title="Best quote"
-      description={`Every maker who has written the ${strikeLabel} ${stable.symbol} strike${days === undefined ? '' : `, ${days.toFixed(1)} days out`}, ranked by the vol they quote. Aqua keys a strategy by its own hash and relates nothing to anything, so this comparison exists nowhere else.`}
+      title="Who is offering the best terms"
+      description={`Everyone offering to sell at ${strikeLabel} ${stable.symbol}${days === undefined ? '' : `, ${days.toFixed(1)} days out`}, widest first. The chain keys every offer by its own hash and relates nothing to anything, so this comparison exists nowhere else.`}
       actions={
         <div className="flex flex-wrap items-end gap-3">
-          <Field label="Strike">
+          <Field label="Price">
             <Select
               size="sm"
               value={current.strikeWad.toString()}
@@ -121,7 +121,7 @@ export function BestQuote({ points, deployments, nowSeconds, selected, onSelect,
               }))}
             />
           </Field>
-          <Field label="Expiry">
+          <Field label="Date">
             <Select
               size="sm"
               value={String(current.maturity)}
@@ -148,24 +148,36 @@ export function BestQuote({ points, deployments, nowSeconds, selected, onSelect,
       }
       footer={
         <p className="text-mini leading-prose text-ink-3">
-          Implied vol, notional and margin are decoded from the shipped bytes and need no contract
-          call. Premium, deliverable depth and the minimum ticket come from{' '}
-          <span className="font-mono text-ink-2">SurfaceLens</span>; a blank cell means it has not
-          answered for that leg, never that the figure is zero.
+          The movement priced in, the size and the wallet check are decoded from the published bytes
+          and need no contract call. The option value, how much can be sold and the minimum trade
+          come from <span className="font-mono text-ink-2">SurfaceLens</span>; a blank cell means it
+          has not answered for that offer, never that the figure is zero.
         </p>
       }
       flush
     >
-      <Table caption="Makers quoting this option" hideCaption minWidth="58rem">
+      <Table caption="Wallets offering this price and date" hideCaption minWidth="58rem">
         <TableHead>
           <TableRow>
-            <TableHeaderCell>Maker</TableHeaderCell>
-            <TableHeaderCell numeric>Implied vol</TableHeaderCell>
-            <TableHeaderCell numeric>Premium per {risky.symbol}</TableHeaderCell>
-            <TableHeaderCell numeric>Notional</TableHeaderCell>
-            <TableHeaderCell numeric>Deliverable now</TableHeaderCell>
-            <TableHeaderCell numeric>Min ticket</TableHeaderCell>
-            <TableHeaderCell>Margin</TableHeaderCell>
+            <TableHeaderCell title="Maker">Wallet</TableHeaderCell>
+            <TableHeaderCell numeric title="Implied volatility">
+              Movement priced in
+            </TableHeaderCell>
+            <TableHeaderCell numeric title="Premium, the Black-Scholes value measured from the reserves">
+              Option value per {risky.symbol}
+            </TableHeaderCell>
+            <TableHeaderCell numeric title="Notional, L">
+              Size
+            </TableHeaderCell>
+            <TableHeaderCell numeric title="Deliverable depth">
+              Can sell now
+            </TableHeaderCell>
+            <TableHeaderCell numeric title="Theta band, the smallest trade this offer will take">
+              Minimum trade
+            </TableHeaderCell>
+            <TableHeaderCell title="Whether Coverage checks the maker's wallet on every quote">
+              Wallet check
+            </TableHeaderCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -277,12 +289,12 @@ function QuoteRow({
 
       <TableCell>
         {leg.guarded ? (
-          <Pill tone="positive" size="sm" dot>
-            Margined
+          <Pill tone="positive" size="sm" dot title="Wrapped in the Coverage instruction">
+            Checked
           </Pill>
         ) : (
-          <Pill tone="warning" size="sm" dot>
-            Unproven
+          <Pill tone="warning" size="sm" dot title="No Coverage instruction wraps the curve">
+            Not checked
           </Pill>
         )}
       </TableCell>

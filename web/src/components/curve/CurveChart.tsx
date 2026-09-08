@@ -317,8 +317,8 @@ export function CurveChart({
               scale={x}
               orientation="bottom"
               count={compact || atBand ? 3 : 5}
-              unit={compact || atBand ? undefined : riskySymbol}
-              label={compact || atBand ? riskySymbol : undefined}
+              unit={compact ? undefined : riskySymbol}
+              label={compact ? riskySymbol : undefined}
             />
             <Axis geometry={geometry} scale={y} orientation="left" count={4} />
             <text
@@ -337,7 +337,30 @@ export function CurveChart({
   );
 }
 
-type Zoom = 'full' | 'reserve';
+type Zoom = 'full' | 'reserve' | 'band';
+
+/**
+ * Axis domains windowed on the theta band itself.
+ *
+ * The reserve window below is 12% of the risky range wide, which is four orders of magnitude more
+ * than the wedge on a freshly shipped leg: measured on the demo leg, the wedge's bounding box came
+ * out 0.02 x 0.01 CSS pixels there, and 0 x 0 on the full curve. Nothing short of scaling to the
+ * wedge's own size shows it, so this window is built from the wedge and nothing else -- the three
+ * corners plus a third of their own span as air.
+ */
+function bandWindow(
+  reserve: ReservePoint,
+  band: BandCorner,
+): { x: readonly [number, number]; y: readonly [number, number] } {
+  const dx = band.xOnCurve - reserve.x;
+  const dy = band.yOnCurve - reserve.y;
+  const padX = dx * BAND_PAD;
+  const padY = dy * BAND_PAD;
+  return {
+    x: [Math.max(0, reserve.x - padX), band.xOnCurve + padX] as const,
+    y: [Math.max(0, reserve.y - padY), band.yOnCurve + padY] as const,
+  };
+}
 
 /**
  * Axis domains windowed on the reserve point.
@@ -425,6 +448,51 @@ function ThetaWedge({
   );
 }
 
+/**
+ * Where the wedge is, and how big, when it is too small to draw.
+ *
+ * A leg that shipped a minute ago has a band of a couple of cents against a y-range of thousands,
+ * so the honest mark is no mark. That left the one thing the screen exists to show with nothing on
+ * the plot pointing at it at all. This points: a hairline from the reserve point out to a figure in
+ * the band's own colour. It is an annotation and reads as one -- the leader has no scale and the
+ * number is the measurement -- rather than a wedge drawn at a size it does not have.
+ */
+function BandCallout({
+  cx,
+  cy,
+  geometry,
+  label,
+}: {
+  cx: number;
+  cy: number;
+  geometry: ChartGeometry;
+  label: string;
+}) {
+  const width = estimateMonoTextWidth(label, 12);
+  // Up and to the right of the reserve dot, which is the direction the wedge opens in; flipped to
+  // the left when the point sits near the right edge, so the figure never leaves the plot.
+  const flip = cx + 14 + width > geometry.inner.x + geometry.inner.width;
+  const tx = flip ? cx - 14 : cx + 14;
+  const ty = Math.max(geometry.inner.y + 10, cy - 16);
+
+  return (
+    <g aria-hidden="true">
+      <line x1={cx} y1={cy} x2={tx} y2={ty + 4} stroke={color('warn')} strokeWidth={1} opacity={0.7} />
+      <text
+        x={tx + (flip ? -4 : 4)}
+        y={ty}
+        textAnchor={flip ? 'end' : 'start'}
+        fontFamily={FONT_STACK.mono}
+        fontSize={12}
+        fill={color('warn')}
+        style={{ fontVariantNumeric: 'tabular-nums slashed-zero' }}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
 /** The live reserve point: an accent dot with a surface ring so it reads over the curve. */
 function ReserveDot({ cx, cy }: { cx: number; cy: number }) {
   return (
@@ -454,7 +522,15 @@ function FillDot({ cx, cy }: { cx: number; cy: number }) {
   );
 }
 
-function Legend({ scrubbed, hasBand }: { scrubbed: boolean; hasBand: boolean }) {
+function Legend({
+  scrubbed,
+  hasBand,
+  hasSettlement,
+}: {
+  scrubbed: boolean;
+  hasBand: boolean;
+  hasSettlement: boolean;
+}) {
   return (
     <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-mini text-ink-3">
       <LegendItem>
@@ -463,20 +539,25 @@ function Legend({ scrubbed, hasBand }: { scrubbed: boolean; hasBand: boolean }) 
         </svg>
         {scrubbed ? 'At that time' : 'Now'}
       </LegendItem>
-      <LegendItem>
-        <svg width={16} height={8} aria-hidden="true">
-          <line
-            x1={0}
-            y1={4}
-            x2={16}
-            y2={4}
-            stroke={color('ink-3')}
-            strokeWidth={1.5}
-            strokeDasharray="4.5 3.4"
-          />
-        </svg>
-        On its date
-      </LegendItem>
+      {/* Only when it is on the plot. At band scale the settlement line is hundreds of stable units
+          away, off every edge of the window, and a legend entry for it would be the same lie the
+          band swatch used to tell in the other direction. */}
+      {hasSettlement ? (
+        <LegendItem>
+          <svg width={16} height={8} aria-hidden="true">
+            <line
+              x1={0}
+              y1={4}
+              x2={16}
+              y2={4}
+              stroke={color('ink-3')}
+              strokeWidth={1.5}
+              strokeDasharray="4.5 3.4"
+            />
+          </svg>
+          On its date
+        </LegendItem>
+      ) : null}
       {hasBand ? (
         <LegendItem>
           <svg width={16} height={8} aria-hidden="true">

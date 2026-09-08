@@ -47,8 +47,26 @@ export default function SurfacePage() {
   return (
     <AppShell>
       <PageHeader
-        title="Surface"
-        subtitle="Every option written on this router, decoded from Aqua's own event log. No oracle, no order book, no permission needed."
+        title="Market"
+        subtitle={
+          <>
+            <span className="block">
+              Every offer anyone has made on this router: the price they would sell at, the date it
+              runs to, how much of it can actually be sold and what the option is worth. All of it
+              read out of the chain&rsquo;s own log, with no order book, no oracle and no permission
+              needed.
+            </span>
+            <span className="mt-2 block text-ink-3">
+              None of these makers has been paid yet either. What they earn only becomes real when
+              somebody trades against them.
+            </span>
+            <span className="mt-2 block text-ink-3">
+              <em className="not-italic text-ink-2">If you already trade options:</em> an
+              implied-volatility surface read off on-chain state alone, strike on x, expiry on y,
+              plus the best bid for a given strike and tenor across every maker.
+            </span>
+          </>
+        }
         meta={
           hydrated && !address ? (
             <Pill tone="neutral" size="sm">
@@ -62,7 +80,7 @@ export default function SurfacePage() {
         {surface.error ? (
           <ErrorState
             error={surface.error}
-            title="Could not read the log"
+            title="Could not read the market"
             onRetry={surface.refetch}
           />
         ) : (
@@ -78,27 +96,27 @@ export default function SurfacePage() {
             />
 
             {surface.subgraphError ? (
-              <Callout tone="info" title="The subgraph did not answer, so this is read straight from the logs">
+              <Callout tone="info" title="The subgraph did not answer, so this is read straight from the chain">
                 {surface.subgraphError.message}. Aqua&apos;s events carry no indexed parameters, so
                 the direct path pulls every <span className="font-mono">Shipped</span> since the
                 router&apos;s deployment block and decodes it in the browser. Same bytes, same
-                offsets, same numbers — it just does not scale past a few thousand legs.
+                offsets, same numbers; it just does not scale past a few thousand offers.
               </Callout>
             ) : null}
 
             {surface.lensError && !surface.priced ? (
               <Callout tone="warning" title="SurfaceLens did not answer, so the priced columns are blank">
-                {surface.lensError.message}. Strike, implied vol, expiry, notional and the Aqua
-                reserves are decoded from the log and are unaffected; the mark, the premium and the
-                theta band come from the curve and are simply absent rather than estimated.
+                {surface.lensError.message}. The price, the movement priced in, the date and the size
+                are decoded from the log and are unaffected; the mark, the option value and the
+                minimum trade come from the curve and are simply absent rather than estimated.
               </Callout>
             ) : null}
 
             {surface.census.foreign > 0 ? (
-              <Callout tone="info" title={`${surface.census.foreign} strategies on this router are not options`}>
+              <Callout tone="info" title={`${surface.census.foreign} strategies on this router are not offers`}>
                 They decode fine and carry no <span className="font-mono">RmmSwap</span>{' '}
-                instruction, so they are not on the surface. Declining to plot them is the point:
-                the decoder never guesses a strike.
+                instruction, so they have no price to plot. Leaving them out is the point: the
+                decoder never guesses a price.
               </Callout>
             ) : null}
 

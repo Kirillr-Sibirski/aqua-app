@@ -94,10 +94,12 @@ test('declines a payload that is not an abi.encode(Order) at all', () => {
   assert.equal(wasm.run(), NOT_AN_ORDER, 'a payload too short to be an order is refused');
 });
 
-test('the golden vector is the same one the TypeScript decoder is pinned to', () => {
+test('the browser decoder is pinned to this same file, not to a copy of it', () => {
+  // A drift guard. Two decoders tested against two transcriptions of the same bytes will agree
+  // right up until someone edits one of them, which is the failure this is here to prevent.
   const web = readFileSync(join(root, '../web/src/components/surface/__tests__/decode.test.ts'), 'utf8');
   assert.ok(
-    web.includes(golden.strategy),
-    'web/src/components/surface/__tests__/decode.test.ts must read these exact bytes',
+    web.includes('subgraph/tests/golden.json'),
+    'web/src/components/surface/__tests__/decode.test.ts must read tests/golden.json, not inline the vector',
   );
 });

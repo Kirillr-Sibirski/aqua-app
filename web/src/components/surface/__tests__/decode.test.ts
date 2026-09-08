@@ -24,8 +24,11 @@ import { SURFACE_LENS_BYTECODE } from '../lensBytecode';
 import type { SurfaceLeg } from '../types';
 
 /** A 2,600 strike, 60% vol, 7-day covered call on WETH/USDC, exactly as it was shipped. */
-const GOLDEN: Hex =
-  '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000e05fcc23807536bee418f142d19fa0d21bb0cff740000000002800280028002800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000007e2e234dae75c793f67a35089c9d99245e1c58470bf62849f9a0b5bf2913b396098f7c7019b51a820a200500000941899303000000553e070853a0d2313c00000000093a81000000000000008cf23f909c0fa000000000000000000000a688906bd8b000000000000000000001000000e8d4a51000020800000000000000010000';
+const FIXTURE = JSON.parse(
+  readFileSync(fileURLToPath(new URL('../../../../../subgraph/tests/golden.json', import.meta.url)), 'utf8'),
+) as { strategy: Hex; strategyHash: Hex; expected: Record<string, string | number | boolean> };
+
+const GOLDEN: Hex = FIXTURE.strategy;
 
 const MAKER = '0xe05fcC23807536bEe418f142D19fa0d21BB0cfF7' as Address;
 const WETH = '0x2e234DAe75C793f67A35089C9d99245E1C58470b' as Address;
@@ -71,6 +74,9 @@ describe('decodeSurfaceLeg, against the Solidity golden vector', () => {
     expect(leg).not.toBeNull();
     expect(leg!.strategyHash).toBe(keccak256(GOLDEN));
     expect(leg!.maker).toBe(MAKER);
+    // Aqua keys the strategy by the hash of these exact bytes, and that hash is what the fixture
+    // hands the AssemblyScript test as the id of the leg it ships.
+    expect(keccak256(GOLDEN)).toBe(FIXTURE.strategyHash);
   });
 
   it('recovers the terms of the option from the program bytes', () => {
@@ -80,6 +86,17 @@ describe('decodeSurfaceLeg, against the Solidity golden vector', () => {
     expect(leg!.maturity).toBe(604_801);
     expect(leg!.rateRisky).toBe(BigInt(1));
     expect(leg!.rateStable).toBe(BigInt(10) ** BigInt(12));
+  });
+
+  // The same four numbers the AssemblyScript decoder is asserted against in
+  // `subgraph/tests/decode.test.mjs`, read out of the same file, so the two cannot drift apart.
+  it('agrees with the fixture the subgraph mapping is tested against, field for field', () => {
+    expect(leg!.strikeWad).toBe(BigInt(FIXTURE.expected.strikeWad as string));
+    expect(leg!.sigmaWad).toBe(BigInt(FIXTURE.expected.sigmaWad as string));
+    expect(leg!.liquidityWad).toBe(BigInt(FIXTURE.expected.liquidityWad as string));
+    expect(leg!.maturity).toBe(Number(FIXTURE.expected.maturity));
+    expect(leg!.guarded).toBe(FIXTURE.expected.guarded);
+    expect(leg!.flags).toBe(FIXTURE.expected.flags);
   });
 
   // The tokens arrive lowercase from `decodeOrder`, which slices them out of `order.data`; the

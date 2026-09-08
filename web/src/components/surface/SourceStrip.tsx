@@ -39,28 +39,28 @@ export function SourceStrip({
   return (
     <StatRow>
       <StatTile
-        label="Live quotes"
+        label="Live offers"
         loading={loading}
         value={census.liveLegs.toString()}
-        unit={census.legs === census.liveLegs ? undefined : `of ${census.legs} written`}
+        unit={census.legs === census.liveLegs ? undefined : `of ${census.legs} ever made`}
         detail={
           census.guarded === census.liveLegs
-            ? 'Every one margined by Coverage'
-            : `${census.guarded} of ${census.liveLegs} margined by Coverage`
+            ? 'Every one checks its maker\u2019s wallet'
+            : `${census.guarded} of ${census.liveLegs} check their maker\u2019s wallet`
         }
       />
       <StatTile
-        label="Makers"
+        label="Wallets quoting"
         loading={loading}
         value={census.makers.toString()}
-        detail={`${census.strikes} strikes, ${census.expiries} ${census.expiries === 1 ? 'expiry' : 'expiries'}`}
+        detail={`${census.strikes} ${census.strikes === 1 ? 'price' : 'prices'}, ${census.expiries} ${census.expiries === 1 ? 'date' : 'dates'}`}
       />
       <StatTile
-        label="Notional written"
+        label={<span title="Notional written">Total on offer</span>}
         loading={loading}
         value={<TokenAmount value={census.writtenWad} decimals={18} size="lg" />}
         unit={riskySymbol}
-        detail="Sum of L across live legs"
+        detail="Added up across every live offer"
       />
       <StatTile
         label="Read via"
