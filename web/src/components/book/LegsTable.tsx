@@ -79,7 +79,10 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
   return (
     <TableRow
       highlighted={highlight === leg.strategyHash}
-      interactive
+      // Not `interactive`: that prop turns on a pointer cursor, and a row that only lights its
+      // segment in the bar above does not go anywhere when clicked. Hover feedback without the
+      // promise of a click.
+      className="hover:bg-surface-2"
       onMouseEnter={() => onHighlight?.(leg.strategyHash)}
       onMouseLeave={() => onHighlight?.(undefined)}
     >
