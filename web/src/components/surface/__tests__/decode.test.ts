@@ -281,6 +281,26 @@ describe('SurfaceLens, as the app sees it', () => {
   });
 
   it('ships the bytecode the contract actually compiles to', () => {
-    expect(SURFACE_LENS_BYTECODE).toBe(ARTIFACT.bytecode.object);
+    // Code only. Solc appends a CBOR trailer carrying the IPFS hash of the contract metadata, which
+    // hashes the *source text* of every dependency — so a comment edited in `RmmSwap.sol` moves those
+    // last bytes while moving nothing that executes. What has to hold is that the init code this app
+    // runs deployless is the init code the contract compiles to; that is what this compares.
+    expect(codeOf(SURFACE_LENS_BYTECODE)).toBe(codeOf(ARTIFACT.bytecode.object));
   });
 });
+
+/**
+ * Creation bytecode with the CBOR metadata trailer removed.
+ *
+ * The trailer is `<cbor…><2-byte big-endian length>` at the very end, per the Solidity encoding of
+ * contract metadata. A string that does not carry one is returned whole rather than guessed at.
+ */
+function codeOf(bytecode: string): string {
+  const hex = bytecode.startsWith('0x') ? bytecode.slice(2) : bytecode;
+  if (hex.length < 4) return hex;
+  const cborLength = parseInt(hex.slice(-4), 16);
+  const end = hex.length - 4 - cborLength * 2;
+  if (!Number.isFinite(cborLength) || end <= 0) return hex;
+  // `a2` opens a 2-entry CBOR map, which is what solc emits (`ipfs`/`bzzr1` + `solc`).
+  return hex.slice(end, end + 2) === 'a2' ? hex.slice(0, end) : hex;
+}
