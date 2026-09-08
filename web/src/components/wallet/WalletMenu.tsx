@@ -24,6 +24,7 @@ import { useBalance, useConnection, useDisconnect } from 'wagmi';
 import type { SupportedChainId } from '@/lib/chain';
 import { addressUrl, explorerFor } from '@/components/shell/explorer';
 import { useDeploymentChain } from '@/components/shell/useDeploymentChain';
+import { ICON_STROKE } from '@/components/ui';
 import { cn, formatTokenAmount, truncateAddress } from '@/lib/ui';
 
 export function WalletMenu({ className }: { className?: string }) {
@@ -132,6 +133,7 @@ export function WalletMenu({ className }: { className?: string }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
+        aria-label={`Wallet ${truncateAddress(address)}, open menu`}
         onClick={() => setOpen((v) => !v)}
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown') {
@@ -140,8 +142,8 @@ export function WalletMenu({ className }: { className?: string }) {
           }
         }}
         className={cn(
-          'flex h-8 items-center gap-2 rounded-control border border-line bg-surface pr-2 pl-3 transition-state',
-          'hover:border-line-strong hover:bg-surface-2',
+          'flex h-8 cursor-pointer items-center gap-2 rounded-control border border-line bg-surface pr-2 pl-3',
+          'transition-state hover:border-line-strong hover:bg-surface-2',
         )}
       >
         <span className="font-mono text-meta tnum text-ink">{truncateAddress(address)}</span>
@@ -157,8 +159,8 @@ export function WalletMenu({ className }: { className?: string }) {
           </>
         ) : null}
         <ChevronDown
-          size={14}
-          strokeWidth={1.5}
+          size={16}
+          strokeWidth={ICON_STROKE}
           aria-hidden="true"
           className={cn('shrink-0 text-ink-3 transition-state', open && 'rotate-180')}
         />
@@ -185,10 +187,7 @@ export function WalletMenu({ className }: { className?: string }) {
             </p>
           </div>
 
-          <MenuItem
-            icon={<Copy size={14} strokeWidth={1.5} aria-hidden="true" />}
-            onClick={copyAddress}
-          >
+          <MenuItem icon={<Copy size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />} onClick={copyAddress}>
             {copied ? 'Address copied' : 'Copy address'}
           </MenuItem>
 
@@ -196,7 +195,7 @@ export function WalletMenu({ className }: { className?: string }) {
             <MenuItem
               as="a"
               href={addressUrl(explorer, address)}
-              icon={<ExternalLink size={14} strokeWidth={1.5} aria-hidden="true" />}
+              icon={<ExternalLink size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />}
               onClick={() => setOpen(false)}
             >
               View account on {explorer.name}
@@ -204,7 +203,7 @@ export function WalletMenu({ className }: { className?: string }) {
           ) : null}
 
           <MenuItem
-            icon={<LogOut size={14} strokeWidth={1.5} aria-hidden="true" />}
+            icon={<LogOut size={16} strokeWidth={ICON_STROKE} aria-hidden="true" />}
             onClick={() => {
               setOpen(false);
               disconnect();
@@ -215,6 +214,10 @@ export function WalletMenu({ className }: { className?: string }) {
           </MenuItem>
         </div>
       ) : null}
+
+      <span role="status" aria-live="polite" className="sr-only">
+        {copied ? 'Address copied' : ''}
+      </span>
     </div>
   );
 }
@@ -230,7 +233,7 @@ interface MenuItemProps {
 
 function MenuItem({ children, icon, onClick, as = 'button', href, tone = 'default' }: MenuItemProps) {
   const className = cn(
-    'flex w-full items-center gap-2.5 rounded-control px-3 py-2 text-left text-meta transition-state',
+    'flex w-full cursor-pointer items-center gap-2.5 rounded-control px-3 py-2 text-left text-meta transition-state',
     tone === 'danger' ? 'text-neg hover:bg-neg/10' : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
   );
 

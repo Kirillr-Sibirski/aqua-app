@@ -11,7 +11,7 @@ import {
   isForkOfBase,
   REPO_URL,
 } from './explorer';
-import { ShellAddress, ShellExplorerLink, ShellSkeleton } from './primitives';
+import { Address, ExplorerLink, Skeleton } from '@/components/ui';
 import { useDeploymentChain } from './useDeploymentChain';
 import { useIsHydrated } from './useIsHydrated';
 
@@ -51,16 +51,17 @@ export function Footer({ className }: { className?: string }) {
             {!hydrated || (!deployments && !error)
               ? [0, 1, 2].map((i) => (
                   <div key={i} className="space-y-1.5">
-                    <ShellSkeleton className="h-3 w-20" />
-                    <ShellSkeleton className="h-4 w-36" />
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-4 w-36" />
                   </div>
                 ))
               : contracts.map((c) => (
                   <div key={c.label}>
                     <dt className="text-mini text-ink-3">{c.label}</dt>
                     <dd className="mt-0.5 flex items-center gap-2">
-                      <ShellAddress
+                      <Address
                         value={c.address}
+                        what={`${c.label} address`}
                         href={c.canonical && explorer ? addressUrl(explorer, c.address) : undefined}
                       />
                       {!c.canonical ? (
@@ -87,16 +88,16 @@ export function Footer({ className }: { className?: string }) {
               <span>Fork block</span>
               {hydrated && deployments ? (
                 explorer ? (
-                  <ShellExplorerLink href={blockUrl(explorer, deployments.blockNumber)}>
+                  <ExplorerLink href={blockUrl(explorer, deployments.blockNumber)}>
                     <span className="font-mono tnum">{formatUnits(BigInt(deployments.blockNumber), 0)}</span>
-                  </ShellExplorerLink>
+                  </ExplorerLink>
                 ) : (
                   <span className="font-mono tnum text-ink-2">
                     {formatUnits(BigInt(deployments.blockNumber), 0)}
                   </span>
                 )
               ) : (
-                <ShellSkeleton className="inline-block h-3.5 w-20 align-middle" />
+                <Skeleton className="inline-block h-3.5 w-20 align-middle" />
               )}
               <span aria-hidden="true">·</span>
               <span>{name}</span>
@@ -106,18 +107,18 @@ export function Footer({ className }: { className?: string }) {
               {COMMIT_SHA ? (
                 <>
                   <span>Commit</span>
-                  <ShellExplorerLink href={commitUrl(COMMIT_SHA)}>
+                  <ExplorerLink href={commitUrl(COMMIT_SHA)}>
                     <span className="font-mono tnum">{COMMIT_SHA.slice(0, 7)}</span>
-                  </ShellExplorerLink>
+                  </ExplorerLink>
                   <span aria-hidden="true">·</span>
                 </>
               ) : null}
-              <ShellExplorerLink href={REPO_URL}>Source on GitHub</ShellExplorerLink>
+              <ExplorerLink href={REPO_URL}>Source on GitHub</ExplorerLink>
             </p>
 
             <p className="max-w-md leading-prose">
-              Aqua records allowances, not deposits. Tokens stay in the maker&rsquo;s wallet until a
-              trade pulls them.
+              Aqua records allowances, not deposits. The tokens backing every leg stay in the
+              maker&rsquo;s wallet until a fill pulls them.
             </p>
           </div>
         </div>

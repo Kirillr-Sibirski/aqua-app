@@ -3,21 +3,17 @@
 /**
  * Wallet picker.
  *
- * Built on the native `<dialog>` element, so the focus trap, the Escape key, the top layer and the
- * `::backdrop` come from the platform rather than from a hand-rolled portal.
- *
  * The connector list is mounted only while the dialog is open. `useConnectors()` returns the same
  * snapshot on the server and on the client, and EIP-6963 wallets announce themselves before React
  * hydrates — so rendering that list during SSR would produce server HTML with no wallets and a
  * hydration render with MetaMask in it. Keeping it behind the open flag means the list is only ever
  * built in the browser, from what the browser actually announced.
  */
-import { X } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useConnect, useConnectors } from 'wagmi';
 import { BURNER_CONNECTOR_ID, type SupportedChainId } from '@/lib/chain';
 import { cn } from '@/lib/ui';
-import { ShellCallout, ShellIconButton, ShellPill } from '@/components/shell/primitives';
+import { Callout, Dialog, Pill, Spinner } from '@/components/ui';
 
 export interface WalletDialogProps {
   open: boolean;
@@ -27,38 +23,21 @@ export interface WalletDialogProps {
 }
 
 export function WalletDialog({ open, onClose, chainId }: WalletDialogProps) {
-  const ref = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (open && !el.open) el.showModal();
-    if (!open && el.open) el.close();
-  }, [open]);
-
   return (
-    <dialog
-      ref={ref}
+    <Dialog
+      open={open}
       onClose={onClose}
-      onClick={(event) => {
-        // A click that lands on the dialog box itself is a click on the backdrop: the box is fully
-        // covered by its own children.
-        if (event.target === ref.current) onClose();
-      }}
-      aria-labelledby="wallet-dialog-title"
-      className={cn(
-        'm-auto w-[min(26rem,calc(100vw-2rem))] rounded-card border border-line bg-surface p-0 text-ink',
-        'shadow-overlay [&::backdrop]:bg-scrim',
-        'transition-[opacity,translate,display,overlay] transition-discrete duration-(--duration-slow) ease-out-quart',
-        'starting:open:translate-y-1 starting:open:opacity-0',
-      )}
+      size="sm"
+      title="Connect a wallet"
+      description="Signing stays in the wallet you pick. Aqua never takes custody of the tokens backing your legs."
+      bodyClassName="px-2 py-2"
     >
-      {open ? <WalletDialogBody onClose={onClose} chainId={chainId} /> : null}
-    </dialog>
+      {open ? <WalletList onClose={onClose} chainId={chainId} /> : null}
+    </Dialog>
   );
 }
 
-function WalletDialogBody({ onClose, chainId }: { onClose: () => void; chainId?: SupportedChainId }) {
+function WalletList({ onClose, chainId }: { onClose: () => void; chainId?: SupportedChainId }) {
   const connectors = useConnectors();
   const { mutate: connect, isPending, variables, error, reset } = useConnect();
 
@@ -75,72 +54,56 @@ function WalletDialogBody({ onClose, chainId }: { onClose: () => void; chainId?:
 
   return (
     <>
-      <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
-        <div>
-          <h2 id="wallet-dialog-title" className="text-lead font-medium text-ink">
-            Connect a wallet
-          </h2>
-          <p className="mt-1 text-mini leading-prose text-ink-3">
-            Signing stays in the wallet you pick. Aqua never takes custody of the tokens you ship.
-          </p>
-        </div>
-        <ShellIconButton label="Close" onClick={onClose} className="-mt-1 -mr-2">
-          <X size={16} strokeWidth={1.5} aria-hidden="true" />
-        </ShellIconButton>
-      </div>
+      {wallets.length === 0 ? (
+        <p className="px-3 py-4 text-meta leading-prose text-ink-3">
+          No browser wallet announced itself. Install MetaMask or Rabby and reload, or use the demo
+          wallet below.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-0.5">
+          {wallets.map((connector) => (
+            <li key={connector.uid}>
+              <ConnectorRow
+                name={connector.name}
+                detail={rdnsOf(connector.rdns)}
+                icon={connector.icon}
+                pending={isPending && variables?.connector === connector}
+                onClick={() => {
+                  reset();
+                  connect({ connector, chainId }, { onSuccess: onClose });
+                }}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <div className="max-h-[min(24rem,60vh)] overflow-y-auto p-2">
-        {wallets.length === 0 ? (
-          <p className="px-3 py-4 text-meta leading-prose text-ink-3">
-            No browser wallet announced itself. Install MetaMask or Rabby and reload, or use the demo
-            wallet below.
-          </p>
-        ) : (
-          <ul className="space-y-0.5">
-            {wallets.map((connector) => (
-              <li key={connector.uid}>
-                <ConnectorRow
-                  name={connector.name}
-                  detail={rdnsOf(connector.rdns)}
-                  icon={connector.icon}
-                  pending={isPending && variables?.connector === connector}
-                  onClick={() => {
-                    reset();
-                    connect({ connector, chainId });
-                  }}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {burner ? (
-          <>
-            <p className="mt-3 mb-1 px-3 text-mini text-ink-3">No extension installed?</p>
-            <ConnectorRow
-              name="Demo wallet (local fork)"
-              detail="Signs locally with the fork's maker key"
-              badge={<ShellPill tone="accent">Fork</ShellPill>}
-              pending={isPending && variables?.connector === burner}
-              onClick={() => {
-                reset();
-                connect({ connector: burner, chainId });
-              }}
-            />
-          </>
-        ) : null}
-      </div>
+      {burner ? (
+        <>
+          <p className="mt-3 mb-1 px-3 text-mini text-ink-3">No extension installed?</p>
+          <ConnectorRow
+            name="Demo wallet (local fork)"
+            detail="Signs locally with the fork's maker key. Never use it on a live network."
+            badge={<Pill tone="accent">Fork</Pill>}
+            pending={isPending && variables?.connector === burner}
+            onClick={() => {
+              reset();
+              connect({ connector: burner, chainId }, { onSuccess: onClose });
+            }}
+          />
+        </>
+      ) : null}
 
       {error ? (
-        <div className="px-3 pb-3">
+        <div className="px-1 pt-3">
           {rejected ? (
-            <p className="px-2 text-meta text-ink-2">
+            <p className="px-2 text-meta leading-prose text-ink-2">
               Connection cancelled in the wallet. Pick a wallet to try again.
             </p>
           ) : (
-            <ShellCallout tone="error" title="Could not connect">
+            <Callout tone="error" title="Could not connect">
               {error.message}
-            </ShellCallout>
+            </Callout>
           )}
         </div>
       ) : null}
@@ -192,7 +155,10 @@ function ConnectorRow({ name, detail, icon, badge, pending, onClick }: Connector
         {detail ? <span className="block truncate text-mini text-ink-3">{detail}</span> : null}
       </span>
       {pending ? (
-        <span className="shrink-0 text-mini text-ink-3">Waiting on wallet</span>
+        <span className="flex shrink-0 items-center gap-2 text-mini text-ink-3">
+          <Spinner />
+          Waiting on wallet
+        </span>
       ) : (
         badge
       )}

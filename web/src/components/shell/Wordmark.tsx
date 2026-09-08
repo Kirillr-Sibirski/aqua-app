@@ -2,13 +2,16 @@ import Link from 'next/link';
 import { cn } from '@/lib/ui';
 
 /**
- * The mark is a load line: a hull section with a horizontal line struck through it at the depth the
- * vessel is loaded to. On a ship that line is the limit past which you must not load; here it is the
- * share of a maker's inventory that is committed to strategies. It is two primitives — a circle and
- * a rule — so it stays legible at 16px and needs no gradient, no glyph and no mascot.
+ * The mark is the position itself, drawn.
  *
- * The filled segment is the accent, and it is the only accent-coloured pixel in the top bar when
- * nothing is selected, which is exactly the weight a wordmark should carry.
+ * A covered call's payoff rises with spot until the strike and is flat above it. Two strokes: the
+ * ink diagonal is the inventory the maker keeps, and the accent horizontal is the strike — the
+ * line the payoff runs along once the option is in the money. That horizontal is the strikeline,
+ * and it is the only accent-coloured pixel in the top bar when nothing is selected, which is the
+ * weight a wordmark should carry.
+ *
+ * Two primitives, no gradient, no glyph, no mascot. It survives being drawn at 16px in a favicon
+ * and at 1px in a screenshot, and a reader who knows options recognises it without a caption.
  */
 export function WordmarkMark({ size = 20, className }: { size?: number; className?: string }) {
   return (
@@ -21,19 +24,25 @@ export function WordmarkMark({ size = 20, className }: { size?: number; classNam
       focusable="false"
       className={cn('shrink-0', className)}
     >
-      {/* Loaded volume: the lower half of the section, under the line. */}
-      <path d="M3.5 12a8.5 8.5 0 0 0 17 0Z" fill="var(--accent)" fillOpacity="0.9" />
-      {/* Hull section. */}
-      <circle cx="12" cy="12" r="8.5" stroke="var(--ink)" strokeWidth="1.5" />
-      {/* The load line, struck past the hull on both sides the way it is painted on a bow. */}
-      <path d="M1.25 12h21.5" stroke="var(--ink)" strokeWidth="1.5" strokeLinecap="round" />
+      {/* Below the strike: long the underlying, one for one. */}
+      <path
+        d="M3 19.5 11 9"
+        stroke="var(--ink)"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* At and above the strike: capped. This is the strikeline. */}
+      <path d="M11 9h10" stroke="var(--accent)" strokeWidth="1.75" strokeLinecap="round" />
+      {/* The strike price, marked where the payoff turns. */}
+      <circle cx="11" cy="9" r="1.9" fill="var(--bg)" stroke="var(--accent)" strokeWidth="1.75" />
     </svg>
   );
 }
 
 export interface WordmarkProps {
   className?: string;
-  /** Wraps the mark in a link to the overview. */
+  /** Wraps the mark in a link to the overview. Pass `''` for a static mark. */
   href?: string;
 }
 
@@ -41,9 +50,7 @@ export function Wordmark({ className, href = '/' }: WordmarkProps) {
   const content = (
     <>
       <WordmarkMark />
-      <span className="text-lead font-semibold text-ink">
-        Aqua<span className="text-ink-2"> Terminal</span>
-      </span>
+      <span className="text-lead font-semibold tracking-[-0.012em] text-ink">Strikeline</span>
     </>
   );
 
@@ -54,7 +61,7 @@ export function Wordmark({ className, href = '/' }: WordmarkProps) {
   return (
     <Link
       href={href}
-      aria-label="Aqua Terminal, overview"
+      aria-label="Strikeline, overview"
       className={cn(
         'inline-flex items-center gap-2.5 rounded-control transition-state hover:opacity-80',
         className,

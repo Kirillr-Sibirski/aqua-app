@@ -2,9 +2,12 @@
  * Primary navigation, in one place.
  *
  * `ready` is the switch: a route that does not exist yet is not rendered, because a nav link that
- * 404s is worse than a nav that is short. When the positions / builder / activity screens land,
- * flip the flag on their entry and nothing else changes. The bar hides the nav entirely while only
- * one destination is ready, so a single highlighted item never reads as a broken menu.
+ * 404s is worse than a nav that is short. When the book / writer / activity screens land, flip the
+ * flag on their entry and nothing else changes. The bar hides the nav entirely while only one
+ * destination is ready, so a single highlighted item never reads as a broken menu.
+ *
+ * Labels use the app's own verbs. Aqua's vocabulary is ship and dock, so the screen where a leg is
+ * written is "Ship", not "New position".
  */
 export interface NavItem {
   href: string;
@@ -18,8 +21,8 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/', label: 'Overview', ready: true, match: 'exact' },
-  { href: '/positions', label: 'Positions', ready: false, match: 'prefix' },
-  { href: '/new', label: 'New position', ready: false, match: 'prefix' },
+  { href: '/positions', label: 'Book', ready: false, match: 'prefix' },
+  { href: '/new', label: 'Ship', ready: false, match: 'prefix' },
   { href: '/activity', label: 'Activity', ready: false, match: 'prefix' },
 ];
 
