@@ -6,6 +6,7 @@
 #   make oracle ARGS="eth 3100"     move Chainlink ETH/USD on the fork (btc|cbbtc|usdc|0x…; add --tx for an event)
 #   make time ARGS="+3600"          warp the fork clock;  make snapshot ARGS="save|restore"
 #   make test / make test-fork      Foundry unit tests / fork tests against the official Aqua on Ethereum
+#   make markout         SIMULATION: replay the real Base price tape through the book vs holding vs a pool
 #   make web             next dev
 #
 #   THE READ LAYER (The Graph — subgraph/README.md has the deployment)
@@ -36,10 +37,11 @@ ARGS ?=
 
 .PHONY: help install fork fork-state build build-src bootstrap smoke oracle time snapshot test test-unit test-fork test-surface web typecheck \
         subgraph subgraph-install subgraph-local subgraph-node \
-        tape story-bootstrap story-setup story-load story-status story-all story-0 story-1 story-2 story-3 story-4 story-5 story-6 bot
+        tape story-bootstrap story-setup story-load story-status story-all story-0 story-1 story-2 story-3 story-4 story-5 story-6 bot \
+        markout
 
 help:
-	@sed -n '2,24p' $(ROOT)Makefile | sed 's/^# \{0,1\}//'
+	@sed -n '2,25p' $(ROOT)Makefile | sed 's/^# \{0,1\}//'
 
 # ---------------------------------------------------------------------------- deps
 
@@ -103,6 +105,18 @@ test-unit:
 # FORK_RPC_URL defaults to Ethereum publicnode inside contracts/Makefile (the fork suite uses mainnet addresses)
 test-fork:
 	$(MAKE) -C $(ROOT)contracts test-fork
+
+# ---------------------------------------------------------------------------- the markout study
+# A SIMULATION, labelled as one everywhere it appears. Replays every Chainlink ETH/USD round the feed
+# published on Base over a 10.7-day capture through the demo book, on the real router and the real Aqua
+# registry, against holding the same coins and against a constant-product position on identical capital.
+# Prints the table, the volatility sweep and the eight-window sweep, then publishes the numbers the
+# `/receipt` screen renders. Needs no fork and no RPC.
+
+markout: $(TSX)
+	cd $(ROOT) && $(TSX) scripts/markout/tape.ts --check
+	cd $(ROOT)contracts && forge test --match-path 'test/markout/*' -vv
+	cd $(ROOT) && $(TSX) scripts/markout/publish.ts
 
 # ---------------------------------------------------------------------------- web
 

@@ -127,3 +127,11 @@ jobs:
       # through the `@/` alias, so a change to that encoder has to typecheck against them too.
       - run: npx tsc --noEmit -p tsconfig.json
         working-directory: scripts
+
+      # The replay tape has to still be the tape it was generated from, and the receipt screen has to
+      # still be showing the replay the contracts job just ran. Neither can fail loudly on its own:
+      # a stale copy renders a plausible page with last week's numbers on it.
+      - run: npx tsx markout/tape.ts --check
+        working-directory: scripts
+      - run: npx tsx markout/publish.ts --check
+        working-directory: scripts

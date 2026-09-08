@@ -198,6 +198,74 @@ Two of its findings are backed by tests rather than opinion:
 make test-hook       # 26 tests: parity, the venue experiment, the two feedback findings
 ```
 
+## Does it pay? One week, replayed, against holding and against a pool
+
+The two readers with capital both asked for the same missing thing, in almost the same words. An
+options trader: *"if they can show realised theta over a few hundred fills versus a straight hold,
+I'd look again."* A liquidity provider: *"the thing I actually need is the comparison, and it is
+absent."*
+
+It is here, and it is a **simulation** — a model on a replayed tape, not a track record. No capital
+has ever traded this book. [`test/markout/MarkoutReplay.t.sol`](contracts/test/markout/MarkoutReplay.t.sol)
+replays **every Chainlink ETH/USD round published on Base** in a 10.7-day capture through the demo
+ladder, on the real router and the real Aqua registry, against two controls holding identical capital
+over the identical path: the coins untouched, and a constant-product position at 5 bp and 30 bp.
+There is one taker, an arbitrageur who sizes in closed form and declines anything that does not pay
+them at the reference price.
+
+| One 7-day window: 2,442 -> 2,381 USD, 1,185 rounds, 60% implied | |
+|---|---|
+| Strikeline book | **+201.45 USD** vs holding, on 50,251.26 of capital, over 7 days |
+| The same, vs a constant-product position | **+190.12** at 5 bp, **+179.17** at 30 bp |
+| Fills | **92**, out of 4,740 chances to trade |
+| Quotes the taker looked at and declined | **4,409** |
+| Realised vol on the window | **46.57%**, against the 60% the book was written at |
+| Of the ladder's own time value | **31.1%** captured |
+
+**The uncomfortable number is 4,409.** Against an arbitrage-only taker the cash markout on the fills
+is negative *by construction*: −65.53, which is exactly minus what the arbitrageur made, because a bot
+only crosses when crossing pays it. What the maker is actually paid is the other half of the split —
+the ETH the book did not sell into the rise and bought back into the fall, +266.97 — and the two add
+to +201.45 to the wei, which the test asserts rather than argues. So the premium in this design is not
+a credit that lands in a wallet. It is inventory management, and it stops the moment nobody trades.
+That is the disclosed risk below, with a number on it.
+
+**Where it loses.** The vol sweep brackets the tape's own realised vol on both sides, and every cell
+is published rather than the flattering one:
+
+| Written at | Fills | Time value on offer | vs hold | vs 5 bp pool | vs 30 bp pool | Captured |
+|---|---|---|---|---|---|---|
+| 15% | 519 | 0.51 | +0.75 | **−10.57** | **−21.52** | — |
+| 30% | 1,120 | 69.14 | +61.94 | +50.61 | +39.66 | 89.6% |
+| 45% | 412 | 296.00 | +251.56 | +240.24 | +229.29 | 85.0% |
+| **60%** | 92 | 648.75 | +201.45 | +190.12 | +179.17 | 31.1% |
+| 75% | 23 | 1,102.08 | +253.02 | +241.70 | +230.75 | 23.0% |
+| 90% | 4 | 1,637.74 | +257.20 | +245.88 | +234.93 | 15.7% |
+
+Written at 15%, below what the market actually did, the leg is a very tight fee-less AMM and **an
+ordinary pool beats it.** That is the condition under which this loses and it is the one the theory
+predicts: sell vol below realised and the arbitrageur takes more than the decay pays. The sweep also
+shows the tension that decides everything in between — a higher written vol puts more time value on
+offer *and* a wider spread in front of it, so less and less of it is ever collected.
+
+**Where it wins, and how narrow that evidence is.** Above realised vol, on a range-bound tape. The
+same book written on eight start dates twelve hours apart beat holding in **8 of 8** windows, by 31 to
+639 USD. Those windows overlap and all sit inside one quiet fortnight of one market that realised
+45–47% throughout, so they are eight views of one regime, not eight independent trials. And the price
+never once reached the 2,600 the ladder offered to sell at, so **the assignment case is untested here**:
+a week that runs through the strike and keeps going sells the ETH at the strike and leaves the rest of
+the move behind, and nothing in this capture measures that.
+
+```bash
+make markout                                         # tape check, replay, publish the screen's data
+cd contracts && forge test --match-path 'test/markout/*' -vv
+```
+
+The screen at [`/receipt`](web/src/app/(app)/receipt) plots the three paths, the tape they were
+replayed against, and the ETH the wallet actually held hour by hour. It renders only what that command
+writes, and it says *simulation* in its title block, its banner, every chart caption and its page
+description.
+
 ## Proven, not asserted
 
 `contracts/test/strikeline/StrikelineBook.t.sol` — 9 tests, all against a live Aqua deployment:
@@ -247,12 +315,14 @@ contracts/          Foundry. The router, the two instructions, the math, the tes
   test/strikeline/  the nine thesis tests
   test/surface/     the lens: decode, mark, delta, premium, band, cross-maker ranking
   test/fork/        mainnet-fork fills through the official Aqua + official router
+  test/markout/     the replay: this book vs holding vs a pool, on a real Base price tape
 subgraph/           The Graph. Decodes the shipped bytes in the mapping into Leg / Maker /
                     Fill / SurfacePoint. schema.graphql, subgraph.yaml, src/*.ts (AssemblyScript).
   tests/            the mappings run in WebAssembly against a Node host: 18 tests, one golden
                     abi.encode(Order) shared with the Solidity and TypeScript decoders.
 web/                Next.js 16 / React 19 / wagmi 3. Verified TypeScript SwapVM encoder.
 scripts/fork/       anvil Base fork, bootstrap, oracle mock, time warp, smoke test.
+scripts/markout/    the replay tape, and the check that the receipt screen is not stale.
 docs/               ARCHITECTURE.md, CONCEPT.md, OPCODES.md, research, AI-usage disclosure.
 ```
 
@@ -276,7 +346,11 @@ make smoke         # ship a strategy, quote it, swap it, print the receipt
   the premium accrues inside the spread and is only realised when somebody crosses
   it. If no trader ever reaches your quote you keep your ETH and earn nothing. This
   is the largest risk in the design and it is a property of the mechanism, not a
-  bug we intend to fix.
+  bug we intend to fix. **The replay above puts a number on it:** over one week the
+  simulated arbitrageur looked at the book 4,740 times, crossed 92 times, and walked
+  away 4,409 times because the spread was wider than its edge. The book still ended
+  ahead of holding on that path, but it collected only 31.1% of the time value it had
+  written.
 - **`Coverage` reverts rather than partially filling**, which is honest to the maker
   and a cost to the taker: someone who asks for more than the wallet can deliver
   gets nothing instead of getting some, and may route elsewhere. A clamped partial
@@ -284,7 +358,9 @@ make smoke         # ship a strategy, quote it, swap it, print the receipt
 - This is **vol-selling market making, not a written contract**. `dock` is unconditional and instant,
   so a maker can withdraw quotes at any time. A buyer cannot rely on the option the way they can rely
   on a Deribit contract.
-- The position is **short volatility**. It loses when realised vol exceeds the implied vol you chose.
+- The position is **short volatility**. It loses when realised vol exceeds the implied vol you chose,
+  and the sweep above shows the other edge of that: written *below* realised vol it is beaten by an
+  ordinary constant-product pool, by 10.57 (5 bp) and 21.52 (30 bp) on the replayed week.
 - `Coverage` **reverts rather than clamping**. A partial fill would need a second `runLoop` in
   exact-out mode. The quote refuses instead of lying, and the error carries both numbers.
 - The curve uses an **approximated** Φ. That implies a documented minimum trade size rather than an
