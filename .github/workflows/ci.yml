@@ -39,9 +39,11 @@ jobs:
           version: stable
       - run: forge --version
 
-      # --sizes is the gate that matters here: StrikelineRouter ships with 725 B of EIP-170 headroom,
-      # so an instruction that grows the dispatcher fails the build rather than the deploy.
-      - run: forge build --sizes
+      # `forge build --sizes` over everything that could be deployed: StrikelineRouter ships with
+      # 725 B of EIP-170 headroom, so an instruction that grows the dispatcher fails here rather
+      # than at the deploy. The target adds two --skip flags, because one research contract is
+      # deliberately over the limit and that overflow is a measurement (src/spikes/README.md §1).
+      - run: make sizes
 
       # 167 offline tests. The 11 fork tests read FORK_RPC_URL, which is deliberately not set, and
       # report as skipped. `make test-fork` is the target that runs them.

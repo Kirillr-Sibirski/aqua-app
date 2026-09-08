@@ -1,4 +1,4 @@
-.PHONY: build test test-unit test-fork test-gas test-invariants deploy clean
+.PHONY: build sizes test test-unit test-fork test-gas test-invariants deploy clean
 
 # Public mainnet RPCs verified working on 2026-09-05: publicnode, drpc. (eth.llamarpc.com returned HTTP 521.)
 FORK_RPC_URL ?= https://ethereum-rpc.publicnode.com
@@ -9,6 +9,15 @@ BASE_FORK_RPC_URL ?= https://base-rpc.publicnode.com
 
 build:
 	forge build
+
+# The EIP-170 gate on everything that could be deployed, so a red build means something that SHIPS
+# grew too big. Bare `forge build --sizes` cannot be that gate: CurveProbeRouterPRB is 1,374 B over
+# the limit on purpose -- that overflow is the measurement that chose solady over PRBMath -- so the
+# unfiltered command exits non-zero by design. Run it by hand to reproduce the comparison table in
+# src/spikes/README.md §1; run this to find out whether the router still fits. Skipping the probe
+# router means also skipping the one test file that imports it; `make test` compiles and runs both.
+sizes:
+	forge build --sizes --skip CurveProbeRouterPRB --skip CurveProbeAqua
 
 # Unit tests (fresh Aqua + mocks). Fork tests auto-skip because FORK_RPC_URL is not exported here.
 test:

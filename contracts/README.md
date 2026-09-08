@@ -8,7 +8,7 @@ so `npm ci` has to run before `forge build`.
 
 ```bash
 npm ci
-forge build --sizes    # StrikelineRouter must stay under EIP-170. Current margin: 725 B
+make sizes             # EIP-170 gate on what ships. StrikelineRouter margin today: 725 B
 make test              # 167 offline tests. The 11 fork tests skip without FORK_RPC_URL
 make test-fork         # those 11, against the OFFICIAL Aqua on Ethereum and Base
 make test-invariants   # the 43 a reviewer should read first, with their console output
@@ -25,7 +25,7 @@ make deploy RPC=… PK=… # deploy, then re-read the broadcast receipt into dep
 | `src/math/` | `Gaussian.sol` (A&S 7.1.26 erfc + bisection), `WadMath.sol` (over solady) |
 | `src/SurfaceLens.sol` | Prices a whole book in one `eth_call`. A separate contract, so it spends none of the router's headroom |
 | `src/hooks/` | The same curve as a Uniswap v4 hook, which is what makes the venue comparison an experiment rather than an argument |
-| `src/spikes/` | `ProbeRouter` and the math benchmarks that came first. Kept because they are the control in several comparisons, not because they ship |
+| `src/spikes/` | `ProbeRouter` and the math benchmarks that came first. Kept because they are the control in several comparisons, not because they ship. [Its own README](src/spikes/README.md) says what each one measured |
 | `test/invariants/` | SwapVM's own `CoreInvariants` suite run against a shipped leg, the frozen wire format, the decimal vectors, the gas table |
 | `test/strikeline/` | The nine claims the README makes, each one measured |
 | `test/fork/` | Real WETH and USDC through the official Aqua and the official unmodified router |
