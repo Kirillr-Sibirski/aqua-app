@@ -48,7 +48,10 @@ export function GapReadout({
   // Always the amount that clears when we know one; the published figure only when no probe has
   // come back yet. Never an amount the router refused.
   const headline = fill?.clears ?? publishedIn;
-  const disagrees = fill !== undefined && fill.clears !== undefined && !fill.publishedClears;
+  /** The published figure reverts and something above it fills: the screen must show the latter. */
+  const understated = fill !== undefined && fill.clears !== undefined && !fill.publishedClears;
+  /** The published figure fills and so does the unit below it: conservative by a unit, not wrong. */
+  const overstated = fill !== undefined && fill.publishedClears && !fill.oneBelowRefused;
 
   return (
     <Stack gap="md">
@@ -67,7 +70,13 @@ export function GapReadout({
               : formatUnits(headline, inDecimals, { significantDigits: 9, maxFractionDigits: 6 })
           }
           unit={inSymbol}
-          detail="Anything smaller is refused"
+          // Only claim the floor is tight when the probe proved it. In the overstated case all we
+          // know is that this amount filled, not that the one below it would not have.
+          detail={
+            fill === undefined || fill.oneBelowRefused
+              ? 'Anything smaller is refused'
+              : 'The smallest amount we got filled'
+          }
         />
         <Figure
           size="lg"
@@ -97,7 +106,7 @@ export function GapReadout({
         <Text size="xs" c="var(--ink-3)" className="leading-prose">
           Checking the figure against the router…
         </Text>
-      ) : disagrees ? (
+      ) : understated ? (
         <Alert variant="light" color="amber" radius="md" title="Showing what clears">
           <Text size="xs" c="var(--ink-2)" className="leading-prose">
             The router publishes{' '}
@@ -109,6 +118,19 @@ export function GapReadout({
               guard band
             </Term>{' '}
             the instruction holds back on the output side.
+          </Text>
+        </Alert>
+      ) : overstated ? (
+        <Alert variant="light" color="amber" radius="md" title="Showing what clears">
+          <Text size="xs" c="var(--ink-2)" className="leading-prose">
+            The router publishes{' '}
+            <Num>{formatUnits(fill.published, inDecimals, { significantDigits: 9 })}</Num> {inSymbol}
+            , and that fills — but so does the unit below it, which is the number above. The
+            published minimum is rounded a unit to the maker&rsquo;s side of the{' '}
+            <Term precise="RmmSwap.EPS = 2e-6 of the leg, held back on the output side so a trade cannot land exactly on the curve. bandFor reads the band off the guarded reserve, and the two roundings need not land on the same raw unit.">
+              guard band
+            </Term>
+            . Either amount will trade; the smaller one is the honest floor.
           </Text>
         </Alert>
       ) : fill.clears === undefined ? (

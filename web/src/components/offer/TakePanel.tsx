@@ -75,7 +75,9 @@ export function TakePanel({
         ) : null}
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[30rem] border-collapse text-meta">
+          {/* 19rem, not 30: at 390px the three columns still fit, and a price table that has to be
+              scrolled sideways to reach the price is a price table nobody reads. */}
+          <table className="w-full min-w-[19rem] border-collapse text-meta">
             <caption className="sr-only">
               Quoted prices at eight sizes, and the reason for any the router refused
             </caption>

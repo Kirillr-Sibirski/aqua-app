@@ -55,7 +55,7 @@ export function FillsPanel({ fills, isLoading, deployments, chainId }: FillsPane
         </Stack>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[34rem] border-collapse text-meta">
+          <table className="w-full min-w-[19rem] border-collapse text-meta">
             <caption className="sr-only">Trades against this offer, from Aqua&rsquo;s ledger</caption>
             <thead>
               <tr className="border-b border-line-strong text-left text-mini text-ink-2">
@@ -68,7 +68,9 @@ export function FillsPanel({ fills, isLoading, deployments, chainId }: FillsPane
                 <th scope="col" className="py-2 pr-3 text-right font-medium">
                   They paid
                 </th>
-                <th scope="col" className="py-2 pr-4 text-right font-medium">
+                {/* The block number is context, not the point, and it is the column that pushes
+                    this table past a 390px screen. It stays on the wider layout. */}
+                <th scope="col" className="hidden py-2 pr-4 text-right font-medium sm:table-cell">
                   Block
                 </th>
               </tr>
@@ -112,7 +114,7 @@ export function FillsPanel({ fills, isLoading, deployments, chainId }: FillsPane
                         <span className="text-ink-3">—</span>
                       )}
                     </td>
-                    <td className="py-2 pr-4 text-right font-mono tnum text-ink-2">
+                    <td className="hidden py-2 pr-4 text-right font-mono tnum text-ink-2 sm:table-cell">
                       {fill.blockNumber.toString()}
                     </td>
                   </tr>
