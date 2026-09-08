@@ -1,7 +1,180 @@
-# Contracts test harness notes
+# Contracts notes
 
-Foundry harness for Aqua-backed SwapVM strategies executed through our custom router (`src/ProbeRouter.sol`
-= Simulator + SwapVM + AquaOpcodes + custom `ProbeScale` opcode at `0xd0`).
+Engineering log for `contracts/`. Two routers live here:
+
+- **`src/StrikelineRouter.sol`** — the product. Simulator + SwapVM + `StrikelineOpcodes` +
+  `StrikelineViews`, adding `RmmSwap` (`0x55`) and `Coverage` (`0x93`). This is what ships.
+- **`src/ProbeRouter.sol`** — the research harness that came first. Simulator + SwapVM + AquaOpcodes +
+  `ProbeScale` (`0xd0`). Kept because the curve probes and the math benchmarks still run against it, and
+  because it is the control in several comparisons.
+
+Sections 1–4 below are about the shipped router. Everything from *"Probe harness"* onward is the older
+harness and the API facts learned building it, which still apply to both.
+
+---
+
+# 1. What is asserted, and where
+
+`test/invariants/` is the directory a reviewer should read first. 43 tests, all offline, no RPC.
+
+| File | Tests | What it settles |
+| --- | ---: | --- |
+| `StrikelineCoreInvariants.t.sol` | 8 | **SwapVM's own `CoreInvariants` suite**, imported unmodified from `node_modules/@1inch/swap-vm/test/invariants/`, run against a shipped leg — symmetry, quote==swap, additivity, monotonicity, rounding-favours-maker, balance sufficiency — plus the tolerance table in §2 |
+| `StrikelineLiveness.t.sol` | 8 | The one invariant the framework does **not** carry: for every (leg, amount, direction), `quote` and `swap` either both succeed with identical numbers or both revert with byte-identical return data. Asserted at every liveness edge: shipped, docked, past `Deadline`, past maturity in each direction, and at the `Coverage` bound |
+| `ScaleVectors.t.sol` | 6 | USDC(6)/WETH(18) golden vectors for all six paths where the `1e12` is applied, each with an independent proof the rounding lands on the maker's side, controlled against an 18-decimal stable |
+| `OpcodeLayout.t.sol` | 10 | The frozen wire format byte by byte, the flag bits, the opcode slots, the error selectors — and `test_Layout_OneByteDriftBricksTheStrategy`, which shows what encoding drift actually looks like from outside |
+| `CoverageObligation.t.sol` | 3 | A `tokenOut` protocol fee is part of the maker's obligation; a `tokenIn` fee is not; both nesting orders of `Coverage`/`FeeProtocol` reach the same bound |
+| `CoverageHaircut.t.sol` | 2 | `haircutBps` is bounded on the **wire**, not only in `build` |
+| `RmmDomain.t.sol` | 3 | The representable domain, proved from the `uint128` widths rather than checked at run time |
+| `GasReport.t.sol` | 3 | The per-instruction gas table in §3 and the EIP-170 margin |
+
+```bash
+make test-invariants     # all of the above, with their console output
+make test                # the whole offline suite
+make test-fork           # against the official Aqua on a real chain
+```
+
+---
+
+# 2. The tolerance table
+
+The framework's `CoreInvariants` ships defaults tuned for rational curves in exact integer arithmetic.
+RMM-01 is transcendental. **One tolerance is loosened, two are kept, one is tightened**, and every cell is
+asserted by `test_ToleranceTable`, so neither our values nor the framework's defaults can drift unnoticed.
+
+The whole table is derived from two measured primitives (`test/probe/MathPrimitives.t.sol`, against 50-digit
+mpmath references):
+
+```
+EPS_PHI       = 6.95e-8    absolute error of Gaussian.cdf, probability units, over [-8, 8]
+EPS_PHI_INV   = 1.18e-6    absolute error of the Gaussian.icdf round trip, z units
+
+EPS_EVAL      = EPS_PHI + sup(phi)·EPS_PHI_INV = 6.95e-8 + 0.39894·1.18e-6 = 5.40251890873e-7
+EPS_ROUNDTRIP = 2 · EPS_EVAL                                               = 1.080503781746e-6
+```
+
+| Knob | Framework | Ours | Why |
+| --- | --- | --- | --- |
+| `symmetryTolerance` | 2 wei | **33,714** USDC wei | `ceil(L·K·EPS_ROUNDTRIP) / rateStable + 2` |
+| | | **12,966,045,380,954** WETH wei | `ceil(L·EPS_ROUNDTRIP) / rateRisky + 2` |
+| `additivityTolerance` | 0 | 0 — kept | the band is charged once per fill, so one big fill beats two by exactly one band |
+| `roundingToleranceBps` | 100 (1%) | **0 — tightened** | dust must never price better than spot; inside the band it reverts instead |
+| `monotonicityToleranceBps` | 0 | 0 — kept | at issue the curve is convex and the band is `EPS`-sized |
+| `skipSymmetry` / `skipAdditivity` / `skipSpotPrice` | false | false | none skipped, in any run |
+| `skipMonotonicity` | false | false at issue, **true once decayed** | replaced by a strictly stronger check, see below |
+
+**`symmetryTolerance` is the only loosened value, and it is not a knob.** It is `L_in · EPS_ROUNDTRIP / rate_in`
+plus one unit for each of the two quantisations the VM performs once each (exact-in floors `amountOut` to whole
+`tokenOut` units; exact-out ceils `amountIn` to whole `tokenIn` units). Nothing else is added. The framework's
+2 wei assumes exact integer arithmetic; one reserve round trip here crosses `Φ⁻¹` and `Φ` twice.
+
+The headroom is printed rather than claimed. Observed miss against the derived bound:
+
+```
+USDC in     486000000 wei   miss              0   bound         33714
+USDC in    2140000000 wei   miss              0   bound         33714
+USDC in    5320000000 wei   miss              0   bound         33714
+WETH in   0.093e18   wei    miss        1063936   bound 12966045380954
+WETH in   0.514e18   wei    miss      249931316   bound 12966045380954
+WETH in   1.090e18   wei    miss      379026068   bound 12966045380954
+```
+
+The worst observed miss uses **0.003%** of the bound. If that ratio ever moves, the suite is saying the error
+budget moved, not that the tolerance needs raising.
+
+**`RmmSwap.EPS` is `2e-6`**, which is `1.85 ×` `EPS_ROUNDTRIP`. That ratio is asserted by
+`test_Eps_DominatesTheRoundTripErrorBound` with a floor of 1.5×, so shrinking `EPS` to let a small trade
+through fails the suite rather than quietly making dust fills lossy for the maker.
+
+**The one skip, and what replaces it.** The framework's monotonicity check compares *average* prices, and its
+own comment says the flag exists for "flat rate orders". Any instrument charging a fixed premium has average
+price rising with size until the premium is amortised. At issue our band is `EPS`-sized and the check passes at
+0 bps. Two days in, the band is 133.49 USDC and average price keeps improving up to about 6,800 USDC — 50
+bands. That is the option premium, not a pricing defect, and the amortisation point is published by
+`test_Monotonicity_AmortisationPointIsPublished` rather than hidden behind the flag.
+
+What must hold instead is that the *marginal* price is monotone, equivalently that `amountOut(amountIn)` is
+concave. `test_Monotonicity_MarginalPriceIsMonotoneInsideAndOutsideTheBand` asserts it over a 40-point scan
+starting **inside** the band, at zero tolerance. Together with additivity at tolerance 0, that is strictly
+stronger than the statement being skipped, because it is what actually rules out a size-splitting arbitrage.
+
+---
+
+# 3. Gas and size
+
+`gasleft()` deltas around real external calls on real Aqua-mode orders, on a second pass so no program is
+charged for cold slots the others then find warm (`GasReport.t.sol`). Each instruction is priced as the
+difference between two programs identical except for it.
+
+| Program | quote | swap |
+| --- | ---: | ---: |
+| `RmmSwap . Salt` | 109,440 | 207,480 |
+| `Coverage . RmmSwap . Salt` | 112,837 | 210,873 |
+| `Deadline . Coverage . RmmSwap . Salt` (the shipped leg) | 113,283 | 211,317 |
+| `XYCSwap . Salt` (official instruction, same router, reference) | 8,809 | 106,848 |
+
+| Instruction | quote | swap |
+| --- | ---: | ---: |
+| `RmmSwap` (over `XYCSwap`) | 100,631 | 100,632 |
+| `Coverage` | 3,397 | 3,393 |
+| `Deadline` | 446 | 444 |
+
+The two columns agree to within four gas, which is what view-only instructions should look like. Of `RmmSwap`'s
+100,631, **99,062 is the Gaussian**: at `τ = 0` the curve degenerates to the closed form `Y = K·(L − X)` and a
+quote costs 14,191.
+
+`forge build --sizes`:
+
+```
+| StrikelineRouter | 23,664 | 25,166 | 912 | 23,986 |
+```
+
+**23,664 bytes runtime, 912 under EIP-170**, with no size override anywhere in `foundry.toml`.
+
+> **The size that counts is the artifact's, not the one a test deploys.** `new StrikelineRouter(...)` inside a
+> test file inlines the creation code into *that* compilation unit, where `via_ir`'s inlining decisions can
+> differ. The gap was 14 bytes before `Coverage` gained its wire-level haircut check and is 0 now, and it moves
+> when unrelated code is added to the same test file. `test_Size_RouterIsUnderEip170` asserts
+> `vm.getDeployedCode(...)` and prints both.
+
+`StrikelineOpcodes` drops `PeggedSwap` (−1,394 B) to fit. Every other official instruction is kept,
+`FeeProtocol` included.
+
+---
+
+# 4. Deploying
+
+```bash
+make deploy RPC=https://mainnet.base.org PK=0x...
+```
+
+Two passes, because foundry writes the broadcast receipt only after a script returns, so a deploying script
+cannot know its own transaction hash. The second pass reads the receipt back with `vm.getBroadcast` and writes
+`deployments/<chainid>.json`. Every field is read from the chain or from the receipt; the script asserts
+nothing about what it believes it deployed. `deployments/README.md` documents each field with the command that
+checks it.
+
+`RecordDeployment` refuses to write unless the recorded address answers `StrikelineViews.tauNow`, so a manifest
+cannot end up pointing at a stock SwapVM deployment. That guard fired for real while writing these notes, when
+the shared anvil fork was reset out from under an already-recorded broadcast.
+
+Two code hashes, because they answer different questions. `runtimeCodeHash` is address-specific — SwapVM caches
+its EIP-712 domain separator in an immutable and that separator contains `address(this)` — so it is what you
+check with `cast keccak "$(cast code <addr> --rpc-url $RPC)"`. `buildCodeHash` is the build fingerprint, stable
+across addresses. Measured: reformatting `src/math/Gaussian.sol` with `forge fmt`, whitespace only, identical
+23,664-byte runtime, moved `buildCodeHash` from `0x2b2dbb87…` to `0x5139d6f6…`, because solc's appended CBOR
+blob hashes the metadata and the metadata hashes every source file.
+
+> `forge fmt` with no path argument reformats the **whole tree**, including files nobody asked you to touch,
+> and it strips thousands separators from scientific literals (`1_940e6` → `1940e6`), which is not this repo's
+> style. Pass explicit paths.
+
+---
+
+# Probe harness
+
+Foundry harness for Aqua-backed SwapVM strategies executed through `src/ProbeRouter.sol`
+(Simulator + SwapVM + AquaOpcodes + custom `ProbeScale` opcode at `0xd0`).
 
 ## Layout
 
