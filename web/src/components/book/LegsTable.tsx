@@ -17,7 +17,9 @@
  *    what the next taker must clear before they can trade at all.
  *  - **Realised theta** is the sum of the bands past takers actually did clear.
  */
-import { Layers } from 'lucide-react';
+import { ChevronDown, ChevronRight, Layers } from 'lucide-react';
+import Link from 'next/link';
+import { useState } from 'react';
 import type { Hex } from 'viem';
 import {
   Callout,
@@ -89,7 +91,15 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
       <TableHeaderCell scope="row" title={truncateHash(leg.strategyHash)}>
         <div className="flex flex-col gap-0.5">
           <span className="flex items-center gap-2">
-            <span className="font-mono text-lead tnum text-ink">{leg.strikeLabel}</span>
+            {/* The link is on the strike, not the row: a `<tr>` cannot be an anchor, and this is the
+                only keyboard path to /leg/[hash] — the screen with the live curve, the scrubber, the
+                decoded program and the roll control. */}
+            <Link
+              href={`/leg/${leg.strategyHash}`}
+              className="rounded-control font-mono text-lead tnum text-ink transition-state hover:text-accent hover:underline hover:underline-offset-2"
+            >
+              {leg.strikeLabel}
+            </Link>
             <span className="text-meta text-ink-2">{leg.kind}</span>
             {leg.status === 'docked' ? (
               <Pill tone="neutral" size="sm">
@@ -111,6 +121,16 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
             )}
           </span>
           <span className="text-mini text-ink-3">
+            {/* Docked legs repeat their terms exactly — a rolled book ends with several rows reading
+                the same strike, expiry and vol — so they carry the block they were shipped in. */}
+            {leg.status === 'docked' ? (
+              <>
+                <span className="font-mono tnum">
+                  {truncateHash(leg.strategyHash)} · block {formatUnits(leg.strategy.blockNumber, 0)}
+                </span>
+                <span className="mx-1.5">·</span>
+              </>
+            ) : null}
             delivers {(leg.deliversRisky ? leg.risky : leg.stable).symbol}
             <span className="mx-1.5">·</span>
             <span className="font-mono">0x55</span> RmmSwap
@@ -149,7 +169,16 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
       </TableCell>
 
       <TableCell numeric>
-        {leg.bandNext === undefined ? (
+        {/* A docked strategy hash can never be filled again, so there is no "next fill" to price.
+            Publishing the band anyway advertised a trade that is structurally impossible -- and on
+            an expired leg it was the largest number in the column, pulling the eye to the deadest
+            row on the screen. PRODUCT.md: a number that cannot be acted on is a fake number. */}
+        {leg.status === 'docked' ? (
+          <div className="flex flex-col items-end gap-0.5 leading-num">
+            <span className="text-ink-3">-</span>
+            <span className="text-mini text-ink-3">docked</span>
+          </div>
+        ) : leg.bandNext === undefined ? (
           <span className="text-ink-3">{leg.bandPending ? 'reading' : '-'}</span>
         ) : leg.bandNext === ZERO ? (
           <div className="flex flex-col items-end gap-0.5 leading-num">
@@ -188,6 +217,13 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
 
 export function LegsTable({ book, connected, connectAction, highlight, onHighlight }: LegsTableProps) {
   const description = 'Each row is a SwapVM program shipped to Aqua. The terms are decoded from the bytes the Shipped event carried.';
+  const [showDocked, setShowDocked] = useState(false);
+
+  // The live ladder IS the table. A rolled book leaves one docked row per leg per roll, all of them
+  // repeating the terms of the leg they replaced, and after two rolls they outnumber the live legs
+  // three to one and bury them in the middle of the screen. History stays one keystroke away.
+  const live = book.legs.filter((leg) => leg.status !== 'docked');
+  const docked = book.legs.filter((leg) => leg.status === 'docked');
 
   if (!connected) {
     return (
@@ -249,18 +285,41 @@ export function LegsTable({ book, connected, connectAction, highlight, onHighlig
               <span className="font-mono">X/L = Phi(-d1)</span>, read from the reserves: no oracle is consulted on this screen.
             </span>
             <span className="font-mono text-mini tnum text-ink-3">
-              {book.legs.length} {book.legs.length === 1 ? 'leg' : 'legs'}
+              {live.length} live
+              {docked.length > 0 ? ` · ${docked.length} docked` : null}
             </span>
           </>
         }
       >
-        <Table caption="Legs in this book" hideCaption minWidth="66rem">
+        <Table
+          caption="Legs in this book"
+          hideCaption
+          minWidth="66rem"
+          scrollHint="depth, theta band, realised theta"
+        >
           <Head />
           <TableBody>
-            {book.legs.length === 0 ? (
+            {live.length === 0 && docked.length === 0 ? (
               <TableMessageRow colSpan={COLUMNS}>Nothing shipped yet.</TableMessageRow>
             ) : (
-              book.legs.map((leg) => <LegRow key={leg.key} leg={leg} highlight={highlight} onHighlight={onHighlight} />)
+              <>
+                {live.map((leg) => (
+                  <LegRow key={leg.key} leg={leg} highlight={highlight} onHighlight={onHighlight} />
+                ))}
+                {live.length === 0 && docked.length > 0 ? (
+                  <TableMessageRow colSpan={COLUMNS}>
+                    Nothing live. Every leg this wallet wrote has been docked.
+                  </TableMessageRow>
+                ) : null}
+                {docked.length > 0 ? (
+                  <DockedDisclosure open={showDocked} count={docked.length} onToggle={() => setShowDocked((v) => !v)} />
+                ) : null}
+                {showDocked
+                  ? docked.map((leg) => (
+                      <LegRow key={leg.key} leg={leg} highlight={highlight} onHighlight={onHighlight} />
+                    ))
+                  : null}
+              </>
             )}
           </TableBody>
         </Table>
@@ -268,6 +327,33 @@ export function LegsTable({ book, connected, connectAction, highlight, onHighlig
 
       {book.foreignStrategies.length > 0 ? <ForeignNote count={book.foreignStrategies.length} /> : null}
     </div>
+  );
+}
+
+/**
+ * The row that stands in for the docked history: a real button in a real cell, so it is reachable by
+ * Tab and announces its own state, rather than a chevron a pointer has to find.
+ */
+function DockedDisclosure({ open, count, onToggle }: { open: boolean; count: number; onToggle: () => void }) {
+  const Icon = open ? ChevronDown : ChevronRight;
+  return (
+    <tr>
+      <td colSpan={COLUMNS} className="border-t border-line p-0">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-meta text-ink-2 transition-state hover:bg-surface-2 hover:text-ink"
+        >
+          <Icon size={14} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-ink-3" />
+          <span className="font-mono tnum">{count}</span>
+          <span>{count === 1 ? 'docked leg' : 'docked legs'}</span>
+          <span className="text-mini text-ink-3">
+            {open ? 'shown below' : 'rolled or withdrawn, and no longer fillable'}
+          </span>
+        </button>
+      </td>
+    </tr>
   );
 }
 
