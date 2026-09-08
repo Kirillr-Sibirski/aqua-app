@@ -1,29 +1,14 @@
-import type { Metadata } from 'next';
-import { AppShell } from '@/components/shell';
-import { truncateHash } from '@/lib/ui';
-import { LegDetail } from './LegDetail';
-
-export async function generateMetadata({ params }: PageProps<'/leg/[hash]'>): Promise<Metadata> {
-  const { hash } = await params;
-  return {
-    title: `Leg ${truncateHash(hash)}`,
-    description:
-      'The trading curve of one Strikeline leg, sampled from the router, with the decay band it has accrued, the fills that walked its reserves, and the bytes it was shipped as.',
-  };
-}
+import { permanentRedirect } from 'next/navigation';
 
 /**
- * `/leg/[hash]`.
+ * `/leg/[hash]` -> `/offer/[hash]`.
  *
- * The strategy hash is the identity: `Aqua.ship` takes the strategy whole and `keccak256` of those
- * bytes is what every balance in the registry is keyed by, so a leg needs no database row and this
- * URL is stable for anyone, not just its maker.
+ * The screen moved when the vocabulary did: *leg* is one of the words the comprehension study found
+ * readers could not guess, and the route is part of what a person reads. The old path stays as a
+ * permanent redirect because a strategy hash is a public, stable identifier — anything that ever
+ * linked to one of these, inside the app or outside it, keeps working.
  */
-export default async function LegPage({ params }: PageProps<'/leg/[hash]'>) {
+export default async function LegRedirect({ params }: PageProps<'/leg/[hash]'>) {
   const { hash } = await params;
-  return (
-    <AppShell>
-      <LegDetail hash={hash} />
-    </AppShell>
-  );
+  permanentRedirect(`/offer/${hash}`);
 }
