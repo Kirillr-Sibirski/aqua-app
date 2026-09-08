@@ -112,7 +112,7 @@ export function PriceCurve({
           Buyers take {riskySymbol} out and pay {stableSymbol} in, so every trade slides the dot down
           the line and the next buyer gets a different rate. Each point is one{' '}
           <span className="font-mono">stableFor</span> call into the router, sampled over one
-          multicall — no curve maths runs in the browser.
+          multicall, and no curve maths runs in the browser.
         </>
       }
       table={

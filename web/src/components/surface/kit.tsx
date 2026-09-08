@@ -26,6 +26,7 @@ import {
 } from '@mantine/core';
 import { Check, Copy } from 'lucide-react';
 import { formatTokenAmount, toDecimalString, truncateAddress } from '@/lib/ui';
+import classes from './surface.module.css';
 
 /** 13px: the dense table step, between `xs` and `sm`. */
 export const META = 13;
@@ -198,6 +199,7 @@ export function MakerAddress({ value }: { value: string }) {
               variant="subtle"
               color={copied ? 'moss' : 'slate'}
               size="sm"
+              className={classes.tap}
               aria-label={copied ? 'Address copied' : `Copy address ${value}`}
             >
               {copied ? <Check size={13} strokeWidth={1.75} /> : <Copy size={13} strokeWidth={1.75} />}
@@ -273,7 +275,14 @@ export function StateBadge({
   const color =
     tone === 'live' ? 'moss' : tone === 'warn' ? 'amber' : tone === 'mine' ? 'petrol' : 'slate';
   return (
-    <Badge variant="light" color={color} size="sm" radius="sm" title={title}>
+    <Badge
+      variant="light"
+      color={color}
+      size="sm"
+      radius="sm"
+      title={title}
+      classNames={{ root: classes.badge, label: classes.badgeLabel }}
+    >
       {children}
     </Badge>
   );

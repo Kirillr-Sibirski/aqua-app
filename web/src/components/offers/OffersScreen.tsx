@@ -80,7 +80,7 @@ export function OffersScreen() {
             </Title>
             <Text mt={6} size="sm" c="var(--ink-2)" className="max-w-[70ch]">
               One wallet stands behind all of them, and it never moves. The moment somebody takes
-              one offer, what the others can hand over shrinks — in the same block, with nothing to
+              one offer, what the others can hand over shrinks, in the same block, with nothing to
               settle.
             </Text>
           </div>
@@ -135,7 +135,7 @@ export function OffersScreen() {
                   <span aria-hidden="true" className="inline-block h-2.5 w-4 rounded-[2px] border border-line" style={{ backgroundImage: HATCH }} />
                   Hatched
                 </span>{' '}
-                is promised past it — any one offer can still be taken up to the line, and taking it
+                is promised past it: any one offer can still be taken up to the line, and taking it
                 shrinks what the rest can deliver. That is what one balance backing several offers
                 means, and it is checked inside the same call that prices the trade.
               </p>

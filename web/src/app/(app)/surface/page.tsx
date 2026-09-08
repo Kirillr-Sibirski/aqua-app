@@ -22,9 +22,8 @@
  * reader who stops after the second block has the thing this screen exists to say.
  */
 import { useMemo, useState } from 'react';
-import { Alert, Badge, Button, Group } from '@mantine/core';
+import { Alert, Button } from '@mantine/core';
 import { AlertTriangle, Info, RefreshCw } from 'lucide-react';
-import { useConnection } from 'wagmi';
 import { AppChrome, PageHeader, useIsHydrated } from '@/components/shell';
 import {
   BestQuote,
@@ -40,7 +39,6 @@ import { tokenInfo } from '@/lib/contracts';
 
 export default function SurfacePage() {
   const hydrated = useIsHydrated();
-  const { address } = useConnection();
   const { deployments } = useDeployments();
   const surface = useSurface({ enabled: hydrated });
   const [selected, setSelected] = useState<string | undefined>(undefined);
@@ -63,24 +61,13 @@ export default function SurfacePage() {
 
   return (
     <AppChrome>
+      {/* No badge row under the title. There were three — NO WALLET NEEDED, READ LAYER · THE GRAPH,
+          YOUR OFFERS ARE MARKED — and each was a sentence wearing a pill. The first two are said
+          plainly below; the third is only true when a wallet is attached and is self-evident from
+          the rows that are marked. */}
       <PageHeader
         title="Every offer, from every wallet"
-        subtitle="Nobody publishes a price list for these offers — each one is a small program sitting on chain on its own, related to nothing. This page assembles the list, out of the chain's own log, so you can see who is paying most for the wait before you sell anything."
-        meta={
-          <Group gap="xs">
-            <Badge variant="light" color="slate" size="sm" radius="sm">
-              No wallet needed
-            </Badge>
-            <Badge variant="light" color="petrol" size="sm" radius="sm">
-              Read layer &middot; The Graph
-            </Badge>
-            {hydrated && address ? (
-              <Badge variant="light" color="petrol" size="sm" radius="sm">
-                Your offers are marked
-              </Badge>
-            ) : null}
-          </Group>
-        }
+        subtitle="Nobody publishes a price list for these offers: each one is a small program sitting on chain on its own, related to nothing. This page assembles the list out of the chain's own log, so you can see who is paying most for the wait before you sell anything. No wallet needed to read it."
       />
 
       <div className="mt-8 flex flex-col gap-8">

@@ -57,7 +57,7 @@ export function OffersDisconnected() {
       }
     >
       Your offers live on chain under your own address, not in a database beside this app. Connect a
-      wallet and this page reads them back out of it — the terms, what your wallet can still hand
+      wallet and this page reads them back out of it: the terms, what your wallet can still hand
       over, and what past buyers have paid you.
     </Shell>
   );

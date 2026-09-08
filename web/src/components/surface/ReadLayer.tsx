@@ -25,6 +25,7 @@ import { ActionIcon, Badge, CopyButton, Group, Skeleton, Text, Tooltip } from '@
 import { Check, Copy } from 'lucide-react';
 import { formatUnits } from '@/lib/ui';
 import { Panel } from './kit';
+import classes from './surface.module.css';
 import { SUBGRAPH_URL } from './subgraph';
 import type { SurfacePoint, SurfaceSource } from './types';
 
@@ -64,11 +65,6 @@ export function ReadLayer({
   return (
     <Panel
       title="How the price list above gets built"
-      badge={
-        <Badge variant="light" color="petrol" size="sm" radius="sm">
-          The Graph
-        </Badge>
-      }
       lede="Nobody publishes a price list for these offers. Each one is a small program its maker put on chain, and the program states in the clear what it sells, at what price and until when. This page rebuilds the whole market by reading those programs out of the chain's own log, so no maker has to cooperate and no price feed is consulted."
       footer={
         <>
@@ -92,8 +88,8 @@ export function ReadLayer({
                 Not answering
               </Badge>
             ) : (
-              <Badge variant="light" color="slate" size="sm" radius="sm">
-                Not running here
+              <Badge variant="light" color="slate" size="sm" radius="sm" title="No subgraph is running against this deployment, so the logs are read directly.">
+                Not answering
               </Badge>
             )
           }
@@ -142,8 +138,14 @@ export function ReadLayer({
                 Answering
               </Badge>
             ) : (
-              <Badge variant="light" color="slate" size="sm" radius="sm">
-                Standby
+              <Badge
+                variant="light"
+                color="slate"
+                size="sm"
+                radius="sm"
+                title="The subgraph answered, so the direct path was not needed on this page load."
+              >
+                Not answering
               </Badge>
             )
           }
@@ -166,8 +168,18 @@ export function ReadLayer({
           name="SurfaceLens"
           status={
             lensVia ? (
-              <Badge variant="light" color="petrol" size="sm" radius="sm">
-                {lensVia === 'deployless' ? 'Inline' : 'Deployed'}
+              <Badge
+                variant="light"
+                color="petrol"
+                size="sm"
+                radius="sm"
+                title={
+                  lensVia === 'deployless'
+                    ? 'Ran deployless: the contract’s own init code inside one eth_call, never deployed.'
+                    : 'Called at its deployed address.'
+                }
+              >
+                Answering
               </Badge>
             ) : (
               <Badge variant="light" color="slate" size="sm" radius="sm">
@@ -207,6 +219,7 @@ export function ReadLayer({
                   onClick={copy}
                   variant="default"
                   size="md"
+                  className={classes.tap}
                   aria-label={copied ? 'Query copied' : 'Copy the query'}
                 >
                   {copied ? (

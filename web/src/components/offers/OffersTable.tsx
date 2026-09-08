@@ -297,7 +297,7 @@ function OfferRow({
           multiline
           w={260}
           withArrow
-          label={`The strike: this offer hands over ${delivers.symbol} once ETH ${action.kind === 'call' ? 'reaches' : 'falls to'} $${leg.strikeLabel}. Priced at ${formatPercent(sigmaRatio(leg.rmm.sigmaWad), { fractionDigits: 1 })} implied volatility (IV) — the movement it assumes between now and expiry.`}
+          label={`The strike: this offer hands over ${delivers.symbol} once ETH ${action.kind === 'call' ? 'reaches' : 'falls to'} $${leg.strikeLabel}. Priced at ${formatPercent(sigmaRatio(leg.rmm.sigmaWad), { fractionDigits: 1 })} implied volatility (IV), the movement it assumes between now and expiry.`}
         >
           <span className="flex flex-col items-end gap-1 leading-num">
             <span className="font-mono text-body tnum text-ink">${leg.strikeLabel}</span>

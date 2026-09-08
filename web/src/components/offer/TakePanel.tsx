@@ -198,7 +198,7 @@ function Refusal({
       label={`${row.refusedAs ?? 'refused'}${
         bound === undefined
           ? ''
-          : ` — the second argument is the honest maximum: ${formatUnits(bound, outDecimals, { significantDigits: 8 })} ${outSymbol}`
+          : `. The second argument is the honest maximum: ${formatUnits(bound, outDecimals, { significantDigits: 8 })} ${outSymbol}`
       }`}
       multiline
       w={280}

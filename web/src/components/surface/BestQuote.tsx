@@ -132,7 +132,7 @@ export function BestQuote({
           {days === undefined ? '' : `, ${days.toFixed(1)} days out`}
           <Text component="span" c="var(--ink-3)" fw={400}>
             {' '}
-            &mdash; across every wallet
+            across every wallet
           </Text>
         </>
       }
@@ -460,8 +460,8 @@ function QuoteRow({
 
       <Table.Td>
         {leg.guarded ? (
-          <StateBadge tone="live" title="Wrapped in the Coverage instruction">
-            Checked
+          <StateBadge tone="live" title="Wrapped in the Coverage instruction, so its size is margined against the seller's real wallet rather than advertised.">
+            Wallet checked
           </StateBadge>
         ) : (
           <StateBadge tone="warn" title="No Coverage instruction wraps the curve">

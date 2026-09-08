@@ -398,7 +398,7 @@ export function ManagePanel({
             </Text>
             <Text size="sm" c="var(--ink-2)" className="leading-prose">
               No token moves, and there is nothing to withdraw: your wallet has held the whole amount
-              the entire time. If you only want a later date, move it instead — that publishes the
+              the entire time. If you only want a later date, move it instead: that publishes the
               new offer first, so you are never absent from the market in between.
             </Text>
             <Group justify="flex-end" gap="xs" mt="sm">

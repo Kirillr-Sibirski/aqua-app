@@ -98,7 +98,7 @@ export function GapReadout({
       {scrubbed ? (
         <Text size="xs" c="var(--ink-3)" className="leading-prose">
           Both figures are <span className="font-mono">bandFor</span> asked about an offer with the
-          same price, the same size and that much less time left — a read, not a projection. The
+          same price, the same size and that much less time left, so it is a read rather than a projection. The
           router will only agree to fill something at the block it is in, so the measured check comes
           back when the slider does.
         </Text>
@@ -125,7 +125,7 @@ export function GapReadout({
           <Text size="xs" c="var(--ink-2)" className="leading-prose">
             The router publishes{' '}
             <Num>{formatUnits(fill.published, inDecimals, { significantDigits: 9 })}</Num> {inSymbol}
-            , and that fills — but so does the unit below it, which is the number above. The
+            , and that fills. So does the unit below it, which is the number above. The
             published minimum is rounded a unit to the maker&rsquo;s side of the{' '}
             <Term precise="RmmSwap.EPS = 2e-6 of the leg, held back on the output side so a trade cannot land exactly on the curve. bandFor reads the band off the guarded reserve, and the two roundings need not land on the same raw unit.">
               guard band
@@ -150,8 +150,7 @@ export function GapReadout({
             We asked the router to fill exactly this and it did
             {fill.buys !== undefined ? (
               <>
-                {' '}
-                — buying{' '}
+                , buying{' '}
                 <Num>{formatUnits(fill.buys, otherDecimals, { significantDigits: 4 })}</Num>{' '}
                 {otherSymbol}, which is dust: at the threshold the whole trade is the gap
               </>

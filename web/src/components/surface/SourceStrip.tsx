@@ -1,15 +1,21 @@
 'use client';
 
 /**
- * Where these numbers came from.
+ * The census and its provenance, as one sentence.
  *
- * A read layer that will not say which of its sources answered is asking to be trusted rather than
- * checked, and a stale index is a lie told confidently. So the census sits beside its provenance:
- * how many offers were decoded, from how many wallets, at which block, through which path.
+ * This used to be a four-up grid of stat tiles — Live offers / Wallets offering / Total on offer /
+ * Read via — which is the identical-tile pattern PRODUCT.md lists as an anti-reference and the
+ * shape the operator's verdict was about. None of the four numbers is the reason to be on this
+ * page; the reason is the cross-maker answer below, and the census is context for it. Context is a
+ * line of prose.
+ *
+ * Nothing was dropped. Every figure the tiles carried is in the sentence, and the provenance a read
+ * layer owes its reader — which source answered, at which block, how far behind the index is — is
+ * the second half of it, because a read layer that will not say where its numbers came from is
+ * asking to be trusted rather than checked.
  */
-import { Badge, Paper, SimpleGrid } from '@mantine/core';
+import { Skeleton, Text } from '@mantine/core';
 import { formatUnits } from '@/lib/ui';
-import { Amount, Stat } from './kit';
 import type { SurfaceCensus, SurfaceSource } from './types';
 
 export interface SourceStripProps {
@@ -26,7 +32,6 @@ export interface SourceStripProps {
 export function SourceStrip({
   census,
   source,
-  lensVia,
   blockNumber,
   indexedBlock,
   loading,
@@ -37,60 +42,29 @@ export function SourceStrip({
       ? blockNumber - indexedBlock
       : undefined;
 
+  if (loading) return <Skeleton height={18} width="70%" radius="sm" />;
+
+  const size = formatUnits(census.writtenWad, 18, { significantDigits: 6 });
+  const wallets = `${census.makers} ${census.makers === 1 ? 'wallet' : 'wallets'}`;
+  const prices = `${census.strikes} ${census.strikes === 1 ? 'price' : 'prices'}`;
+  const dates = `${census.expiries} ${census.expiries === 1 ? 'date' : 'dates'}`;
+  const guarded =
+    census.guarded === census.liveLegs
+      ? 'Every one checks its seller’s wallet before it quotes.'
+      : `${census.guarded} of them check their seller’s wallet before quoting.`;
+
   return (
-    <Paper withBorder radius="xl" p="lg">
-      <SimpleGrid cols={{ base: 2, md: 4 }} spacing="xl" verticalSpacing="lg">
-        <Stat
-          label="Live offers"
-          loading={loading}
-          value={census.liveLegs.toString()}
-          unit={census.legs === census.liveLegs ? undefined : `of ${census.legs} ever made`}
-          detail={
-            census.guarded === census.liveLegs
-              ? 'Every one checks its seller’s wallet before it quotes'
-              : `${census.guarded} of ${census.liveLegs} check their seller’s wallet`
-          }
-        />
-        <Stat
-          label="Wallets offering"
-          loading={loading}
-          value={census.makers.toString()}
-          detail={`${census.strikes} ${census.strikes === 1 ? 'price' : 'prices'}, ${census.expiries} ${census.expiries === 1 ? 'date' : 'dates'}`}
-        />
-        <Stat
-          label="Total on offer"
-          loading={loading}
-          value={<Amount value={census.writtenWad} decimals={18} size="lg" />}
-          unit={riskySymbol}
-          detail="Added up across every live offer"
-        />
-        <Stat
-          label="Read via"
-          loading={loading}
-          value={source === 'subgraph' ? 'Subgraph' : 'Event logs'}
-          aside={
-            <Badge
-              variant="light"
-              color={source === 'subgraph' ? 'petrol' : 'slate'}
-              size="sm"
-              radius="sm"
-            >
-              {lensVia === 'deployless'
-                ? 'Lens inline'
-                : lensVia === 'deployed'
-                  ? 'Lens live'
-                  : 'Decoded'}
-            </Badge>
-          }
-          detail={
-            blockNumber === undefined
-              ? 'Waiting for a block'
-              : behind !== undefined && behind > BigInt(0)
-                ? `Block ${formatUnits(blockNumber, 0)}, index ${formatUnits(behind, 0)} behind`
-                : `Block ${formatUnits(blockNumber, 0)}`
-          }
-        />
-      </SimpleGrid>
-    </Paper>
+    <Text size="sm" c="var(--ink-2)" className="leading-prose">
+      <span className="font-mono tnum">{census.liveLegs}</span> live{' '}
+      {census.liveLegs === 1 ? 'offer' : 'offers'} from {wallets}, across {prices} and {dates},{' '}
+      <span className="font-mono tnum">{size}</span> {riskySymbol} on offer in total. {guarded}{' '}
+      {blockNumber === undefined
+        ? 'Waiting for a block.'
+        : `Read ${source === 'subgraph' ? 'from the subgraph' : 'straight from the event logs'} at block ${formatUnits(blockNumber, 0)}${
+            behind !== undefined && behind > BigInt(0)
+              ? `, with the index ${formatUnits(behind, 0)} behind the chain`
+              : ''
+          }.`}
+    </Text>
   );
 }
