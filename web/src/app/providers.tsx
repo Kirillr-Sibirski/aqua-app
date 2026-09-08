@@ -1,7 +1,17 @@
 'use client';
 
 /**
- * Client boundary for wagmi + TanStack Query.
+ * Client boundary for Mantine, wagmi and TanStack Query.
+ *
+ * Nesting order, and why:
+ *
+ *   MantineProvider    outermost, because ModalsProvider and Notifications both read its
+ *                      context, and because its CSS-variable `<style>` should be in the tree
+ *                      before anything that renders a Mantine component.
+ *   ModalsProvider     needs Mantine, provides `modals.open*` to everything below.
+ *   Notifications      the toast viewport; one per app, rendered once here.
+ *   WagmiProvider      chain state.
+ *   QueryClientProvider wagmi's async cache.
  *
  * `wagmiConfig` is created with `ssr: true` + cookie storage, so this component renders the same
  * (disconnected) markup on the server and on the first client paint; wagmi then reconnects from the
@@ -9,10 +19,15 @@
  * (`cookieToInitialState(wagmiConfig, (await headers()).get('cookie'))`) to skip that round trip —
  * doing so opts the route into dynamic rendering, which is why the root layout does not.
  */
+import { MantineProvider } from '@mantine/core';
+import { ModalsProvider } from '@mantine/modals';
+import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { WagmiProvider, type State } from 'wagmi';
+import { cssVariablesResolver, theme } from '@/components/theme';
 import { wagmiConfig } from '@/lib/chain';
+import { Z } from '@/lib/ui/tokens';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -45,9 +60,21 @@ export interface ProvidersProps {
 export function Providers({ children, initialState }: ProvidersProps) {
   const [queryClient] = useState(getQueryClient);
   return (
-    <WagmiProvider config={wagmiConfig} initialState={initialState} reconnectOnMount>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </WagmiProvider>
+    <MantineProvider
+      theme={theme}
+      cssVariablesResolver={cssVariablesResolver}
+      // The app has one theme. Forcing it means Mantine never reads localStorage or the OS
+      // setting, which is also why `ColorSchemeScript` in the layout cannot flash.
+      forceColorScheme="light"
+      defaultColorScheme="light"
+    >
+      <ModalsProvider>
+        <Notifications position="bottom-right" limit={4} zIndex={Z.toast} />
+        <WagmiProvider config={wagmiConfig} initialState={initialState} reconnectOnMount>
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        </WagmiProvider>
+      </ModalsProvider>
+    </MantineProvider>
   );
 }
 
