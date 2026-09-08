@@ -44,7 +44,12 @@ const ROUTER_ARTIFACT = resolve(process.env.ROUTER_ARTIFACT ?? PATHS.defaultRout
 /** What the manifest records. Repo-relative, because an absolute path is true on exactly one machine
  *  and the reuse check below compares it. */
 const ROUTER_ARTIFACT_REL = relative(PATHS.root, ROUTER_ARTIFACT);
-const ROUTER_NAME = process.env.ROUTER_NAME ?? 'Aqua App SwapVM';
+// The EIP-712 domain name burned into the router at construction. `contracts/script/DeployStrikeline.s.sol`
+// and `make story-bootstrap` both already say "Strikeline"; this used to say "Aqua App SwapVM", so the router
+// you got from the README's `make bootstrap` described itself differently from the one every other path
+// deploys. Inert for Aqua-mode orders (they hash `abi.encode(order)`, no domain), but it is what a wallet
+// shows a signer, and two names for one product is one of them being wrong.
+const ROUTER_NAME = process.env.ROUTER_NAME ?? 'Strikeline';
 const ROUTER_VERSION = process.env.ROUTER_VERSION ?? '1';
 const FORK_BLOCK = Number(process.env.ANVIL_FORK_BLOCK ?? 50946000);
 /** Set FUND_VIA_STORAGE=1 to skip whale impersonation and exercise the anvil_setStorageAt fallback. */
@@ -71,6 +76,23 @@ const routerAbiMin = [
   // The one call that separates a Strikeline router from any other SwapVM router deployed against the
   // same Aqua. See `assertStrikeline` below.
   { type: 'function', name: 'tauNow', stateMutability: 'view', inputs: [{ type: 'uint40' }], outputs: [{ type: 'uint256' }] },
+  // ERC-5267. Read back rather than echoed from ROUTER_NAME/ROUTER_VERSION so the manifest states what the
+  // chain says, including for a router this run only reused.
+  {
+    type: 'function',
+    name: 'eip712Domain',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      { type: 'bytes1' },
+      { type: 'string' },
+      { type: 'string' },
+      { type: 'uint256' },
+      { type: 'address' },
+      { type: 'bytes32' },
+      { type: 'uint256[]' },
+    ],
+  },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -138,6 +160,16 @@ async function assertStrikeline(address: Address, contractName: string): Promise
         `the surface and the story scenes would all read reverts.\n` +
         `  set ROUTER_ARTIFACT=contracts/out/StrikelineRouter.sol/StrikelineRouter.json (the default), or run \`make story-setup\`.`,
     );
+  }
+}
+
+/** The router's own EIP-712 domain, off the chain. `n/a` for a router predating ERC-5267. */
+async function readEip712Domain(address: Address): Promise<{ name: string; version: string }> {
+  try {
+    const d = await publicClient.readContract({ address, abi: routerAbiMin, functionName: 'eip712Domain' });
+    return { name: d[1], version: d[2] };
+  } catch {
+    return { name: 'n/a', version: 'n/a' };
   }
 }
 
@@ -269,6 +301,7 @@ async function main() {
     deployTx = d.txHash;
     deployNote = `deployed by account #0 (nonce ${nonce}) with ${artifact.contractName}(${d.described}), gas ${d.gasUsed}`;
   }
+  const routerEip712 = await readEip712Domain(router);
   const routerAqua = await publicClient.readContract({ address: router, abi: routerAbiMin, functionName: 'AQUA' });
   if (routerAqua.toLowerCase() !== ADDR.aqua.toLowerCase()) die(`router.AQUA() = ${routerAqua} != official Aqua`);
   await assertStrikeline(router, artifact.contractName);
@@ -335,6 +368,7 @@ async function main() {
     officialRouter: ADDR.officialRouter,
     router,
     routerName: artifact.contractName,
+    routerEip712,
     routerArtifact: ROUTER_ARTIFACT_REL,
     routerOwner,
     weth: ADDR.weth,
@@ -360,6 +394,7 @@ async function main() {
     ['Aqua (official)', ADDR.aqua],
     ['official router', ADDR.officialRouter],
     [`router (${artifact.contractName})`, router],
+    ['router EIP-712 domain', `${routerEip712.name} / ${routerEip712.version}`],
     ['WETH / USDC / cbBTC', `${ADDR.weth} / ${ADDR.usdc} / ${ADDR.cbBtc}`],
     ['Chainlink ETH/USD BTC/USD USDC/USD', `${ADDR.chainlink.ethUsd} ${ADDR.chainlink.btcUsd} ${ADDR.chainlink.usdcUsd}`],
     ['Aave v3 pool', ADDR.aave.pool],

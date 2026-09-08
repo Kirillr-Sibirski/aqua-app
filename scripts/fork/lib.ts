@@ -174,7 +174,10 @@ export interface Deployments {
   aqua: Address;
   officialRouter: Address;
   router: Address;
+  /** The artifact's contract name, e.g. `StrikelineRouter`. */
   routerName: string;
+  /** The router's own EIP-712 domain, read off the chain with ERC-5267 `eip712Domain()`. */
+  routerEip712: { name: string; version: string };
   routerArtifact: string;
   routerOwner: Address;
   weth: Address;
