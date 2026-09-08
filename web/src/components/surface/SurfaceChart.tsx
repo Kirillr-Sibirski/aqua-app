@@ -25,10 +25,11 @@ import { Marker } from '@/components/charts/Marker';
 import { formatChartNumber } from '@/components/charts/format';
 import { padDomain } from '@/components/charts/geometry';
 import { round } from '@/components/charts/types';
-import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui';
+import { Table } from '@mantine/core';
 import { formatUnits } from '@/lib/ui';
 import { color, colorMix, FONT_STACK } from '@/lib/ui/tokens';
 import { daysToExpiry, impliedSpot } from './decode';
+import { Head, META } from './kit';
 import type { SurfaceLeg, SurfacePoint } from './types';
 
 export interface SurfaceChartProps {
@@ -87,20 +88,20 @@ export function SurfaceChart({
 
   return (
     <ChartFrame
-      title="Volatility surface"
+      title="What is being offered, and when"
       description={`Every price and date somebody is quoting, decoded from the published bytes of ${chips.length} live offer${chips.length === 1 ? '' : 's'} on this router. Horizontal axis is the price they would sell at in ${stableSymbol}; vertical axis is days until the offer runs out; each chip is labelled with the movement that maker priced in.`}
       subtitle={
         expiries.length === 1
-          ? 'Each chip is one price somebody is quoting, labelled with the movement they priced in. Only one date is on offer so far, so this is one row rather than a surface.'
-          : `Each chip is one price somebody is quoting, labelled with the movement they priced in. ${expiries.length} dates, ${chips.length} live points.`
+          ? `One chip per price somebody will sell at, placed at the date it runs to, labelled with the movement they are being paid for. Only one date is on offer so far, so this is a single row. A trader would call the whole picture a volatility surface.`
+          : `One chip per price somebody will sell at, placed at the date it runs to, labelled with the movement they are being paid for: ${expiries.length} dates, ${chips.length} live points. A trader would call this a volatility surface.`
       }
       height={height}
       margin={{ top: 20, right: 34, bottom: 34, left: 62 }}
       state={resolvedState}
-      emptyMessage="Nobody is quoting on this router yet. This is built from the chain's own log, so it fills in the moment the first offer lands."
+      emptyMessage="Nobody is offering anything on this router yet. This is built from the chain's own log, so it fills in the moment the first offer lands."
       errorMessage={errorMessage}
       legend={<Legend />}
-      footnote="The movement priced in is something each maker chose and published, read straight out of their offer, not solved for. Offers that were taken down are not drawn; they are listed in the table below."
+      footnote="The movement priced in is something each seller chose and published, read straight out of their offer rather than solved for. Offers that were taken down are not drawn; they are listed in the table below."
       table={<ChipTable chips={chips} stableSymbol={stableSymbol} />}
       tableLabel="the points"
     >
@@ -245,31 +246,44 @@ function Legend() {
 /** The chart's accessible twin: the same points, as numbers, without a pointer. */
 function ChipTable({ chips, stableSymbol }: { chips: readonly Chip[]; stableSymbol: string }) {
   return (
-    <Table caption="Points on the surface" hideCaption minWidth="34rem">
-      <TableHead>
-        <TableRow>
-          <TableHeaderCell numeric title="Strike, K">
-            Sells at ({stableSymbol})
-          </TableHeaderCell>
-          <TableHeaderCell numeric>Days</TableHeaderCell>
-          <TableHeaderCell numeric title="Implied volatility">
-            Movement
-          </TableHeaderCell>
-          <TableHeaderCell numeric>Offers</TableHeaderCell>
-          <TableHeaderCell>Yours</TableHeaderCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {chips.map((chip) => (
-          <TableRow key={chip.key}>
-            <TableCell numeric>{formatUnits(BigInt(Math.round(chip.strike)), 0)}</TableCell>
-            <TableCell numeric>{chip.days.toFixed(2)}</TableCell>
-            <TableCell numeric>{chip.ivPercent.toFixed(1)}%</TableCell>
-            <TableCell numeric>{chip.legs}</TableCell>
-            <TableCell>{chip.mine ? 'Yes' : 'No'}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <Table.ScrollContainer minWidth={544} type="native">
+      <Table verticalSpacing="xs" horizontalSpacing="md" tabularNums fz={META}>
+        <Table.Caption className="sr-only">Points on the surface</Table.Caption>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>
+              <Head numeric term="The strike, K: the price these wallets said they would sell at.">
+                Sells at ({stableSymbol})
+              </Head>
+            </Table.Th>
+            <Table.Th>
+              <Head numeric>Days</Head>
+            </Table.Th>
+            <Table.Th>
+              <Head numeric term="Implied volatility: how big a move these sellers are being paid for.">
+                Movement
+              </Head>
+            </Table.Th>
+            <Table.Th>
+              <Head numeric>Offers</Head>
+            </Table.Th>
+            <Table.Th>
+              <Head>Yours</Head>
+            </Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {chips.map((chip) => (
+            <Table.Tr key={chip.key}>
+              <Table.Td ta="right">{formatUnits(BigInt(Math.round(chip.strike)), 0)}</Table.Td>
+              <Table.Td ta="right">{chip.days.toFixed(2)}</Table.Td>
+              <Table.Td ta="right">{chip.ivPercent.toFixed(1)}%</Table.Td>
+              <Table.Td ta="right">{chip.legs}</Table.Td>
+              <Table.Td>{chip.mine ? 'Yes' : 'No'}</Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    </Table.ScrollContainer>
   );
 }

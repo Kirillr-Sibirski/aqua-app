@@ -16,12 +16,15 @@
  *
  * This panel exists because a read layer that will not name its own source is asking to be trusted
  * rather than checked. It says which path answered this page load, how far behind the index is, and
- * prints the query itself — with the strike and expiry currently on screen substituted in, so it can
- * be pasted into a Graph playground and checked against what the page is showing.
+ * prints the query itself — with the price and date currently on screen substituted in, so it can be
+ * pasted into a Graph playground and checked against what the page is showing. The query is on the
+ * page rather than behind a disclosure, because it is the contribution.
  */
 import type { ReactNode } from 'react';
-import { Card, CopyButton, Pill, Skeleton } from '@/components/ui';
+import { ActionIcon, Badge, CopyButton, Group, Skeleton, Text, Tooltip } from '@mantine/core';
+import { Check, Copy } from 'lucide-react';
 import { formatUnits } from '@/lib/ui';
+import { Panel } from './kit';
 import { SUBGRAPH_URL } from './subgraph';
 import type { SurfacePoint, SurfaceSource } from './types';
 
@@ -56,17 +59,24 @@ export function ReadLayer({
       ? blockNumber - indexedBlock
       : undefined;
 
+  const query = bestBidQuery(point);
+
   return (
-    <Card
-      title="Where these numbers come from"
-      description="Nobody publishes a price list for these offers. Each one is a small program its maker put on chain, and the program states in the clear what it sells, at what price and until when. This page rebuilds the whole market by reading those programs out of the chain's own log, so no maker has to cooperate and no price feed is consulted."
+    <Panel
+      title="How the price list above gets built"
+      badge={
+        <Badge variant="light" color="petrol" size="sm" radius="sm">
+          The Graph
+        </Badge>
+      }
+      lede="Nobody publishes a price list for these offers. Each one is a small program its maker put on chain, and the program states in the clear what it sells, at what price and until when. This page rebuilds the whole market by reading those programs out of the chain's own log, so no maker has to cooperate and no price feed is consulted."
       footer={
-        <p className="text-mini leading-prose text-ink-3">
+        <>
           <em className="not-italic text-ink-2">If you already trade options:</em> this is an
           implied-volatility surface reconstructed from event logs alone. The registry has no order
-          book, so the cross-maker aggregation at a given strike and expiry (the best bid) is
+          book, so the cross-maker aggregation at a given strike and expiry — the best bid — is
           computed in the mapping and stored as an entity, not solved for in the browser.
-        </p>
+        </>
       }
     >
       <div className="flex flex-col divide-y divide-line">
@@ -74,17 +84,17 @@ export function ReadLayer({
           name="The Graph"
           status={
             source === 'subgraph' ? (
-              <Pill tone="accent" size="sm" dot>
+              <Badge variant="light" color="petrol" size="sm" radius="sm">
                 Answering
-              </Pill>
+              </Badge>
             ) : SUBGRAPH_URL ? (
-              <Pill tone="warning" size="sm" dot>
+              <Badge variant="light" color="amber" size="sm" radius="sm">
                 Not answering
-              </Pill>
+              </Badge>
             ) : (
-              <Pill tone="neutral" size="sm" dot>
+              <Badge variant="light" color="slate" size="sm" radius="sm">
                 Not running here
-              </Pill>
+              </Badge>
             )
           }
           detail={
@@ -98,12 +108,17 @@ export function ReadLayer({
               ) : (
                 <>
                   Indexed to block{' '}
-                  <span className="font-mono tnum text-ink-2">{formatUnits(indexedBlock ?? BigInt(0), 0)}</span>,
-                  level with the chain.
+                  <span className="font-mono tnum text-ink-2">
+                    {formatUnits(indexedBlock ?? BigInt(0), 0)}
+                  </span>
+                  , level with the chain.
                 </>
               )
             ) : subgraphError ? (
-              <>The index was configured and did not answer ({subgraphError.message}), so this page fell back to the log.</>
+              <>
+                The index was configured and did not answer ({subgraphError.message}), so this page
+                fell back to the log.
+              </>
             ) : (
               <>
                 Deploy it and this page prefers it. Nothing on screen changes; the same bytes are
@@ -123,13 +138,13 @@ export function ReadLayer({
           name="Straight from the log"
           status={
             source === 'logs' ? (
-              <Pill tone="accent" size="sm" dot>
+              <Badge variant="light" color="petrol" size="sm" radius="sm">
                 Answering
-              </Pill>
+              </Badge>
             ) : (
-              <Pill tone="neutral" size="sm" dot>
+              <Badge variant="light" color="slate" size="sm" radius="sm">
                 Standby
-              </Pill>
+              </Badge>
             )
           }
           detail={
@@ -151,13 +166,13 @@ export function ReadLayer({
           name="SurfaceLens"
           status={
             lensVia ? (
-              <Pill tone="accent" size="sm" dot>
+              <Badge variant="light" color="petrol" size="sm" radius="sm">
                 {lensVia === 'deployless' ? 'Inline' : 'Deployed'}
-              </Pill>
+              </Badge>
             ) : (
-              <Pill tone="neutral" size="sm" dot>
+              <Badge variant="light" color="slate" size="sm" radius="sm">
                 Not answering
-              </Pill>
+              </Badge>
             )
           }
           detail={
@@ -176,26 +191,39 @@ export function ReadLayer({
         </Path>
       </div>
 
-      <details className="mt-4 rounded-card border border-line">
-        <summary className="cursor-pointer list-none px-4 py-3 text-meta text-ink-2 transition-state hover:text-ink">
-          The query behind the panel above
-          <span className="ml-2 font-mono text-mini tnum text-ink-3">GraphQL</span>
-        </summary>
-        <div className="px-4 pb-4">
-          <div className="flex items-start justify-between gap-3">
-            <p className="max-w-prose text-mini leading-prose text-ink-3">
-              This is the question the registry cannot answer about itself, and the reason the read
-              layer exists. Paste it into the subgraph&apos;s playground; the numbers it returns are
-              the ones above.
-            </p>
-            <CopyButton value={bestBidQuery(point)} what="the query" />
-          </div>
-          <pre className="mt-3 overflow-x-auto rounded-control bg-surface-2 p-3 font-mono text-mini leading-prose text-ink-2">
-            {bestBidQuery(point)}
-          </pre>
+      <div className="mt-5 rounded-field border border-line bg-surface-2">
+        <div className="flex flex-wrap items-start justify-between gap-3 px-4 pt-3 pb-2">
+          <Text fz="xs" lh={1.45} c="var(--ink-3)" className="max-w-prose">
+            <Text component="span" fz="xs" fw={500} c="var(--ink)">
+              The one query behind the panel above.
+            </Text>{' '}
+            This is the question the registry cannot answer about itself. Paste it into the
+            subgraph&rsquo;s playground; the numbers it returns are the ones on screen.
+          </Text>
+          <CopyButton value={query} timeout={1400}>
+            {({ copied, copy }) => (
+              <Tooltip label={copied ? 'Copied' : 'Copy the query'} withArrow fz="xs">
+                <ActionIcon
+                  onClick={copy}
+                  variant="default"
+                  size="md"
+                  aria-label={copied ? 'Query copied' : 'Copy the query'}
+                >
+                  {copied ? (
+                    <Check size={14} strokeWidth={1.75} />
+                  ) : (
+                    <Copy size={14} strokeWidth={1.75} />
+                  )}
+                </ActionIcon>
+              </Tooltip>
+            )}
+          </CopyButton>
         </div>
-      </details>
-    </Card>
+        <pre className="overflow-x-auto px-4 pb-4 font-mono text-mini leading-prose text-ink-2">
+          {query}
+        </pre>
+      </div>
+    </Panel>
   );
 }
 
@@ -250,15 +278,21 @@ function Path({
 }) {
   return (
     <div className="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-meta font-medium text-ink">{name}</h3>
+      <Group gap="xs" wrap="wrap">
+        <Text component="h3" fz={13} fw={500} c="var(--ink)">
+          {name}
+        </Text>
         {status}
-      </div>
-      <p className="max-w-prose text-mini leading-prose text-ink-3">{children}</p>
+      </Group>
+      <Text fz="xs" lh={1.5} c="var(--ink-3)" className="max-w-prose">
+        {children}
+      </Text>
       {detail === undefined ? (
-        <Skeleton className="h-4 w-64" />
+        <Skeleton height={16} width={256} radius="sm" />
       ) : (
-        <p className="max-w-prose text-mini leading-prose text-ink-2">{detail}</p>
+        <Text fz="xs" lh={1.5} c="var(--ink-2)" className="max-w-prose">
+          {detail}
+        </Text>
       )}
     </div>
   );

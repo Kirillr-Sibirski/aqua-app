@@ -1,24 +1,25 @@
 'use client';
 
 /**
- * Every option on the router, one row each.
+ * Every offer on the router, one row each.
  *
- * The left half of the row is decoded — strike, vol, expiry, notional — and needs no contract call,
+ * The left half of the row is decoded — price, movement, date, size — and needs no contract call,
  * because Aqua published the bytes. The right half is priced by `SurfaceLens` at the same block:
- * the curve's own mark, the delta read straight off the reserve, and the premium measured from the
+ * the curve's own mark, the delta read straight off the reserve, and the value measured from the
  * reserves that are actually there. A cell the chain has not answered for stays blank.
  *
- * A docked leg is one of those. Aqua zeroes its reserves, so the mark inversion `d1 = Phi^-1(1 -
- * X/L)` lands on the `icdf` clamp and returns a price with no relation to the leg -- 5,036 USDC on a
- * 2,600 call, equal to its own premium. `SurfaceLens` now refuses to price those rows, and the delta
- * (which the table can derive itself from the reserve) is blanked here for the same reason: zero
- * reserves are Aqua's answer about custody, not the curve's answer about a price.
+ * A withdrawn offer is one of those. Aqua zeroes its reserves, so the mark inversion `d1 = Phi^-1(1
+ * - X/L)` lands on the `icdf` clamp and returns a price with no relation to the offer -- 5,036 USDC
+ * on a 2,600 call, equal to its own premium. `SurfaceLens` refuses to price those rows, and the
+ * delta (which the table could derive itself from the reserve) is blanked here for the same reason:
+ * zero reserves are Aqua's answer about custody, not the curve's answer about a price.
  */
 import Link from 'next/link';
-import { Address as AddressText, Card, Pill, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow, TableSkeletonRows, TokenAmount } from '@/components/ui';
+import { Group, Skeleton, Table } from '@mantine/core';
 import { tokenInfo, type Deployments } from '@/lib/contracts';
 import { formatUnits } from '@/lib/ui';
 import { daysToExpiry, deltaOf } from './decode';
+import { Amount, Blank, Head, MakerAddress, META, Panel, StateBadge } from './kit';
 import type { SurfaceLeg } from './types';
 
 const COLUMNS = 10;
@@ -28,70 +29,114 @@ export interface SurfaceTableProps {
   deployments?: Deployments;
   nowSeconds?: number;
   loading?: boolean;
-  /** Row click selects the (strike, expiry) cell in the quote panel. */
+  /** Row click selects the (price, date) cell in the quote panel. */
   onSelect?: (key: string) => void;
 }
 
-export function SurfaceTable({ legs, deployments, nowSeconds, loading, onSelect }: SurfaceTableProps) {
+export function SurfaceTable({
+  legs,
+  deployments,
+  nowSeconds,
+  loading,
+  onSelect,
+}: SurfaceTableProps) {
   return (
-    <Card
+    <Panel
       title="Every offer on this router"
-      description="Read from the chain's own log and priced at one block, across every wallet. Offers that were taken down stay listed: one that was withdrawn is still part of the record."
+      lede="One row per offer, read from the chain's own log and priced at a single block, across every wallet. Offers that were taken down stay listed: one that was withdrawn is still part of the record."
       flush
     >
-      <Table
-        caption="Every offer made on this router"
-        hideCaption
-        minWidth="72rem"
-        scrollHint="mark, option value, how much can be sold"
-      >
-        <TableHead>
-          <TableRow>
-            <TableHeaderCell title="Maker">Wallet</TableHeaderCell>
-            <TableHeaderCell numeric title="Strike, K">
-              Sells at
-            </TableHeaderCell>
-            <TableHeaderCell numeric title="Time to expiry">
-              Time left
-            </TableHeaderCell>
-            <TableHeaderCell numeric title="Implied volatility">
-              Movement
-            </TableHeaderCell>
-            <TableHeaderCell numeric title="Notional, L">
-              Size
-            </TableHeaderCell>
-            <TableHeaderCell numeric title="Delta, Phi(-d1) read from the reserves">
-              Delta
-            </TableHeaderCell>
-            <TableHeaderCell numeric title="Mark: the price the curve is quoting right now">
-              Mark
-            </TableHeaderCell>
-            <TableHeaderCell numeric title="Premium, the Black-Scholes value measured from the reserves">
-              Option value
-            </TableHeaderCell>
-            <TableHeaderCell numeric title="Deliverable depth">
-              Can sell now
-            </TableHeaderCell>
-            <TableHeaderCell>Status</TableHeaderCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {loading ? (
-            <TableSkeletonRows rows={4} columns={COLUMNS} label="legs" />
-          ) : (
-            legs.map((leg) => (
-              <LegRow
-                key={leg.strategyHash}
-                leg={leg}
-                deployments={deployments}
-                nowSeconds={nowSeconds}
-                onSelect={onSelect}
-              />
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </Card>
+      <Table.ScrollContainer minWidth={1120} type="native">
+        <Table verticalSpacing="sm" horizontalSpacing="md" highlightOnHover tabularNums fz={META}>
+          <Table.Caption className="sr-only">Every offer made on this router</Table.Caption>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>
+                <Head term="The wallet that published the offer. Its tokens never left it.">
+                  Wallet
+                </Head>
+              </Table.Th>
+              <Table.Th>
+                <Head numeric term="The strike, K: the price this wallet said it would sell at.">
+                  Sells at
+                </Head>
+              </Table.Th>
+              <Table.Th>
+                <Head numeric term="Time to expiry, measured against the chain's clock rather than your browser's.">
+                  Time left
+                </Head>
+              </Table.Th>
+              <Table.Th>
+                <Head
+                  numeric
+                  term="Implied volatility. How big a move this seller is being paid for, read straight out of the published bytes rather than solved for."
+                >
+                  Movement
+                </Head>
+              </Table.Th>
+              <Table.Th>
+                <Head numeric term="Notional, L. How much the offer is written across.">
+                  Size
+                </Head>
+              </Table.Th>
+              <Table.Th>
+                <Head
+                  numeric
+                  term="Delta, Phi(-d1), read from the reserves. Roughly the chance this offer ends up selling, and how much of each move it currently absorbs."
+                >
+                  Chance of selling
+                </Head>
+              </Table.Th>
+              <Table.Th>
+                <Head numeric term="Mark: the price the curve is quoting right now, from the reserves in Aqua.">
+                  Quoting now
+                </Head>
+              </Table.Th>
+              <Table.Th>
+                <Head
+                  numeric
+                  term="Premium: the Black-Scholes value of the option, measured from the reserves that are actually there."
+                >
+                  Worth
+                </Head>
+              </Table.Th>
+              <Table.Th>
+                <Head
+                  numeric
+                  term="Deliverable depth. What the wallet can actually hand over now, which is less than the size whenever the maker has over-allocated."
+                >
+                  Can sell now
+                </Head>
+              </Table.Th>
+              <Table.Th>
+                <Head>Status</Head>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {loading
+              ? Array.from({ length: 4 }, (_, row) => (
+                  <Table.Tr key={row}>
+                    {Array.from({ length: COLUMNS }, (_, col) => (
+                      <Table.Td key={col}>
+                        <Skeleton height={14} radius="sm" />
+                      </Table.Td>
+                    ))}
+                  </Table.Tr>
+                ))
+              : legs.map((leg) => (
+                  <LegRow
+                    key={leg.strategyHash}
+                    leg={leg}
+                    deployments={deployments}
+                    nowSeconds={nowSeconds}
+                    onSelect={onSelect}
+                  />
+                ))}
+          </Table.Tbody>
+        </Table>
+      </Table.ScrollContainer>
+    </Panel>
   );
 }
 
@@ -109,101 +154,94 @@ function LegRow({
   const risky = tokenInfo(leg.tokenRisky, deployments);
   const stable = tokenInfo(leg.tokenStable, deployments);
   const days = nowSeconds === undefined ? undefined : daysToExpiry(leg.maturity, nowSeconds);
-  const delta = leg.pricing ? Number(leg.pricing.deltaWad) / 1e18 : leg.docked ? undefined : deltaOf(leg);
+  const delta = leg.pricing
+    ? Number(leg.pricing.deltaWad) / 1e18
+    : leg.docked
+      ? undefined
+      : deltaOf(leg);
   const matured = days !== undefined && days <= 0;
 
   return (
-    <TableRow
+    <Table.Tr
       onClick={onSelect ? () => onSelect(`${leg.strikeWad.toString()}-${leg.maturity}`) : undefined}
       className={onSelect ? 'cursor-pointer' : undefined}
     >
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <AddressText value={leg.maker} what="maker address" size="meta" />
-          {leg.mine ? (
-            <Pill tone="accent" size="sm">
-              You
-            </Pill>
-          ) : null}
-        </div>
-      </TableCell>
+      <Table.Td>
+        <Group gap="xs" wrap="nowrap">
+          <MakerAddress value={leg.maker} />
+          {leg.mine ? <StateBadge tone="mine">You</StateBadge> : null}
+        </Group>
+      </Table.Td>
 
-      <TableCell numeric>
-        {/* The strategy hash is the identity, so this URL resolves for any maker's leg, not only
+      <Table.Td ta="right">
+        {/* The strategy hash is the identity, so this URL resolves for any maker's offer, not only
             for the wallet that wrote it. It is the only path to the curve from this screen. */}
         <Link
           href={`/leg/${leg.strategyHash}`}
           onClick={(e) => e.stopPropagation()}
-          className="rounded-control transition-state hover:text-accent hover:underline hover:underline-offset-2"
+          className="rounded-control font-mono transition-state hover:text-accent hover:underline hover:underline-offset-2"
         >
           {formatUnits(leg.strikeWad, 18, { maxFractionDigits: 0 })}
           <span className="text-ink-3"> {stable.symbol}</span>
         </Link>
-      </TableCell>
+      </Table.Td>
 
-      <TableCell numeric>
+      <Table.Td ta="right">
         {days === undefined ? <Blank /> : days <= 0 ? 'expired' : `${days.toFixed(1)}d`}
-      </TableCell>
+      </Table.Td>
 
-      <TableCell numeric>{formatUnits(leg.sigmaWad, 16, { maxFractionDigits: 1 })}%</TableCell>
+      <Table.Td ta="right">{formatUnits(leg.sigmaWad, 16, { maxFractionDigits: 1 })}%</Table.Td>
 
-      <TableCell numeric>
-        <TokenAmount value={leg.liquidityWad} decimals={18} symbol={risky.symbol} size="sm" />
-      </TableCell>
+      <Table.Td ta="right">
+        <Amount value={leg.liquidityWad} decimals={18} symbol={risky.symbol} />
+      </Table.Td>
 
-      <TableCell numeric>{delta === undefined ? <Blank /> : delta.toFixed(3)}</TableCell>
+      <Table.Td ta="right">{delta === undefined ? <Blank /> : delta.toFixed(3)}</Table.Td>
 
-      <TableCell numeric>
+      <Table.Td ta="right">
         {leg.pricing ? (
-          <TokenAmount value={leg.pricing.markWad} decimals={18} symbol={stable.symbol} size="sm" />
+          <Amount value={leg.pricing.markWad} decimals={18} symbol={stable.symbol} />
         ) : (
           <Blank />
         )}
-      </TableCell>
+      </Table.Td>
 
-      <TableCell numeric>
+      <Table.Td ta="right">
         {leg.pricing ? (
-          <TokenAmount value={leg.pricing.premiumWad} decimals={18} symbol={stable.symbol} size="sm" />
+          <Amount value={leg.pricing.premiumWad} decimals={18} symbol={stable.symbol} />
         ) : (
           <Blank />
         )}
-      </TableCell>
+      </Table.Td>
 
-      <TableCell numeric>
-        <TokenAmount
+      <Table.Td ta="right">
+        <Amount
           value={leg.pricing ? leg.pricing.deliverableRisky : leg.reserveRisky}
           decimals={risky.decimals}
           symbol={risky.symbol}
-          size="sm"
         />
-      </TableCell>
+      </Table.Td>
 
-      <TableCell>
-        <div className="flex items-center gap-1.5">
+      <Table.Td>
+        <Group gap={6} wrap="nowrap">
           {leg.docked ? (
-            <Pill tone="neutral" size="sm" dot title="Docked in Aqua">
+            <StateBadge tone="muted" title="Docked in Aqua">
               Withdrawn
-            </Pill>
+            </StateBadge>
           ) : matured ? (
-            <Pill tone="warning" size="sm" dot title="Past maturity: settling, assignment only">
+            <StateBadge tone="warn" title="Past maturity: settling, assignment only">
               Past its date
-            </Pill>
+            </StateBadge>
           ) : (
-            <Pill tone="positive" size="sm" dot>
-              Live
-            </Pill>
+            <StateBadge tone="live">Live</StateBadge>
           )}
           {!leg.docked && !leg.guarded ? (
-            <Pill tone="warning" size="sm" title="No Coverage instruction wraps the curve">
+            <StateBadge tone="warn" title="No Coverage instruction wraps the curve">
               Wallet not checked
-            </Pill>
+            </StateBadge>
           ) : null}
-        </div>
-      </TableCell>
-    </TableRow>
+        </Group>
+      </Table.Td>
+    </Table.Tr>
   );
-}
-
-function Blank() {
-  return <span className="text-ink-3">&mdash;</span>;
 }
