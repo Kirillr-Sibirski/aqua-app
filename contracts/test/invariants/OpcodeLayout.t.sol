@@ -167,6 +167,23 @@ contract OpcodeLayoutTest is StrikelineLeg {
         this.buildCoverage(0, 10_000);
     }
 
+    /// @notice The error selectors `docs/OPCODES.md` publishes, asserted against the compiled contracts so the
+    ///         table in the docs can never drift from the ABI a caller decodes against.
+    function test_Layout_ErrorSelectors() public pure {
+        assertEq(RmmSwap.RmmInsideSpread.selector, bytes4(0xe2047c83), "RmmInsideSpread(uint256)");
+        assertEq(RmmSwap.RmmExceedsReserve.selector, bytes4(0xcb39c036), "RmmExceedsReserve(uint256,uint256)");
+        assertEq(RmmSwap.RmmSettlementOneWay.selector, bytes4(0x40f74638), "RmmSettlementOneWay()");
+        assertEq(RmmSwap.RmmOutOfDomain.selector, bytes4(0x18c40ced), "RmmOutOfDomain()");
+        assertEq(Coverage.NotCovered.selector, bytes4(0x09d16e81), "NotCovered(uint256,uint256)");
+        assertEq(Coverage.CoverageHaircutTooLarge.selector, bytes4(0xb1f0d0c9), "CoverageHaircutTooLarge(uint256)");
+        assertEq(StrikelineOpcodes.UnknownOpcode.selector, bytes4(0x446d79e8), "UnknownOpcode(uint256)");
+        assertEq(
+            IAqua.SafeBalancesForTokenNotInActiveStrategy.selector,
+            bytes4(0xb63386a6),
+            "SafeBalancesForTokenNotInActiveStrategy(address,address,bytes32,address)"
+        );
+    }
+
     // ------------------------------------------------------------------ the whole leg
 
     /// @notice The shipped program is `Deadline . Coverage . RmmSwap . Salt`, 86 bytes, in this order.
