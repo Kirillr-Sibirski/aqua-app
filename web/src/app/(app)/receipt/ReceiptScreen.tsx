@@ -127,10 +127,14 @@ export function ReceiptScreen() {
             detail="Every other chance to trade, the buyer walked away."
           />
           <StatTile
-            label="Vol sold, vol the week did"
+            label="Movement you were paid for"
             value={volPercent(t.impliedVolBps)}
-            unit={`vs ${volPercent(t.realisedVolBps)}`}
-            detail="The book was paid for more movement than the week delivered."
+            detail={
+              <>
+                The week actually moved {volPercent(t.realisedVolBps)}. You keep the difference when it
+                is quieter than what you sold.
+              </>
+            }
           />
           <StatTile
             label="Of the premium on offer"

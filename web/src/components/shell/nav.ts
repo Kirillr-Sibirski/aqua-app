@@ -30,9 +30,11 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/surface', label: 'Market', ready: true, match: 'prefix' },
   { href: '/book', label: 'Offers', ready: true, match: 'prefix' },
   { href: '/write', label: 'Name a price', ready: true, match: 'prefix' },
-  // Last, and named for the question it answers rather than for the method. It is the only screen
-  // whose figures are a simulation, and it says so in its own title block, banner and description.
-  { href: '/receipt', label: 'Was it worth it', ready: true, match: 'prefix' },
+  // Last, and one word on purpose: the bar is a fixed-height flex row that neither wraps nor shrinks,
+  // so a fifth item is bought with header width. "Was it worth it" is the plainer label and it costs
+  // about 40px more than this one, which is the difference between fitting and not fitting on a
+  // narrow laptop. The question it answers is the page's own h1 instead.
+  { href: '/receipt', label: 'Receipt', ready: true, match: 'prefix' },
   { href: '/activity', label: 'Activity', ready: false, match: 'prefix' },
 ];
 
