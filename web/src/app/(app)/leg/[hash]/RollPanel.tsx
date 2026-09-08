@@ -116,13 +116,29 @@ export function RollPanel({
   const riskyRaw = riskyIsTokenA ? reserves[0] : reserves[1];
   const xWad = riskyRaw * rmm.rateRisky;
 
+  /**
+   * Where the new curve wants the stable side, at the new maturity, from the router.
+   *
+   * On a poll, and not because the arguments move. They do not: `maturityAt` snaps to 08:00 UTC and
+   * is stable for a day, and the risky reserve carries over unchanged. The *answer* moves anyway,
+   * because `StrikelineViews._sNow` reads `block.timestamp` — so a value fetched once when the
+   * panel mounted would be shipped minutes later against a curve that had gone on decaying. The
+   * measured drift is around 0.035 stable units a minute on a 12 WETH leg at K 2600, against a
+   * maker-favouring guard band of about 0.06, so two minutes of staleness is already a leg shipped
+   * off its own curve. That is the one mistake this whole feature is arranged to avoid.
+   */
   const stableFor = useReadContract({
     address: router,
     abi: strikelineReadAbi,
     functionName: 'stableFor',
     args: [rmm.strikeWad, rmm.sigmaWad, newMaturity ?? 0, rmm.liquidityWad, xWad],
     chainId: aquaFork.id,
-    query: { enabled: newMaturity !== undefined && rmm.liquidityWad > BigInt(0), retry: false },
+    query: {
+      enabled: newMaturity !== undefined && rmm.liquidityWad > BigInt(0),
+      staleTime: 4_000,
+      refetchInterval: 8_000,
+      retry: false,
+    },
   });
 
   const next = useMemo(() => {
