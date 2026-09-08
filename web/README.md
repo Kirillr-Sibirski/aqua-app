@@ -13,6 +13,10 @@ node scripts/contrast.mjs   # all 22 design-token pairs against their contrast f
 The app needs a local Base fork to show anything: `make fork && make bootstrap` from the repo root.
 Without one it renders its disconnected and empty states, which is deliberate â€” see DESIGN.md.
 
+One optional environment variable. `NEXT_PUBLIC_SUBGRAPH_URL` points `/surface` at a deployed
+subgraph; unset, it reads the same events straight through viem and says so on screen
+([subgraph/README.md](../subgraph/README.md) deploys one).
+
 ## Routes
 
 | | |
@@ -21,7 +25,7 @@ Without one it renders its disconnected and empty states, which is deliberate â€
 | `/write` | Pick the price you would sell at, the vol and the date. Sizes the leg, ships it to Aqua |
 | `/book` | Every leg you have written: terms, deliverable depth, the decay band each one has accrued |
 | `/leg/[hash]` | One leg. The curve, the fills, and the roll to the next expiry |
-| `/surface` | Every maker's legs on this router, read off the public log. Needs no wallet |
+| `/surface` | **Market.** Every offer anyone has made on this router, with the best bid across all makers, rebuilt from the chain's log. Needs no wallet, which is why it is second in the nav |
 | `/kitchen-sink` | Every primitive in all five states, server-rendered, no wallet. `noindex` |
 | `/dev` | Plain-HTML diagnostics for the wallet and contract plumbing. Not product UI |
 
@@ -33,7 +37,7 @@ Without one it renders its disconnected and empty states, which is deliberate â€
 | `src/lib/contracts/` | The deployment manifest, typed and validated. `deployments.server.ts` is server-only |
 | `src/hooks/` | Chain reads: balances, shipped strategies, quotes, ships, docks, decoded custom errors |
 | `src/components/curve/` | The RMM-01 curve in TypeScript, and `buildLegProgram` |
-| `src/components/surface/` | The three-source read path: subgraph, then logs, then `SurfaceLens` |
+| `src/components/surface/` | The three-source read path: The Graph, then the logs, then `SurfaceLens`. `ReadLayer` is the panel that says which of them answered and prints the query |
 | `src/components/ui/` | The primitives DESIGN.md specifies, including the five states every data surface ships |
 | `src/app/globals.css` | The OKLCH tokens. Nothing in the app hard-codes a colour |
 
