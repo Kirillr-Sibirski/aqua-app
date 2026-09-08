@@ -93,7 +93,7 @@ export function Terms({
       const where =
         realised.source === 'rounds'
           ? `${realised.moves} price changes in the feed's own rounds`
-          : `${realised.moves} price changes, read back at ${realised.observations} past blocks`;
+          : `${realised.moves} price changes across ${realised.observations} readings taken at past blocks`;
       return `Trailing realised is ${formatPercent(realised.sigma, { fractionDigits: 1 })}, from ${where} over ${formatDuration(realised.spanSeconds)}.`;
     }
     const why = realisedUnavailable ?? 'No realised vol to compare against.';

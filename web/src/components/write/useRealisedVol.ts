@@ -42,7 +42,9 @@ import { useQuery } from '@tanstack/react-query';
 import { usePublicClient, useReadContracts } from 'wagmi';
 import { aquaFork, type SupportedChainId } from '@/lib/chain';
 import { aggregatorV3Abi } from '@/lib/contracts';
-import { YEAR_SECONDS } from '@/components/curve';
+// Straight from the module, not the barrel: this file is a data path, and pulling the curve
+// barrel in for one constant would drag every chart component into anything that imports it.
+import { YEAR_SECONDS } from '@/components/curve/rmm';
 
 const ZERO_ADDRESS: Address = '0x0000000000000000000000000000000000000000';
 
