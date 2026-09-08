@@ -309,8 +309,8 @@ export function RollPanel({
 
         {done === 'rolled' && next ? (
           <Callout tone="positive" title="Rolled" icon={Ship}>
-            The old hash is dead for good — Aqua writes <span className="font-mono">0xff</span> on dock
-            and never lets it be shipped again — and the new leg is already quoting.
+            The old hash is dead for good: Aqua writes <span className="font-mono">0xff</span> on
+            dock and never lets it be shipped again. The new leg is already quoting.
           </Callout>
         ) : null}
 
@@ -342,7 +342,7 @@ export function RollPanel({
             <p>
               Quoting stops in the block this lands in. Aqua writes{' '}
               <span className="font-mono">0xff</span> into the strategy&rsquo;s token counts, so this
-              hash can never be shipped again — the same K, sigma and L can only come back under a
+              hash can never be shipped again. The same K, sigma and L can only come back under a
               fresh salt, as a different position with a different history.
             </p>
             <p>

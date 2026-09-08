@@ -105,7 +105,7 @@ export function StrikePicker({
       <p className="max-w-prose text-mini leading-prose text-ink-3">
         Above spot the reserves start risky-heavy and the leg is a covered call; below spot they start
         stable-heavy and the same 62 bytes are a cash-secured put. Nothing in the program branches on
-        which — put-call parity does the work.
+        which; put-call parity does the work.
       </p>
 
       {legs.length === 0 ? (
