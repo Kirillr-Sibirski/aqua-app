@@ -14,13 +14,12 @@
  * deliverable depth from `router.coverage`. Nothing is defaulted to a plausible number.
  */
 import { Layers } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { parseUnits, type Address } from 'viem';
 import { useBlock, useConnection } from 'wagmi';
 import { useDeploymentChain, useIsHydrated } from '@/components/shell';
 import { ConnectButton } from '@/components/wallet';
 import {
-  Card,
   EmptyState,
   ErrorState,
   Skeleton,
@@ -110,11 +109,18 @@ export function WriteWizard() {
 
   const book = useShipBook();
 
+  /**
+   * Monotonic within the session, so two legs added in the same second cannot collide. The base is
+   * the chain's clock, not the browser's: a strategy hash is single-use forever, and re-adding a
+   * leg with the same terms and the same salt after shipping would revert on the second ship.
+   */
+  const saltCounter = useRef(0);
+
   // --- editing -------------------------------------------------------------
 
   const toggleOffset = useCallback(
     (offset: number) => {
-      if (spot === undefined || !pair) return;
+      if (spot === undefined || !pair || chainNow === undefined) return;
       setLegs((current) => {
         if (current.some((leg) => leg.offset === offset)) {
           return current.filter((leg) => leg.offset !== offset);
@@ -129,19 +135,19 @@ export function WriteWizard() {
         return [
           ...current,
           {
-            id: `${offset}-${current.length}-${Date.now()}`,
+            id: `${offset}-${saltCounter.current}`,
             offset,
             strike,
             strikeWad: BigInt(Math.round(strike * 1e6)) * BigInt(1e12),
             kind,
             notional: toDecimalString(notionalRaw, pair.risky.decimals),
             liquidityWad: notionalRaw * rateFor(pair.risky.decimals),
-            salt: nextSalt(current.length),
+            salt: BigInt(chainNow) * BigInt(1000) + BigInt(saltCounter.current++),
           },
         ].sort((a, b) => a.strike - b.strike);
       });
     },
-    [spot, pair, riskyBalance],
+    [spot, pair, riskyBalance, chainNow],
   );
 
   const changeNotional = useCallback(
@@ -310,11 +316,12 @@ export function WriteWizard() {
             <MarginPreview rows={marginRows} loading={balances.isLoading} />
 
             {sizing.sized.length > 0 ? (
-              <Card
-                title="Program"
-                description="The bytes Aqua will store. Aqua takes the strategy whole rather than pre-hashed, for data availability, so these terms are public and any resolver can quote the leg without an off-chain book."
-                bodyClassName="pt-0"
-              >
+              <div className="flex flex-col gap-3">
+                <p className="max-w-prose text-mini leading-prose text-ink-3">
+                  The bytes Aqua will store. `ship` takes the strategy whole rather than pre-hashed, for
+                  data availability, so these terms are public on chain and any resolver can quote the
+                  leg without an off-chain book.
+                </p>
                 <Tabs defaultValue={sizing.sized[0].draft.id}>
                   <TabList label="Legs in this book">
                     {sizing.sized.map((leg) => (
@@ -335,7 +342,7 @@ export function WriteWizard() {
                     </TabPanel>
                   ))}
                 </Tabs>
-              </Card>
+              </div>
             ) : null}
           </div>
         </Section>
@@ -472,15 +479,4 @@ function safeParse(value: string, decimals: number): bigint {
   } catch {
     return BigInt(0);
   }
-}
-
-/**
- * A strictly monotonic salt.
- *
- * `Aqua.ship` requires `tokensCount == 0` and `dock` writes `0xff` forever, so a strategy hash is
- * single-use. Seconds since the epoch times a thousand, plus the leg's index, is monotonic within a
- * session and across sessions, and fits `uint64` until the year 586,000.
- */
-function nextSalt(index: number): bigint {
-  return BigInt(Math.floor(Date.now() / 1000)) * BigInt(1000) + BigInt(index);
 }

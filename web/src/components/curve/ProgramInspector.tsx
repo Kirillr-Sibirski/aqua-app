@@ -25,6 +25,11 @@ export interface ProgramInspectorProps {
   strategyHash?: Hex;
   title?: string;
   description?: string;
+  /**
+   * Render without the card frame, for an inspector already inside one. DESIGN.md rules out nested
+   * cards, and `Card` degrades rather than nesting — this is the explicit form of that.
+   */
+  bare?: boolean;
   className?: string;
 }
 
@@ -33,6 +38,7 @@ export function ProgramInspector({
   strategyHash,
   title = 'Compiled program',
   description = 'What Aqua stores, and what every quote runs. Four instructions, no fee among them.',
+  bare = false,
   className,
 }: ProgramInspectorProps) {
   const decoded = useMemo(() => {
@@ -46,33 +52,17 @@ export function ProgramInspector({
   const bytes = size(program);
 
   if (decoded.error) {
-    return (
+    return bare ? (
+      <ErrorState error={decoded.error} title="The program could not be decoded" bare className={className} />
+    ) : (
       <Card title={title} className={className}>
         <ErrorState error={decoded.error} title="The program could not be decoded" bare />
       </Card>
     );
   }
 
-  return (
-    <Card
-      title={title}
-      description={description}
-      className={className}
-      actions={<CopyButton value={program} what="program bytes" />}
-      footer={
-        <>
-          <span className="font-mono tnum">
-            {bytes} bytes · {decoded.instructions.length} instructions
-          </span>
-          {strategyHash ? (
-            <span className="flex min-w-0 items-center gap-2">
-              <span>strategyHash</span>
-              <span className="truncate font-mono tnum text-ink-2">{strategyHash}</span>
-            </span>
-          ) : null}
-        </>
-      }
-    >
+  const body = (
+    <>
       <ol className="flex flex-col">
         {decoded.instructions.map((instruction) => (
           <InstructionRow key={instruction.offset} instruction={instruction} />
@@ -83,6 +73,47 @@ export function ProgramInspector({
         <p className="text-mini text-ink-3">Raw bytes</p>
         <RawBytes instructions={decoded.instructions} />
       </div>
+    </>
+  );
+
+  const footer = (
+    <>
+      <span className="font-mono tnum">
+        {bytes} bytes · {decoded.instructions.length} instructions
+      </span>
+      {strategyHash ? (
+        <span className="flex min-w-0 items-center gap-2">
+          <span>strategyHash</span>
+          <span className="truncate font-mono tnum text-ink-2">{strategyHash}</span>
+        </span>
+      ) : null}
+    </>
+  );
+
+  if (bare) {
+    return (
+      <div className={className}>
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 pb-3">
+          <p className="max-w-prose text-mini leading-prose text-ink-3">{description}</p>
+          <CopyButton value={program} what="program bytes" />
+        </div>
+        {body}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line pt-3 text-mini text-ink-3">
+          {footer}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Card
+      title={title}
+      description={description}
+      className={className}
+      actions={<CopyButton value={program} what="program bytes" />}
+      footer={footer}
+    >
+      {body}
     </Card>
   );
 }
