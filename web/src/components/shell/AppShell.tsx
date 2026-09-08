@@ -3,6 +3,7 @@ import { cn } from '@/lib/ui';
 import { Toaster } from '@/components/ui';
 import { NetworkGuard, WalletCluster } from '@/components/wallet';
 import { Footer } from './Footer';
+import { MobileNav } from './MobileNav';
 import { NavBar } from './NavBar';
 import { NetworkPill } from './NetworkPill';
 import { Wordmark } from './Wordmark';
@@ -37,13 +38,16 @@ export function AppShell({ children, bleed = false, className }: AppShellProps) 
         Skip to content
       </a>
 
-      <header className="sticky top-0 z-sticky border-b border-line bg-bg/95 backdrop-blur-[2px]">
-        <div className="mx-auto flex h-14 w-full max-w-page items-center gap-6 px-6">
+      {/* Opaque, and one z step above `--z-sticky`: a sticky table header pins to `--header-h` and
+          has to pass UNDER this bar, not through it. No blur — DESIGN.md rules out glass. */}
+      <header className="sticky top-0 z-app-bar border-b border-line bg-bg">
+        <div className="mx-auto flex h-header w-full max-w-page items-center gap-6 px-6">
           <Wordmark />
           <NavBar className="hidden sm:block" />
           <div className="ml-auto flex items-center gap-2">
             <NetworkPill className="hidden lg:flex" />
             <WalletCluster />
+            <MobileNav className="sm:hidden" />
           </div>
         </div>
       </header>

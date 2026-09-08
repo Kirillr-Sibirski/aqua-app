@@ -1,6 +1,6 @@
 'use client';
 
-import type { ComponentPropsWithRef, ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentPropsWithRef, type ReactNode } from 'react';
 import { cn } from '@/lib/ui';
 import { Skeleton } from './Skeleton';
 
@@ -15,6 +15,11 @@ export interface TableProps extends ComponentPropsWithRef<'table'> {
   minWidth?: string;
   /** Applied to the scroll container. */
   containerClassName?: string;
+  /**
+   * What is off the right edge, named. Shown only while the table actually overflows and there is
+   * more to the right: "deliverable depth, theta band, realised theta".
+   */
+  scrollHint?: string;
 }
 
 /**
@@ -24,6 +29,10 @@ export interface TableProps extends ComponentPropsWithRef<'table'> {
  *
  * Wide tables scroll inside their own container rather than pushing the page sideways. The
  * container is the scroll port, so `THead`'s `sticky` sticks to it.
+ *
+ * At 390px the legs table is 1081px wide inside a 390px viewport, and the columns the product
+ * exists to show are all off the right edge. Silent overflow is the same failure as hiding them, so
+ * the container measures itself and names what is out there while there is more to scroll to.
  */
 export function Table({
   caption,
@@ -31,27 +40,65 @@ export function Table({
   minWidth = '44rem',
   className,
   containerClassName,
+  scrollHint,
   children,
   ...props
 }: TableProps) {
+  const port = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = port.current;
+    if (!el) return;
+    // 2px of slack: sub-pixel layout leaves a fractional remainder at the true end of the scroll.
+    setMore(el.scrollWidth - el.clientWidth - el.scrollLeft > 2);
+  }, []);
+
+  useEffect(() => {
+    const el = port.current;
+    if (!el) return;
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    for (const child of Array.from(el.children)) ro.observe(child);
+    el.addEventListener('scroll', measure, { passive: true });
+    return () => {
+      ro.disconnect();
+      el.removeEventListener('scroll', measure);
+    };
+  }, [measure]);
+
   return (
-    <div className={cn('w-full overflow-x-auto', containerClassName)}>
-      <table
-        className={cn('w-full border-collapse text-left', className)}
-        style={{ minWidth }}
-        {...props}
-      >
-        {caption ? (
-          <caption
-            className={cn(
-              hideCaption ? 'sr-only' : 'px-4 pb-3 text-left text-mini text-ink-3',
-            )}
-          >
-            {caption}
-          </caption>
-        ) : null}
-        {children}
-      </table>
+    <div className="relative w-full">
+      <div ref={port} className={cn('w-full overflow-x-auto', containerClassName)}>
+        <table
+          className={cn('w-full border-collapse text-left', className)}
+          style={{ minWidth }}
+          {...props}
+        >
+          {caption ? (
+            <caption
+              className={cn(
+                hideCaption ? 'sr-only' : 'px-4 pb-3 text-left text-mini text-ink-3',
+              )}
+            >
+              {caption}
+            </caption>
+          ) : null}
+          {children}
+        </table>
+      </div>
+
+      {/* A hairline and a label, not a shadow and not a fade: the edge is the affordance, and the
+          label says what is behind it so the columns are discoverable rather than merely reachable. */}
+      {more ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 flex items-start justify-end border-r border-line-strong bg-bg/80 pt-1.5 pr-1 pl-2"
+        >
+          <span className="text-mini whitespace-nowrap text-ink-3">{scrollHint ?? 'more'} &rarr;</span>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -60,6 +107,10 @@ export interface TableHeadProps extends ComponentPropsWithRef<'thead'> {
   /**
    * Pin the header while the body scrolls. Needs a scroll port with a height — inside a page that
    * scrolls as a whole, the header pins to the viewport, which is what a long book wants.
+   *
+   * It pins to `--header-h`, not to 0. The app bar is also sticky at the top of the viewport, so a
+   * `top-0` thead slid underneath it: scrolled down a long table, the column headers were completely
+   * hidden and a half-clipped row bled through the bar. The affordance fired exactly never.
    */
   sticky?: boolean;
 }
@@ -69,7 +120,7 @@ export function TableHead({ sticky = true, className, ...props }: TableHeadProps
     <thead
       className={cn(
         // The background is opaque so rows cannot show through as they pass under it.
-        sticky && 'sticky top-0 z-sticky bg-surface',
+        sticky && 'sticky top-header z-sticky bg-surface',
         '[&_th]:border-b [&_th]:border-line-strong',
         className,
       )}
