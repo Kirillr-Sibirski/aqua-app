@@ -15,6 +15,14 @@
  * see the curve at `tau = 2 days` you ask the chain for the curve of a leg maturing in two days,
  * and to see the settlement line you ask for one that has already matured — the `tau == 0` branch
  * then returns the closed form `Y = K*(L - X)` without touching the Gaussian at all.
+ *
+ * WHAT IS NOT CACHEABLE HERE: the answer, at a fixed `maturity`. `StrikelineViews._sNow` derives
+ * `tau` from `block.timestamp`, so the same five arguments return a different curve at a different
+ * block — measured on the fork at K 2600, sigma 60%, L 12, x = 0.7L and one fixed maturity:
+ * 8,298.2340762776252304 at tau 0.02813984y and 8,478.9856053440663736 at tau 0.01917808y. That
+ * drift *is* the product. A curve pinned as immutable would sit still through a time warp and the
+ * decay the whole position is built on would never appear on screen. So samples refresh on a clock,
+ * and only the settlement line — which is a closed form with no `tau` in it — is asked for once.
  */
 import { useMemo } from 'react';
 import { formatUnits, type Address } from 'viem';
@@ -47,6 +55,13 @@ export interface UseCurveSamplesParams {
    * any width a terminal uses.
    */
   samples?: number;
+  /**
+   * How often to re-ask, in ms. `false` pins the answer forever, which is correct for one curve
+   * and one only: the settlement line, whose closed form contains no `tau`. Everything else decays
+   * with the block clock and has to be re-read, at the same cadence as the theta band beside it so
+   * the wedge and the curve under it never come from two different times.
+   */
+  refreshMs?: number | false;
   chainId?: SupportedChainId;
   enabled?: boolean;
 }
@@ -66,10 +81,11 @@ const ZERO_ADDRESS: Address = '0x0000000000000000000000000000000000000000';
  *
  * `RmmSwap.tauOf` branches on `block.timestamp >= maturity` and, once it has, the trading function
  * is `Y = K*(L - X)` — a closed form that contains no `tau` at all. So every matured maturity
- * returns the *same* curve, and which one is asked for is free. Passing the live block timestamp
- * would be the obvious choice and is the wrong one: the timestamp changes every block, so the query
- * key changes every block, and a line that cannot move would be re-sampled with 48 `eth_call`s a
- * block forever. One is unix second 1, and it never moves.
+ * returns the *same* curve at every block, which makes this the one query in the file that is
+ * genuinely immutable, and which one is asked for is free. Passing the live block timestamp would
+ * be the obvious choice and is the wrong one: the timestamp changes every block, so the query key
+ * changes every block, and a line that cannot move would be re-sampled with 48 `eth_call`s a block
+ * forever. One is unix second 1, and it never moves.
  */
 export const MATURED_MATURITY = 1;
 
@@ -101,6 +117,7 @@ export function useCurveSamples({
   maturity,
   liquidityWad,
   samples = 48,
+  refreshMs = 8_000,
   chainId = aquaFork.id,
   enabled = true,
 }: UseCurveSamplesParams): UseCurveSamplesResult {
@@ -144,9 +161,12 @@ export function useCurveSamples({
     allowFailure: false,
     query: {
       enabled: ready && contracts.length > 0,
-      // A curve at a fixed maturity is a pure function of its parameters, so once a scrub position
-      // has been sampled it never has to be sampled again.
-      staleTime: Infinity,
+      // Stale rather than immutable. A scrub position that has been sampled is served instantly
+      // from cache on the way back to it, and refetched underneath, because the curve at a fixed
+      // maturity still tightens as the block clock advances. `gcTime` is what keeps a drag across
+      // twenty-four positions to twenty-four multicalls rather than one per frame.
+      staleTime: refreshMs === false ? Infinity : refreshMs,
+      refetchInterval: refreshMs === false ? false : refreshMs,
       gcTime: 5 * 60_000,
       retry: false,
     },

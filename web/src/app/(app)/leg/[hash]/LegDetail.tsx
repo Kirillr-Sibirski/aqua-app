@@ -197,9 +197,12 @@ function Leg({
     router: deployments.router,
     strikeWad: rmm?.strikeWad,
     sigmaWad: rmm?.sigmaWad,
-    // Already matured, so `tauOf` returns zero and the curve takes its constant-sum branch.
+    // Already matured, so `tauOf` returns zero and the curve takes its constant-sum branch. That
+    // branch has no tau in it, which makes this the one curve on the screen that cannot change:
+    // asked for once, never re-read.
     maturity: MATURED_MATURITY,
     liquidityWad: rmm?.liquidityWad,
+    refreshMs: false,
   });
 
   const bandParams =
