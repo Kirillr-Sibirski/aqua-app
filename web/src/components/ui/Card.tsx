@@ -53,7 +53,6 @@ export function Card({
   const nested = depth > 0;
 
   if (nested && process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
     console.warn(
       '<Card> is nested inside another <Card>. DESIGN.md forbids nested cards; the inner one is ' +
         'rendering as a plain region. Use a section heading and a hairline instead.',
