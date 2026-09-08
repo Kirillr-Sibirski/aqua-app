@@ -37,6 +37,8 @@ export interface OverlayProps {
   /** Set false for a flow that must not be abandoned halfway (a signature in flight). */
   dismissible?: boolean;
   className?: string;
+  /** Applied to the scrolling body, for a panel whose content sets its own padding (a list). */
+  bodyClassName?: string;
   children?: ReactNode;
 }
 
@@ -111,6 +113,7 @@ function Overlay({
   initialFocus,
   dismissible = true,
   children,
+  bodyClassName,
   panelClassName,
   containerClassName,
 }: InternalOverlayProps) {
@@ -170,7 +173,9 @@ function Overlay({
             ) : null}
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+          <div className={cn('min-h-0 flex-1 overflow-y-auto px-5 py-4', bodyClassName)}>
+            {children}
+          </div>
 
           {footer ? (
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line px-5 py-3">

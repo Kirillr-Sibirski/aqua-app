@@ -8,20 +8,14 @@ import {
   useState,
   type ReactElement,
   type ReactNode,
-  type Ref,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/ui';
 import { useAnchoredPosition, useEscapeKey, useMounted, type Align, type Side } from './internal';
 
-/** The props Tooltip attaches to its child. A child that already sets one keeps its own. */
+/** The one prop Tooltip attaches to its child. A child that already sets it keeps its own. */
 interface TriggerProps {
-  ref?: Ref<HTMLElement>;
   'aria-describedby'?: string;
-  onPointerEnter?: (event: React.PointerEvent) => void;
-  onPointerLeave?: (event: React.PointerEvent) => void;
-  onFocus?: (event: React.FocusEvent) => void;
-  onBlur?: (event: React.FocusEvent) => void;
 }
 
 export interface TooltipProps {
@@ -70,30 +64,26 @@ export function Tooltip({ content, side = 'top', align = 'center', delay = 140, 
     setOpen(false);
   };
 
+  // The wrapper is the anchor and carries the handlers; only `aria-describedby` is cloned onto the
+  // child. That keeps the hint attached to the element that actually takes focus (a screen reader
+  // reads it after the button's own name) while leaving the child's ref alone for its owner.
+  // React's enter/leave and focus events are delegated, so both fire for the subtree.
   const trigger = cloneElement(children, {
-    ref: setAnchor,
     'aria-describedby': open ? id : children.props['aria-describedby'],
-    onPointerEnter: (event: React.PointerEvent) => {
-      children.props.onPointerEnter?.(event);
-      show(false);
-    },
-    onPointerLeave: (event: React.PointerEvent) => {
-      children.props.onPointerLeave?.(event);
-      hide();
-    },
-    onFocus: (event: React.FocusEvent) => {
-      children.props.onFocus?.(event);
-      show(true);
-    },
-    onBlur: (event: React.FocusEvent) => {
-      children.props.onBlur?.(event);
-      hide();
-    },
   });
 
   return (
     <>
-      {trigger}
+      <span
+        ref={setAnchor}
+        className="inline-flex"
+        onPointerEnter={() => show(false)}
+        onPointerLeave={hide}
+        onFocus={() => show(true)}
+        onBlur={hide}
+      >
+        {trigger}
+      </span>
       {mounted && open
         ? createPortal(
             <div
