@@ -47,7 +47,14 @@ import { useRealisedVol } from './useRealisedVol';
 import { useShipBook } from './useShipBook';
 
 const DEFAULT_EXPIRY_DAYS = 7;
-/** Nothing is defaulted from thin air, but the field has to start somewhere; realised overwrites it. */
+/**
+ * Where the vol field opens before the feed has been read.
+ *
+ * The only figure in the writer that is not a chain read, so it does not get to pass for one: the
+ * moment `useRealisedVol` returns an estimate this is replaced by it, and until then the field is
+ * labelled as a starting point rather than a measurement. A maker who types their own number owns
+ * it from that keystroke on and realised stops overwriting it.
+ */
 const DEFAULT_IV = '60';
 
 export function WriteWizard() {
@@ -62,7 +69,8 @@ export function WriteWizard() {
   const pair = active?.pair;
 
   const [expiryDays, setExpiryDays] = useState(DEFAULT_EXPIRY_DAYS);
-  const [iv, setIv] = useState(DEFAULT_IV);
+  /** Set only once the maker has typed. Undefined means the field is still tracking realised. */
+  const [ivDraft, setIvDraft] = useState<string>();
   const [legs, setLegs] = useState<LegDraft[]>([]);
   const [shipped, setShipped] = useState<`0x${string}`[]>();
 
@@ -78,6 +86,18 @@ export function WriteWizard() {
   const spot = oracle.price?.price;
 
   const realised = useRealisedVol(pair?.feed, { chainId: aquaFork.id });
+
+  /**
+   * The vol field tracks what the asset has actually been doing until the maker types, and the
+   * moment they do it is theirs. Not a nicety: a book written at whatever number happened to be in
+   * the box is short vol at a level nobody chose, which is the exact failure this product exists to
+   * fix. Derived rather than copied into state on arrival, so there is no render in which the field
+   * and its label disagree about where the number came from.
+   */
+  const realisedIv = realised.vol ? (realised.vol.sigma * 100).toFixed(1) : undefined;
+  const iv = ivDraft ?? realisedIv ?? DEFAULT_IV;
+  const ivSource = ivDraft !== undefined ? 'maker' : realisedIv !== undefined ? 'realised' : 'unmeasured';
+
   const sigma = ivRatio(iv);
   const sigmaWad = sigma === undefined ? undefined : BigInt(Math.round(sigma * 1e18));
 
@@ -267,7 +287,9 @@ export function WriteWizard() {
             onExpiryChange={setExpiryDays}
             maturity={maturity}
             iv={iv}
-            onIvChange={setIv}
+            onIvChange={setIvDraft}
+            onUseRealised={() => setIvDraft(undefined)}
+            ivSource={ivSource}
             realised={realised.vol}
             realisedUnavailable={realised.unavailable}
             realisedLoading={realised.isLoading}
