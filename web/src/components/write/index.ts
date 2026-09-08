@@ -56,8 +56,15 @@ export type { PayoffLeg } from './payoff';
 export { useLegSizing } from './useLegSizing';
 export type { UseLegSizingParams, UseLegSizingResult } from './useLegSizing';
 
-export { useRealisedVol } from './useRealisedVol';
-export type { RealisedVol, UseRealisedVolOptions, UseRealisedVolResult } from './useRealisedVol';
+export { blockLadder, estimateRealisedVol, readBlockHistory, useRealisedVol } from './useRealisedVol';
+export type {
+  PriceObservation,
+  RealisedVol,
+  RealisedVolEstimate,
+  RealisedVolSource,
+  UseRealisedVolOptions,
+  UseRealisedVolResult,
+} from './useRealisedVol';
 
 export { useShipBook } from './useShipBook';
 export type { ShipBookParams, ShippedBook } from './useShipBook';

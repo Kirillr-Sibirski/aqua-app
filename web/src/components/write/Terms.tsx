@@ -72,7 +72,11 @@ export function Terms({
   const hint = useMemo(() => {
     if (realisedLoading) return 'Reading the feed history…';
     if (realised) {
-      return `Trailing realised is ${formatPercent(realised.sigma, { fractionDigits: 1 })}, from ${realised.returns} price updates over ${formatDuration(realised.spanSeconds)}.`;
+      const where =
+        realised.source === 'rounds'
+          ? `${realised.moves} price changes in the feed's own rounds`
+          : `${realised.moves} price changes, read back at ${realised.observations} past blocks`;
+      return `Trailing realised is ${formatPercent(realised.sigma, { fractionDigits: 1 })}, from ${where} over ${formatDuration(realised.spanSeconds)}.`;
     }
     return realisedUnavailable ?? 'No realised vol to compare against.';
   }, [realised, realisedLoading, realisedUnavailable]);
