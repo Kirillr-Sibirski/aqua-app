@@ -83,6 +83,13 @@ export function TimeScrubber({
       </div>
 
       <div className="flex items-center gap-3">
+        {/* The ring lives on this wrapper, not on the input.
+            `focus-visible:[&::-webkit-slider-thumb]:outline-…` is what was here, and it draws
+            nothing a person can see: walking four ancestor levels from the focused input, every one
+            reported `outlineStyle: none`. The scrubber is the app's most interactive control and
+            the one PRODUCT.md singles out as keyboard operable, so it cannot be the single
+            focusable in the app with no visible focus (WCAG 2.4.7). */}
+        <span className="flex min-w-0 flex-1 rounded-control has-[:focus-visible]:focus-ring">
         <input
           id={id}
           type="range"
@@ -95,7 +102,7 @@ export function TimeScrubber({
           aria-valuetext={`${formatDuration(left)} left`}
           title={disabled ? disabledReason : undefined}
           className={cn(
-            'h-8 min-w-0 flex-1 cursor-pointer appearance-none bg-transparent',
+            'h-8 w-full min-w-0 cursor-pointer appearance-none bg-transparent',
             'focus-visible:outline-none',
             // Track and thumb have to be styled per engine; both branches use the same tokens.
             '[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-pill [&::-webkit-slider-runnable-track]:bg-surface-2',
@@ -108,6 +115,7 @@ export function TimeScrubber({
             disabled && 'cursor-not-allowed opacity-50',
           )}
         />
+        </span>
         <Button
           variant="ghost"
           size="sm"
