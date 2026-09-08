@@ -71,7 +71,7 @@ export interface SurfaceLeg {
 }
 
 /**
- * One cell of the surface: every maker's leg at the same strike and the same expiry.
+ * One cell of the surface: every maker's leg on the same pair, at the same strike and expiry.
  *
  * This is the aggregation Aqua has no notion of. A strategy is opaque bytes keyed by its own hash;
  * nothing in the registry relates two makers who wrote the same option, so this grouping only
@@ -79,6 +79,9 @@ export interface SurfaceLeg {
  */
 export interface SurfacePoint {
   key: string;
+  /** The pair is part of the cell's identity: `strikeWad` is normalised, so 2,800 is not one strike. */
+  tokenRisky: Address;
+  tokenStable: Address;
   strikeWad: bigint;
   maturity: number;
   legs: SurfaceLeg[];

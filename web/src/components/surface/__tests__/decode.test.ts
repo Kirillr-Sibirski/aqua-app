@@ -175,7 +175,7 @@ describe('groupSurface', () => {
     const [point, ...rest] = groupSurface([mine, wider]);
 
     expect(rest).toHaveLength(0);
-    expect(point.key).toBe(pointKey(BigInt(2800) * WAD, 604_801));
+    expect(point.key).toBe(pointKey(WETH, USDC, BigInt(2800) * WAD, 604_801));
     expect(point.liveLegs).toHaveLength(2);
     // The widest vol is the maker paying the most theta, so it ranks first.
     expect(point.liveLegs[0].sigmaWad).toBe(BigInt(8) * WAD / BigInt(10));
@@ -183,6 +183,22 @@ describe('groupSurface', () => {
     expect(point.minSigmaWad).toBe(BigInt(6) * WAD / BigInt(10));
     expect(point.liveLiquidityWad).toBe(BigInt(20) * WAD);
     expect(point.mine).toBe(true);
+  });
+
+  it('does not merge two pairs that happen to share a strike number', () => {
+    // `strikeWad` is normalised stable per risky, so a cbBTC call struck at 2,800 USDC and a WETH
+    // call struck at 2,800 USDC are the same number. Ranking one against the other as a "best bid"
+    // would offer a taker a choice they do not have.
+    const cbBtc = '0x1d1499e622D69689cdf9004d05Ec547d650Ff211' as Address;
+    const eth = leg({ strategyHash: '0x01' as Hex });
+    const btc = leg({ strategyHash: '0x02' as Hex, tokenRisky: cbBtc });
+    const points = groupSurface([eth, btc]);
+
+    expect(points).toHaveLength(2);
+    expect(new Set(points.map((p) => p.key)).size).toBe(2);
+    expect(points.every((p) => p.liveLegs.length === 1)).toBe(true);
+    // And the census counts two strikes, not one number seen twice.
+    expect(censusOf([eth, btc], 0).strikes).toBe(2);
   });
 
   it('keeps a docked leg on the record but out of the live quote', () => {

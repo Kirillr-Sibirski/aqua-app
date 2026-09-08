@@ -51,21 +51,36 @@ export interface BestQuoteProps {
 export function BestQuote({ points, deployments, nowSeconds, selected, onSelect, priced }: BestQuoteProps) {
   const live = useMemo(() => points.filter((p) => p.liveLegs.length > 0), [points]);
 
+  const current = live.find((p) => p.key === selected) ?? live[0];
+
+  // Both selects stay inside the current pair. A strike is normalised stable per risky, so 2,800 on
+  // WETH and 2,800 on cbBTC are different options, and offering them in one list would imply a
+  // taker could choose between them.
+  const samePair = useMemo(
+    () =>
+      current
+        ? live.filter(
+            (p) =>
+              p.tokenRisky.toLowerCase() === current.tokenRisky.toLowerCase() &&
+              p.tokenStable.toLowerCase() === current.tokenStable.toLowerCase(),
+          )
+        : [],
+    [live, current],
+  );
+
   const strikes = useMemo(() => {
     const seen = new Map<string, bigint>();
-    for (const p of live) seen.set(p.strikeWad.toString(), p.strikeWad);
+    for (const p of samePair) seen.set(p.strikeWad.toString(), p.strikeWad);
     return [...seen.values()].sort((a, b) => (a === b ? 0 : a < b ? -1 : 1));
-  }, [live]);
-
-  const current = live.find((p) => p.key === selected) ?? live[0];
+  }, [samePair]);
 
   const expiries = useMemo(() => {
     if (!current) return [];
-    return live
+    return samePair
       .filter((p) => p.strikeWad === current.strikeWad)
       .map((p) => p.maturity)
       .sort((a, b) => a - b);
-  }, [live, current]);
+  }, [samePair, current]);
 
   if (live.length === 0 || !current) {
     return (
@@ -80,8 +95,8 @@ export function BestQuote({ points, deployments, nowSeconds, selected, onSelect,
     );
   }
 
-  const risky = tokenInfo(current.liveLegs[0].tokenRisky, deployments);
-  const stable = tokenInfo(current.liveLegs[0].tokenStable, deployments);
+  const risky = tokenInfo(current.tokenRisky, deployments);
+  const stable = tokenInfo(current.tokenStable, deployments);
   const days = nowSeconds === undefined ? undefined : daysToExpiry(current.maturity, nowSeconds);
   const strikeLabel = formatUnits(current.strikeWad, 18, { maxFractionDigits: 0 });
 
@@ -97,7 +112,7 @@ export function BestQuote({ points, deployments, nowSeconds, selected, onSelect,
               value={current.strikeWad.toString()}
               onChange={(e) => {
                 const strike = BigInt(e.target.value);
-                const match = live.find((p) => p.strikeWad === strike);
+                const match = samePair.find((p) => p.strikeWad === strike);
                 if (match) onSelect(match.key);
               }}
               options={strikes.map((s) => ({
@@ -110,7 +125,16 @@ export function BestQuote({ points, deployments, nowSeconds, selected, onSelect,
             <Select
               size="sm"
               value={String(current.maturity)}
-              onChange={(e) => onSelect(pointKey(current.strikeWad, Number(e.target.value)))}
+              onChange={(e) =>
+                onSelect(
+                  pointKey(
+                    current.tokenRisky,
+                    current.tokenStable,
+                    current.strikeWad,
+                    Number(e.target.value),
+                  ),
+                )
+              }
               options={expiries.map((m) => ({
                 value: String(m),
                 label:

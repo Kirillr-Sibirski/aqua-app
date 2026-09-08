@@ -105,14 +105,14 @@ type Fill @entity(immutable: true) {
 }
 
 """
-One cell of the surface: every leg any maker has written at this strike and this expiry.
+One cell of the surface: every leg any maker has written on this pair, at this strike and expiry.
 
 This is the quote Aqua structurally lacks. The registry has no order book — a strategy is opaque
 bytes keyed by its own hash, and nothing aggregates two makers who happen to have written the same
 option. Decoding the log builds that book.
 """
 type SurfacePoint @entity(immutable: false) {
-  "strikeWad-maturity"
+  "tokenRisky-tokenStable-strikeWad-maturity. The pair is in the key because strikeWad is normalised."
   id: ID!
   strikeWad: BigInt!
   maturity: BigInt!

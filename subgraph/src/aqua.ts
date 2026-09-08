@@ -44,8 +44,24 @@ function loadMaker(address: Address, timestamp: BigInt): Maker {
   return maker as Maker;
 }
 
-function pointId(strikeWad: BigInt, maturity: BigInt): string {
-  return strikeWad.toString() + "-" + maturity.toString();
+/**
+ * The identity of one cell of the surface.
+ *
+ * The pair is part of it. A strike is normalised stable per risky, so a cbBTC call struck at 2,800
+ * USDC and a WETH call struck at 2,800 USDC carry the same `strikeWad`; keying on (strike, expiry)
+ * alone would merge them into one "best bid" between two options a taker cannot choose between.
+ * Same key as `pointKey` in web/src/components/surface/decode.ts, so the two read paths group alike.
+ */
+function pointId(tokenRisky: Bytes, tokenStable: Bytes, strikeWad: BigInt, maturity: BigInt): string {
+  return (
+    tokenRisky.toHexString() +
+    "-" +
+    tokenStable.toHexString() +
+    "-" +
+    strikeWad.toString() +
+    "-" +
+    maturity.toString()
+  );
 }
 
 // -------------------------------------------------------------------------------------------- ship
@@ -127,7 +143,7 @@ function loadPoint(
   tokenStable: Bytes,
   timestamp: BigInt
 ): SurfacePoint {
-  let id = pointId(strikeWad, maturity);
+  let id = pointId(tokenRisky, tokenStable, strikeWad, maturity);
   let point = SurfacePoint.load(id);
   if (point == null) {
     point = new SurfacePoint(id);

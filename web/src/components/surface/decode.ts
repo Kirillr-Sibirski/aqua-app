@@ -116,21 +116,34 @@ export function decodeSurface(
 // Grouping
 // ---------------------------------------------------------------------------
 
-export function pointKey(strikeWad: bigint, maturity: number): string {
-  return `${strikeWad.toString()}-${maturity}`;
+/**
+ * The identity of one cell of the surface.
+ *
+ * The pair is part of it. A strike is quoted in normalised stable per risky, so a cbBTC call struck
+ * at 2,800 USDC and a WETH call struck at 2,800 USDC carry the same `strikeWad`, and keying on
+ * (strike, expiry) alone would rank one against the other as though a taker could choose between
+ * them. The registry is pair-blind; the surface must not be.
+ */
+export function pointKey(
+  tokenRisky: Address,
+  tokenStable: Address,
+  strikeWad: bigint,
+  maturity: number,
+): string {
+  return `${tokenRisky.toLowerCase()}-${tokenStable.toLowerCase()}-${strikeWad.toString()}-${maturity}`;
 }
 
 /**
  * Group legs into the cells of the surface.
  *
- * A cell is one (strike, expiry) across every maker, which is the unit a taker actually shops: "who
- * will write me a 7-day 2,800 call, and at what vol". Live legs are ranked widest vol first,
- * because that is the best bid.
+ * A cell is one (pair, strike, expiry) across every maker, which is the unit a taker actually shops:
+ * "who will write me a 7-day 2,800 WETH call, and at what vol". Live legs are ranked widest vol
+ * first, because that is the best bid.
  */
 export function groupSurface(legs: readonly SurfaceLeg[]): SurfacePoint[] {
   const byKey = new Map<string, SurfaceLeg[]>();
   for (const leg of legs) {
-    const key = pointKey(leg.strikeWad, leg.maturity);
+    const key = pointKey(leg.tokenRisky, leg.tokenStable, leg.strikeWad, leg.maturity);
     const list = byKey.get(key);
     if (list) list.push(leg);
     else byKey.set(key, [leg]);
@@ -143,6 +156,8 @@ export function groupSurface(legs: readonly SurfaceLeg[]): SurfacePoint[] {
       .sort((a, b) => (a.sigmaWad === b.sigmaWad ? 0 : a.sigmaWad > b.sigmaWad ? -1 : 1));
     points.push({
       key,
+      tokenRisky: group[0].tokenRisky,
+      tokenStable: group[0].tokenStable,
       strikeWad: group[0].strikeWad,
       maturity: group[0].maturity,
       legs: group,
@@ -172,7 +187,8 @@ export function censusOf(legs: readonly SurfaceLeg[], foreign: number): SurfaceC
     legs: legs.length,
     liveLegs: live.length,
     makers: new Set(live.map((l) => l.maker.toLowerCase())).size,
-    strikes: new Set(live.map((l) => l.strikeWad.toString())).size,
+    // Distinct strikes, not distinct numbers: 2,800 USDC on two different pairs is two strikes.
+    strikes: new Set(live.map((l) => `${l.tokenRisky.toLowerCase()}-${l.strikeWad.toString()}`)).size,
     expiries: new Set(live.map((l) => l.maturity)).size,
     writtenWad: live.reduce((sum, l) => sum + l.liquidityWad, ZERO),
     guarded: live.filter((l) => l.guarded).length,
