@@ -482,11 +482,17 @@ export function useBook(maker: Address | undefined, options: UseBookOptions = {}
       const quoteResult = ok<readonly [bigint, bigint, Hex]>(quoteEntry);
       const refusal = quoteEntry?.status === 'failure' ? boundFromRevert(quoteEntry.error) : undefined;
 
+      // `Coverage.NotCovered` compares raw token amounts, but `RmmSwap.RmmExceedsReserve` compares
+      // the curve's normalised reserves, so the curve bound comes back out of WAD before it is
+      // rendered against a token's decimals.
+      const rateOut = leg.deliversRisky ? leg.rmm.rateRisky : leg.rmm.rateStable;
+      const bound = refusal ? (refusal.reason === 'curve' ? fromWad(refusal.bound, rateOut) : refusal.bound) : undefined;
+
       const probe: LegProbe = {
         ok: quoteResult !== undefined,
         amountIn: quoteResult?.[0],
         errorName: refusal?.name,
-        bound: refusal?.bound,
+        bound,
         reason: refusal?.reason,
         error: quoteEntry?.status === 'failure' ? quoteEntry.error : undefined,
         pending: quoteEntry === undefined,

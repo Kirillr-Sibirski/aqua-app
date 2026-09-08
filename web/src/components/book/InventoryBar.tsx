@@ -24,10 +24,11 @@
  */
 import { useId } from 'react';
 import type { Hex } from 'viem';
-import { cn, colorMix, formatTokenAmount } from '@/lib/ui';
+import { cn, formatTokenAmount } from '@/lib/ui';
 import { Skeleton } from '@/components/ui';
 import type { BookTokenClaim, BookTokenView } from '@/hooks/useBook';
 import { ratio } from '@/hooks/strikeline';
+import { HATCH, pct } from './visual';
 import { useCountTo } from './useCountTo';
 
 const ZERO = BigInt(0);
@@ -42,12 +43,6 @@ export interface InventoryBarProps {
   onHighlight?: (hash: Hex | undefined) => void;
   loading?: boolean;
   className?: string;
-}
-
-const HATCH = `repeating-linear-gradient(45deg, ${colorMix('accent-dim', 70)} 0 3px, transparent 3px 7px)`;
-
-function pct(value: bigint, span: bigint): number {
-  return span === ZERO ? 0 : Math.min(100, ratio(value, span) * 100);
 }
 
 interface Segment {
