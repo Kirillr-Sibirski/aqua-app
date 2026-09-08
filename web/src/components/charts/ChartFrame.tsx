@@ -141,13 +141,15 @@ export function ChartFrame({
         className,
       )}
     >
-      <figcaption className="flex items-start justify-between gap-4">
+      {/* Stacked below `sm`. Floated right, the legend took half the row and squeezed a two-word
+          title onto two lines and its subtitle onto four in a ~100px column at 390px. */}
+      <figcaption className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <span className="block min-w-0">
           <span className="block text-meta font-medium text-ink">{title}</span>
           {subtitle ? <span className="mt-0.5 block text-mini text-ink-2">{subtitle}</span> : null}
         </span>
         {legend || actions ? (
-          <span className="flex shrink-0 items-center gap-4">
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:shrink-0 sm:flex-nowrap">
             {legend}
             {actions}
           </span>

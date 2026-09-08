@@ -69,7 +69,7 @@ export function Axis({
   const horizontal = orientation === 'bottom' || orientation === 'top';
   const band = isBandScale(scale);
 
-  const ticks: { value: number | string; at: number }[] = [];
+  let ticks: { value: number | string; at: number }[] = [];
   if (band) {
     const domain = (values as readonly string[] | undefined) ?? scale.domain();
     for (const v of domain) {
@@ -94,6 +94,21 @@ export function Axis({
       { unit },
     );
     formatValue = (value) => numeric(value as number);
+  }
+
+  // Thin the ticks to what actually fits. At 390px the leg page's x-axis asked for 5 ticks, got 7
+  // (`scale.ticks` rounds to nice values) and rendered them as a solid smear: 6 of the 7 label boxes
+  // overlapped their neighbour. Thinning by a stride keeps the spacing even and always keeps the
+  // first tick, rather than dropping labels one at a time and leaving a ragged axis.
+  if (horizontal && ticks.length > 2) {
+    const widest = ticks.reduce(
+      (m, t, i) => Math.max(m, estimateMonoTextWidth(formatValue(t.value, i), fontSize)),
+      0,
+    );
+    const span = Math.abs(ticks[ticks.length - 1].at - ticks[0].at);
+    const per = span / (ticks.length - 1);
+    const stride = Math.max(1, Math.ceil((widest + 10) / Math.max(per, 1)));
+    if (stride > 1) ticks = ticks.filter((_, i) => i % stride === 0);
   }
 
   const axisAt =
