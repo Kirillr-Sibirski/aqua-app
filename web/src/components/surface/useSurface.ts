@@ -22,7 +22,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { Address, Hex, PublicClient } from 'viem';
-import { useConnection, usePublicClient } from 'wagmi';
+import { useBlock, useConnection, usePublicClient } from 'wagmi';
 import { aquaFork } from '@/lib/chain';
 import { useDeployments, useShippedStrategies } from '@/hooks';
 import { censusOf, decodeSurface, groupSurface } from './decode';
@@ -69,6 +69,14 @@ export function useSurface(options: UseSurfaceOptions = {}): UseSurfaceReturn {
   const { address } = useConnection();
   const { deployments, isLoading: deploymentsLoading, error: deploymentsError } = useDeployments();
 
+  // One clock for the whole screen, and it is the chain's. A countdown drawn from `Date.now()`
+  // walks away from the curve the moment a fork's time is warped, and the curve reads
+  // `block.timestamp`. It also pins the lens read, so a fill and the depth it consumed are never
+  // shown one block apart.
+  const { data: block } = useBlock({ chainId: aquaFork.id, watch: true, query: { enabled } });
+  const blockNumber = block?.number;
+  const nowSeconds = block ? Number(block.timestamp) : undefined;
+
   // ---- source 1: the subgraph
   const subgraphQuery = useQuery({
     queryKey: ['surface', 'subgraph', SUBGRAPH_URL, address ?? 'anon'],
@@ -96,8 +104,7 @@ export function useSurface(options: UseSurfaceOptions = {}): UseSurfaceReturn {
   const baseLegs = useSubgraph ? subgraphQuery.data!.legs : fromLogs.legs;
   const strategies = useSubgraph ? subgraphQuery.data!.strategies : fromLogs.strategies;
 
-  // ---- source 3: the lens, pinned to the block the logs were read at
-  const blockNumber = logsQuery.toBlock;
+  // ---- source 3: the lens, pinned to the watched block
   const lensAddress = resolveLensAddress(deployments?.extra);
   const hashes = useMemo(() => baseLegs.map((l) => l.strategyHash.toLowerCase()).join(','), [baseLegs]);
 
@@ -124,8 +131,9 @@ export function useSurface(options: UseSurfaceOptions = {}): UseSurfaceReturn {
     },
     enabled: enabled && !!client && !!deployments && baseLegs.length > 0,
     retry: false,
-    // The mark moves with the block clock even when nothing trades, so this follows the block.
-    refetchInterval: options.refetchInterval ?? 8000,
+    // The mark moves with the block clock even when nothing trades, so this follows the block
+    // rather than a timer: `blockNumber` is in the key.
+    staleTime: Infinity,
   });
 
   const legs = useMemo(() => {
@@ -154,7 +162,7 @@ export function useSurface(options: UseSurfaceOptions = {}): UseSurfaceReturn {
     lensError: lensQuery.error as Error | undefined,
     priced: !!lensQuery.data && lensQuery.data.pricing.size > 0,
     blockNumber,
-    nowSeconds: lensQuery.data?.nowSeconds,
+    nowSeconds,
     subgraphError: SUBGRAPH_URL && subgraphQuery.error ? (subgraphQuery.error as Error) : undefined,
     indexedBlock: subgraphQuery.data?.indexedBlock,
     isLoading: deploymentsLoading || (useSubgraph ? subgraphQuery.isLoading : logsQuery.isLoading),
@@ -189,12 +197,7 @@ interface PriceBookParams {
   order: Hex[];
 }
 
-/**
- * Price every leg, in batches, at one block.
- *
- * The block's timestamp comes back with it: the curve reads `block.timestamp`, so a countdown drawn
- * from the browser's clock would drift away from the chain's the moment a fork's time is warped.
- */
+/** Price every leg, in batches, all at the one block the rest of the screen is reading. */
 async function priceBook(client: PublicClient, params: PriceBookParams) {
   const pricing = new Map<string, NonNullable<SurfaceLeg['pricing']>>();
   let via: 'deployed' | 'deployless' = params.address ? 'deployed' : 'deployless';
@@ -215,9 +218,5 @@ async function priceBook(client: PublicClient, params: PriceBookParams) {
     });
   }
 
-  const block = await client.getBlock(
-    params.blockNumber ? { blockNumber: params.blockNumber } : { blockTag: 'latest' },
-  );
-
-  return { pricing, via, nowSeconds: Number(block.timestamp) };
+  return { pricing, via };
 }
