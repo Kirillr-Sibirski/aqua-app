@@ -92,10 +92,26 @@ export function MarginPreview({ rows, loading = false, className }: MarginPrevie
   );
 }
 
+/**
+ * What "backed" means for a book that is deliberately over-allocated.
+ *
+ * Not the sum of the legs against the wallet: that ratio is above one on purpose and is the
+ * product, not a warning. `Coverage` runs per fill, and the obligation it proves is one leg's
+ * output at a time — so the book is backed exactly when the largest single sweep a taker could ask
+ * for is deliverable from the wallet this instant. That is the number the demo's `NotCovered`
+ * revert carries, and it is the one worth saying in a sentence.
+ */
+function bindingClaim(row: MarginRow): bigint {
+  return row.claims.reduce((most, c) => (c.amount > most ? c.amount : most), BigInt(0));
+}
+
 function MarginBar({ row, loading }: { row: MarginRow; loading: boolean }) {
   const total = row.claims.reduce((sum, c) => sum + c.amount, BigInt(0));
   const scale = total > row.wallet ? total : row.wallet;
   const multiple = writtenMultiple(row);
+  const largest = bindingClaim(row);
+  const free = row.deliverable;
+  const covered = free === undefined ? undefined : free >= largest;
 
   // Percentages are laid out from bigints so a 6-decimal and an 18-decimal token behave the same.
   const pct = (value: bigint) => (scale === BigInt(0) ? 0 : Number((value * BigInt(100_000)) / scale) / 1000);
@@ -170,6 +186,37 @@ function MarginBar({ row, loading }: { row: MarginRow; loading: boolean }) {
             />
           ) : null}
         </div>
+
+        {row.claims.length > 0 ? (
+          <p className="mt-2 max-w-prose text-mini leading-prose text-ink-3">
+            Coverage proves one fill at a time, so the book is backed when the largest single sweep a
+            taker could ask for is deliverable. That is{' '}
+            <span className="font-mono tnum text-ink-2">
+              {formatUnits(largest, row.decimals, { significantDigits: 5 })}
+            </span>{' '}
+            {row.symbol}
+            {free === undefined ? (
+              <>, against a wallet the router could not be asked about.</>
+            ) : covered ? (
+              <>
+                , against{' '}
+                <span className="font-mono tnum text-ink-2">
+                  {formatUnits(free, row.decimals, { significantDigits: 5 })}
+                </span>{' '}
+                deliverable right now. Backed.
+              </>
+            ) : (
+              <>
+                , and only{' '}
+                <span className="font-mono tnum text-ink-2">
+                  {formatUnits(free, row.decimals, { significantDigits: 5 })}
+                </span>{' '}
+                is deliverable, so a taker asking for the whole leg would be refused with both
+                numbers rather than filled short.
+              </>
+            )}
+          </p>
+        ) : null}
 
         <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-mini text-ink-3">
           {row.claims.map((claim, i) => (
