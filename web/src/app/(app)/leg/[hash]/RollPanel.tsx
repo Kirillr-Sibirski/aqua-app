@@ -26,6 +26,7 @@ import {
   Callout,
   Card,
   CardRow,
+  Dialog,
   ErrorState,
   Pill,
   SegmentedControl,
@@ -93,6 +94,13 @@ export function RollPanel({
   const { run, steps, isRunning, error, reset } = useTxFlow(aquaFork.id);
   const [tenor, setTenor] = useState(7);
   const [done, setDone] = useState<'rolled' | 'docked'>();
+  /**
+   * Dock is the one control on the screen that cannot be undone by any later transaction.
+   * `Aqua.dock` writes `0xff` into the strategy's token counts, so this exact hash is dead for
+   * good: the same terms can be shipped again only under a fresh salt, as a different position
+   * with a different history. A button that irreversible asks first.
+   */
+  const [confirmingDock, setConfirmingDock] = useState(false);
   /**
    * Bumped after every roll so a second roll in the same block still gets a fresh strategy hash.
    * The base is the chain's clock rather than the browser's: it is monotonic, it is a value this
@@ -189,6 +197,7 @@ export function RollPanel({
   }, [next, reset, writeContract, aqua, router, tokens, strategyHash, run, onDone]);
 
   const dock = useCallback(async () => {
+    setConfirmingDock(false);
     reset();
     setDone(undefined);
     try {
@@ -284,7 +293,7 @@ export function RollPanel({
             icon={Trash2}
             disabled={Boolean(notMaker)}
             disabledReason={notMaker}
-            onClick={() => void dock()}
+            onClick={() => setConfirmingDock(true)}
           >
             Dock
           </Button>
@@ -311,6 +320,39 @@ export function RollPanel({
             untouched; there was never anything in Aqua to withdraw.
           </Callout>
         ) : null}
+
+        <Dialog
+          open={confirmingDock}
+          onClose={() => setConfirmingDock(false)}
+          size="sm"
+          title="Dock this leg"
+          description="This cannot be undone, and it is not the same as closing a position."
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setConfirmingDock(false)}>
+                Keep quoting
+              </Button>
+              <Button variant="danger" icon={Trash2} onClick={() => void dock()}>
+                Dock the leg
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-3 text-meta leading-prose text-ink-2">
+            <p>
+              Quoting stops in the block this lands in. Aqua writes{' '}
+              <span className="font-mono">0xff</span> into the strategy&rsquo;s token counts, so this
+              hash can never be shipped again — the same K, sigma and L can only come back under a
+              fresh salt, as a different position with a different history.
+            </p>
+            <p>
+              No token moves and there is nothing to withdraw: the reserves were virtual balances,
+              and the wallet has held the whole amount the entire time. If the intent is to move the
+              position to a later expiry, roll instead. That ships the new leg first, so the book is
+              never dark between the two.
+            </p>
+          </div>
+        </Dialog>
 
         {next ? (
           <details className="rounded-card border border-line">
