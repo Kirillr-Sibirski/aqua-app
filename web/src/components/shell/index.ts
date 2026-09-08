@@ -9,6 +9,7 @@ export type { PageHeaderProps } from './PageHeader';
 
 export { Footer } from './Footer';
 export { NavBar } from './NavBar';
+export { MobileNav } from './MobileNav';
 export { NetworkPill } from './NetworkPill';
 export { Wordmark, WordmarkMark } from './Wordmark';
 export type { WordmarkProps } from './Wordmark';
