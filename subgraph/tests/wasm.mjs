@@ -20,7 +20,7 @@
  * are not modelled.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -50,9 +50,17 @@ export function compile() {
   }
   if (built > newest) return;
 
+  const asc = join(root, 'node_modules/.bin/asc');
+  if (!existsSync(asc)) {
+    throw new Error(
+      `${asc} is missing. It comes with @graphprotocol/graph-cli, which compiles the mappings with ` +
+        'it; run `npm install` in subgraph/ first.',
+    );
+  }
+
   mkdirSync(join(root, 'tests/build'), { recursive: true });
   execFileSync(
-    join(root, 'node_modules/.bin/asc'),
+    asc,
     [
       '--explicitStart',
       '--exportRuntime',
