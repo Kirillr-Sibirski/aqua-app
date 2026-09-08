@@ -116,15 +116,31 @@ contract GasReportTest is StrikelineLeg {
 
     // ------------------------------------------------------------------ EIP-170
 
-    /// @notice The deployed router is under the EIP-170 limit with real margin, asserted rather than asserted-in-
-    ///         a-README. No size override is used anywhere in `foundry.toml`.
+    /// @notice The router is under the EIP-170 limit with real margin, asserted rather than asserted-in-a-README.
+    ///         No size override is used anywhere in `foundry.toml`.
+    ///
+    /// @dev THE NUMBER THAT COUNTS IS THE ARTIFACT'S, not the one this test contract deploys. A test that says
+    ///      `new StrikelineRouter(...)` does not load `out/StrikelineRouter.sol/StrikelineRouter.json`: solc
+    ///      inlines the router's creation code into the TEST contract, so it is generated inside the test file's
+    ///      compilation unit, and under `via_ir` the Yul optimiser's inlining decisions there differ from the
+    ///      standalone build. That is worth 14 bytes here, and it moves when unrelated test code is added to
+    ///      the same file.
+    ///
+    ///      `forge build --sizes`, `forge script` and every real deployment all use the standalone artifact, so
+    ///      that is the figure asserted. Both are printed, because the difference is otherwise invisible and
+    ///      quoting the test-context number overstates the code by 14 bytes and understates the margin by 14.
     function test_Size_RouterIsUnderEip170() public view {
-        uint256 size = address(sl).code.length;
+        uint256 artifact = vm.getDeployedCode("StrikelineRouter.sol:StrikelineRouter").length;
+        uint256 inTest = address(sl).code.length;
         uint256 limit = 24_576;
-        console2.log("StrikelineRouter runtime bytes", size);
-        console2.log("EIP-170 limit                 ", limit);
-        console2.log("margin                        ", limit - size);
-        assertLt(size, limit, "router exceeds EIP-170 and cannot be deployed to mainnet");
+
+        console2.log("StrikelineRouter, compiled artifact (what deploys)", artifact);
+        console2.log("  EIP-170 limit                                   ", limit);
+        console2.log("  margin                                          ", limit - artifact);
+        console2.log("same contract deployed from inside this test file ", inTest);
+
+        assertLt(artifact, limit, "router exceeds EIP-170 and cannot be deployed to mainnet");
+        assertLt(inTest, limit, "even the test-unit build must fit, or the harness stops matching production");
     }
 
     // ------------------------------------------------------------------ measurement
