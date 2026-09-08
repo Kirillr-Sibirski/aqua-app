@@ -13,3 +13,4 @@ web/out/
 scripts/fork/.state/
 scripts/fork/.snapshot.json
 scripts/node_modules/
+__pycache__/

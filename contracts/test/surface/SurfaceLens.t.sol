@@ -1,0 +1,527 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import { console2 } from "forge-std/Test.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+import { ISwapVM } from "@1inch/swap-vm/src/interfaces/ISwapVM.sol";
+import { Salt, Deadline } from "@1inch/swap-vm/src/instructions/Controls.sol";
+import { XYCSwap } from "@1inch/swap-vm/src/instructions/XYCSwap.sol";
+
+import { AquaSwapVMTestBase } from "../base/AquaSwapVMTestBase.sol";
+import { StrikelineRouter } from "../../src/StrikelineRouter.sol";
+import { ProbeRouter } from "../../src/ProbeRouter.sol";
+import { SurfaceLens } from "../../src/SurfaceLens.sol";
+import { RmmSwap } from "../../src/instructions/RmmSwap.sol";
+import { Coverage } from "../../src/instructions/Coverage.sol";
+import { Gaussian } from "../../src/math/Gaussian.sol";
+import { WadMath } from "../../src/math/WadMath.sol";
+
+/// @title SurfaceLensTest
+/// @notice The read layer, proven: a leg that exists only as bytes in an Aqua event comes back as a
+///         priced option — strike, implied vol, expiry, mark, delta, premium and theta band — with no
+///         oracle, no indexer and no cooperation from the maker who wrote it.
+contract SurfaceLensTest is AquaSwapVMTestBase {
+    StrikelineRouter internal sl;
+    SurfaceLens internal lens;
+
+    uint256 constant WALLET_WETH = 10.4e18;
+    uint256 constant WALLET_USDC = 24_850e6;
+
+    uint64 constant SIGMA = 0.6e18; // 60% annualised
+    uint40 internal maturity;
+
+    uint64 constant RATE_RISKY = 1;
+    uint64 constant RATE_STABLE = 1e12;
+
+    uint256 constant WAD = 1e18;
+
+    function setUp() public override {
+        super.setUp();
+        sl = new StrikelineRouter(address(aqua), weth, address(this), "Strikeline", "1");
+        vm.label(address(sl), "StrikelineRouter");
+        router = ProbeRouter(payable(address(sl)));
+
+        lens = new SurfaceLens(address(aqua), address(sl));
+        vm.label(address(lens), "SurfaceLens");
+
+        maturity = uint40(block.timestamp + 7 days);
+
+        fund(weth, maker, WALLET_WETH);
+        fund(address(usdc), maker, WALLET_USDC);
+        fund(weth, taker, 50e18);
+        fund(address(usdc), taker, 200_000e6);
+        approveRouter(taker, weth, type(uint256).max);
+        approveRouter(taker, address(usdc), type(uint256).max);
+    }
+
+    // ------------------------------------------------------------------ helpers
+
+    function _legProgram(
+        uint128 strikeWad,
+        uint128 liquidityWad,
+        uint64 salt,
+        bool guarded
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        bool riskyIsA = weth < address(usdc);
+        uint8 flags = (riskyIsA ? RmmSwap.FLAG_RISKY_IS_TOKEN_A : 0) | RmmSwap.FLAG_POST_EXPIRY_ONE_WAY
+            | RmmSwap.FLAG_POST_EXPIRY_OUT_IS_RISKY;
+
+        bytes memory curve = RmmSwap.build(
+            RmmSwap.Args({
+                flags: flags,
+                sigmaWad: SIGMA,
+                maturity: maturity,
+                strikeWad: strikeWad,
+                liquidityWad: liquidityWad,
+                rateRisky: RATE_RISKY,
+                rateStable: RATE_STABLE
+            })
+        );
+
+        if (!guarded) {
+            return bytes.concat(curve, Salt.build(salt));
+        }
+        return bytes.concat(
+            Deadline.build(uint40(maturity + 30 minutes)), Coverage.build(0, 0), curve, Salt.build(salt)
+        );
+    }
+
+    /// @dev Ship a leg at reserves the chain itself says are on the curve, and return the exact bytes
+    ///      Aqua's `Shipped` event carried, which is what the lens consumes.
+    function _shipLeg(
+        uint128 strikeWad,
+        uint128 liquidityWad,
+        uint256 xWad,
+        uint64 salt,
+        bool guarded
+    )
+        internal
+        returns (ISwapVM.Order memory order, bytes memory strategy, uint256 yWad)
+    {
+        order = buildAquaOrder(maker, weth, address(usdc), _legProgram(strikeWad, liquidityWad, salt, guarded));
+        yWad = sl.stableFor(strikeWad, SIGMA, maturity, liquidityWad, xWad);
+
+        uint256 usdcAmount = yWad / RATE_STABLE;
+        (address a,) = orderTokens(order);
+        (uint256 amountA, uint256 amountB) = a == weth ? (xWad, usdcAmount) : (usdcAmount, xWad);
+        shipOrder(maker, order, amountA, amountB);
+        strategy = abi.encode(order);
+    }
+
+    function _shipLeg(
+        uint128 strikeWad,
+        uint128 liquidityWad,
+        uint256 xWad,
+        uint64 salt
+    )
+        internal
+        returns (ISwapVM.Order memory order, bytes memory strategy, uint256 yWad)
+    {
+        return _shipLeg(strikeWad, liquidityWad, xWad, salt, true);
+    }
+
+    function _one(bytes memory strategy) internal pure returns (bytes[] memory out) {
+        out = new bytes[](1);
+        out[0] = strategy;
+    }
+
+    // ------------------------------------------------------------------ decoding
+
+    /// @notice The terms of the option are recoverable from the shipped bytes alone. Nobody has to
+    ///         publish them, and the maker cannot misreport them: the hash of the bytes is the
+    ///         strategy's identity in Aqua.
+    function test_Decode_RecoversTheTermsFromTheShippedBytes() public {
+        (ISwapVM.Order memory order, bytes memory strategy,) = _shipLeg(2600e18, 12e18, 8.41e18, 1);
+
+        SurfaceLens.Leg memory leg = lens.legOfStrategy(strategy);
+
+        assertTrue(leg.isLeg, "the program carries an RmmSwap instruction");
+        assertTrue(leg.guarded, "and a Coverage wrapper");
+        assertEq(leg.orderHash, sl.hash(order), "orderHash == Aqua strategyHash == router.hash(order)");
+        assertEq(leg.orderHash, keccak256(strategy), "orderHash == keccak256(the shipped bytes)");
+        assertEq(leg.maker, maker, "maker");
+        assertEq(leg.app, address(sl), "app");
+
+        assertEq(leg.strikeWad, 2600e18, "K");
+        assertEq(leg.sigmaWad, SIGMA, "sigma");
+        assertEq(leg.maturity, maturity, "maturity");
+        assertEq(leg.liquidityWad, 12e18, "L");
+        assertEq(leg.rateRisky, RATE_RISKY, "rateRisky");
+        assertEq(leg.rateStable, RATE_STABLE, "rateStable");
+        assertEq(leg.tokenRisky, weth, "risky token");
+        assertEq(leg.tokenStable, address(usdc), "stable token");
+        assertEq(leg.riskyIsTokenA, weth < address(usdc), "riskyIsTokenA");
+
+        assertTrue(leg.live, "shipped and active");
+        assertFalse(leg.docked, "not docked");
+        assertEq(leg.reserveRisky, 8.41e18, "risky reserve");
+        console2.log("decoded K / sigma / L:", leg.strikeWad, leg.sigmaWad, leg.liquidityWad);
+    }
+
+    /// @notice The same leg, addressed as a decoded order instead of as raw bytes.
+    function test_Decode_OrderAndStrategyAgree() public {
+        (ISwapVM.Order memory order, bytes memory strategy,) = _shipLeg(2800e18, 10e18, 9.22e18, 2);
+
+        SurfaceLens.Leg memory fromBytes = lens.legOfStrategy(strategy);
+        SurfaceLens.Leg memory fromOrder = lens.legOfOrder(order);
+
+        assertEq(fromOrder.orderHash, fromBytes.orderHash, "same identity");
+        assertEq(fromOrder.strikeWad, fromBytes.strikeWad, "same strike");
+        assertEq(fromOrder.markWad, fromBytes.markWad, "same mark");
+    }
+
+    /// @notice A leg shipped without the `Coverage` wrapper is decodable and priced, and says so.
+    function test_Decode_FlagsAnUnguardedLeg() public {
+        (, bytes memory strategy,) = _shipLeg(2800e18, 10e18, 9.22e18, 3, false);
+        SurfaceLens.Leg memory leg = lens.legOfStrategy(strategy);
+
+        assertTrue(leg.isLeg, "still a leg");
+        assertFalse(leg.guarded, "but nothing margins it");
+        assertTrue(leg.priced, "and it still prices");
+    }
+
+    // ------------------------------------------------------------------ pricing
+
+    /// @notice The mark is the curve's own marginal price: buying costs more than it, selling receives
+    ///         less than it. No oracle is consulted anywhere in the lens.
+    function test_Mark_BracketsTheExecutedPrice() public {
+        (ISwapVM.Order memory order, bytes memory strategy,) = _shipLeg(2600e18, 12e18, 8.41e18, 11);
+        SurfaceLens.Leg memory leg = lens.legOfStrategy(strategy);
+        assertTrue(leg.priced, "priced");
+
+        // Buy WETH with 2,000 USDC: the price paid must be at or above the marginal price.
+        bytes memory buy = takerDataFor(order, address(usdc), true);
+        (, uint256 wethOut,) = quote(order, 2000e6, buy);
+        uint256 pricePaid = (2000e6 * RATE_STABLE) * WAD / wethOut;
+
+        // Sell 0.8 WETH for USDC: the price received must be at or below it.
+        bytes memory sell = takerDataFor(order, weth, true);
+        (, uint256 usdcOut,) = quote(order, 0.8e18, sell);
+        uint256 priceGot = (usdcOut * RATE_STABLE) * WAD / 0.8e18;
+
+        assertGt(pricePaid, leg.markWad, "a buy must clear above the mark");
+        assertLt(priceGot, leg.markWad, "a sell must clear below the mark");
+        console2.log("sell / mark / buy:", priceGot, leg.markWad, pricePaid);
+    }
+
+    /// @notice The replication identity, checked against Black-Scholes by an algebraically different
+    ///         route: the lens computes `C = S - V/L` from the reserves that are actually in Aqua, and
+    ///         the test computes `C = S*Phi(d1) - K*Phi(d2)` from the terms. They are the same number,
+    ///         which is what "the position IS a covered call" means.
+    function test_Premium_EqualsBlackScholesOnTheSameReserves() public {
+        uint128 K = 2600e18;
+        uint128 L = 12e18;
+        uint256 x = 8.41e18;
+        (, bytes memory strategy,) = _shipLeg(K, L, x, 12);
+
+        SurfaceLens.Leg memory leg = lens.legOfStrategy(strategy);
+        assertTrue(leg.priced, "priced");
+        assertGt(leg.premiumWad, 0, "a live covered call is worth something");
+
+        uint256 s = uint256(SIGMA) * WadMath.sqrt(leg.tauWad) / WAD;
+        int256 d1 = Gaussian.icdf(WAD - x * WAD / L);
+        int256 d2 = d1 - int256(s);
+        uint256 bs = leg.markWad * Gaussian.cdf(d1) / WAD - uint256(K) * Gaussian.cdf(d2) / WAD;
+
+        assertApproxEqRel(uint256(leg.premiumWad), bs, 1e9, "measured premium == Black-Scholes call");
+        console2.log("premium (USDC per WETH of notional), lens vs Black-Scholes:", uint256(leg.premiumWad), bs);
+        console2.log("total premium written by the leg (USDC):", uint256(leg.premiumWad) * L / WAD / WAD);
+    }
+
+    /// @notice A hard external reference. Spot, strike, vol and tenor are fixed by the leg; the price of
+    ///         that call is 37.42 USDC per WETH of notional by a float Black-Scholes evaluated off-chain
+    ///         (`S = 2481.09, K = 2600, sigma = 0.6, tau = 7/365`). The chain agrees to 5 decimal places.
+    /// @dev The tolerance is the honest error bar of the approximated `Phi`, not a fudge: 1e-5 relative
+    ///      on a 37 USDC premium is 4e-4 USDC.
+    function test_Premium_MatchesAnOffChainReference() public {
+        (, bytes memory strategy,) = _shipLeg(2600e18, 12e18, 8.41e18, 13);
+        SurfaceLens.Leg memory leg = lens.legOfStrategy(strategy);
+
+        assertApproxEqRel(leg.markWad, 2481.09e18, 1e15, "mark at the shipped reserve point");
+        assertApproxEqRel(uint256(leg.premiumWad), 37.42e18, 1e15, "premium against an off-chain BS");
+    }
+
+    /// @notice Delta is not modelled, it is read: `dV/dS = L*(1 - Phi(d1)) = X`, so a leg's delta in
+    ///         risky units is its risky reserve, and per unit of liquidity it is `X/L`.
+    function test_Delta_IsTheRiskyReserve() public {
+        uint128 L = 12e18;
+        uint256 x = 8.41e18;
+        (, bytes memory strategy,) = _shipLeg(2600e18, L, x, 14);
+        SurfaceLens.Leg memory leg = lens.legOfStrategy(strategy);
+
+        assertEq(leg.deltaWad, x * WAD / L, "delta == X/L");
+        assertEq(leg.deltaWad * L / WAD, x, "delta * L == the risky reserve");
+        assertLt(leg.deltaWad, WAD, "a covered call is less than 100 delta");
+        console2.log("delta (risky per unit L):", leg.deltaWad);
+    }
+
+    /// @notice The theta band the lens publishes is the same number the router's own view publishes,
+    ///         converted to the raw units a caller would actually send.
+    function test_Band_AgreesWithTheRouterView() public {
+        uint128 K = 2600e18;
+        uint128 L = 12e18;
+        uint256 x = 8.41e18;
+        (, bytes memory strategy, uint256 y) = _shipLeg(K, L, x, 15);
+
+        vm.warp(block.timestamp + 2 days);
+
+        SurfaceLens.Leg memory leg = lens.legOfStrategy(strategy);
+        (uint256 minRiskyIn, uint256 minStableIn) = sl.bandFor(K, SIGMA, maturity, L, x, y);
+
+        assertGt(leg.minStableIn, 0, "two days of decay opens a band");
+        assertEq(leg.minStableIn, (minStableIn + RATE_STABLE - 1) / RATE_STABLE, "stable side, raw units");
+        assertEq(leg.minRiskyIn, (minRiskyIn + RATE_RISKY - 1) / RATE_RISKY, "risky side, raw units");
+        console2.log("band after 2 days (USDC):", leg.minStableIn);
+    }
+
+    /// @notice After maturity the curve is constant-sum at the strike, and the lens says exactly that.
+    function test_Matured_MarkCollapsesToTheStrike() public {
+        (, bytes memory strategy,) = _shipLeg(2600e18, 12e18, 8.41e18, 16);
+
+        vm.warp(uint256(maturity) + 1);
+        SurfaceLens.Leg memory leg = lens.legOfStrategy(strategy);
+
+        assertTrue(leg.matured, "matured");
+        assertEq(leg.tauWad, 0, "tau == 0");
+        assertEq(leg.markWad, 2600e18, "the mark is the strike, exactly");
+        assertEq(leg.premiumWad, 0, "an expired call has no time value left at the strike");
+    }
+
+    /// @notice Decay is visible in the read layer with no transaction: the same leg, two days later,
+    ///         has a lower mark, a smaller premium and a band that has opened.
+    function test_Theta_IsVisibleWithoutATransaction() public {
+        (, bytes memory strategy,) = _shipLeg(2600e18, 12e18, 8.41e18, 17);
+
+        SurfaceLens.Leg memory before = lens.legOfStrategy(strategy);
+        vm.warp(block.timestamp + 2 days);
+        SurfaceLens.Leg memory afterWarp = lens.legOfStrategy(strategy);
+
+        assertEq(afterWarp.reserveRisky, before.reserveRisky, "nothing traded");
+        assertLt(afterWarp.tauWad, before.tauWad, "time passed");
+        assertLt(afterWarp.premiumWad, before.premiumWad, "the option is worth less");
+        assertGt(afterWarp.minStableIn, before.minStableIn, "and the band has opened");
+        console2.log("premium decayed from / to:", uint256(before.premiumWad), uint256(afterWarp.premiumWad));
+    }
+
+    // ------------------------------------------------------------------ the book
+
+    /// @notice The whole book in one call: four legs, four strikes, one wallet. This is the shape a UI
+    ///         or a solver consumes, and it costs one `eth_call`.
+    function test_Book_PricesTheWholeLadderInOneCall() public {
+        bytes[] memory strategies = new bytes[](4);
+        (, strategies[0],) = _shipLeg(2600e18, 12e18, 8.41e18, 21);
+        (, strategies[1],) = _shipLeg(2800e18, 10e18, 9.22e18, 22);
+        (, strategies[2],) = _shipLeg(3000e18, 10e18, 9.88e18, 23);
+        (, strategies[3],) = _shipLeg(2300e18, 6e18, 1.03e18, 24);
+
+        uint256 gasBefore = gasleft();
+        SurfaceLens.Leg[] memory legs = lens.book(strategies);
+        uint256 used = gasBefore - gasleft();
+
+        assertEq(legs.length, 4, "four legs");
+        uint128[4] memory strikes = [uint128(2600e18), 2800e18, 3000e18, 2300e18];
+        for (uint256 i = 0; i < 4; i++) {
+            assertTrue(legs[i].isLeg, "decoded");
+            assertTrue(legs[i].priced, "priced");
+            assertTrue(legs[i].live, "live");
+            assertEq(legs[i].strikeWad, strikes[i], "strike");
+            // One wallet backs all four, so every leg reports the same free balance.
+            assertEq(legs[i].freeRisky, WALLET_WETH, "shared WETH");
+        }
+
+        // The ladder is over-allocated on purpose: 28.54 WETH of virtual reserve on 10.4 real.
+        uint256 virtualRisky;
+        for (uint256 i = 0; i < 4; i++) {
+            virtualRisky += legs[i].reserveRisky;
+        }
+        assertGt(virtualRisky, WALLET_WETH, "notional exceeds the wallet, which is the point");
+        console2.log("virtual WETH across the book:", virtualRisky, "real:", WALLET_WETH);
+        console2.log("gas to price 4 legs in one call:", used);
+    }
+
+    /// @notice A fill on one leg shrinks what every sibling can deliver, in the same block, and the read
+    ///         layer shows it without asking any of them.
+    function test_Book_OneFillShrinksEverySiblingsDepth() public {
+        bytes[] memory strategies = new bytes[](3);
+        ISwapVM.Order memory leg1;
+        (leg1, strategies[0],) = _shipLeg(2600e18, 12e18, 8.41e18, 31);
+        (, strategies[1],) = _shipLeg(2800e18, 10e18, 9.22e18, 32);
+        (, strategies[2],) = _shipLeg(3000e18, 10e18, 9.88e18, 33);
+
+        SurfaceLens.Leg[] memory before = lens.book(strategies);
+        assertEq(before[1].deliverableRisky, WALLET_WETH, "sibling depth is the wallet, not the reserve");
+        assertEq(before[2].deliverableRisky, WALLET_WETH, "same wallet, same depth");
+
+        // Take 5 WETH out of the shared wallet through leg 1.
+        swapAs(taker, leg1, 5e18, takerDataFor(leg1, address(usdc), false));
+
+        SurfaceLens.Leg[] memory afterFill = lens.book(strategies);
+        assertEq(afterFill[1].deliverableRisky, WALLET_WETH - 5e18, "sibling 2 shrank by the fill");
+        assertEq(afterFill[2].deliverableRisky, WALLET_WETH - 5e18, "sibling 3 shrank by the fill");
+        assertEq(afterFill[1].reserveRisky, before[1].reserveRisky, "sibling 2's own reserve never moved");
+        assertEq(afterFill[2].reserveRisky, before[2].reserveRisky, "sibling 3's own reserve never moved");
+        console2.log("sibling depth before / after:", before[1].deliverableRisky, afterFill[1].deliverableRisky);
+    }
+
+    /// @notice A docked leg reports itself docked, with nothing left to deliver.
+    function test_Book_ReportsADockedLeg() public {
+        (ISwapVM.Order memory order, bytes memory strategy,) = _shipLeg(2600e18, 12e18, 8.41e18, 34);
+        dockOrder(maker, order);
+
+        SurfaceLens.Leg memory leg = lens.legOfStrategy(strategy);
+        assertTrue(leg.isLeg, "the bytes still decode");
+        assertTrue(leg.docked, "docked");
+        assertFalse(leg.live, "not live");
+        assertEq(leg.reserveRisky, 0, "no reserve");
+        assertEq(leg.deliverableRisky, 0, "and nothing deliverable");
+    }
+
+    // ------------------------------------------------------------------ hostile input
+
+    /// @notice The input is a public event log, so it contains strategies that are not Strikeline legs
+    ///         and bytes that are not strategies at all. One bad entry must not take the book down.
+    function test_Book_IsolatesEntriesItCannotDecode() public {
+        bytes[] memory strategies = new bytes[](4);
+        (, strategies[0],) = _shipLeg(2600e18, 12e18, 8.41e18, 41);
+
+        // A perfectly valid Aqua strategy on the same router that is simply not an option.
+        ISwapVM.Order memory xyc = buildAquaOrder(
+            maker, weth, address(usdc), bytes.concat(XYCSwap.build(), Salt.build(42))
+        );
+        shipOrder(maker, xyc, 1e18, 2500e6);
+        strategies[1] = abi.encode(xyc);
+
+        strategies[2] = hex"deadbeef"; // not an ABI-encoded order at all
+        (, strategies[3],) = _shipLeg(2800e18, 10e18, 9.22e18, 43);
+
+        SurfaceLens.Leg[] memory legs = lens.book(strategies);
+
+        assertTrue(legs[0].isLeg && legs[0].priced, "leg 0 survives");
+        assertFalse(legs[1].isLeg, "an XYC strategy is not a leg");
+        assertEq(legs[1].orderHash, keccak256(strategies[1]), "but it is still identified");
+        assertFalse(legs[2].isLeg, "garbage is not a leg");
+        assertEq(legs[2].orderHash, keccak256(strategies[2]), "and is still identified");
+        assertTrue(legs[3].isLeg && legs[3].priced, "leg 3 survives");
+    }
+
+    /// @notice Addressed one at a time, the same inputs revert with a named reason rather than
+    ///         returning a zeroed struct that a caller might read as real.
+    function test_Single_RevertsOnAStrategyThatIsNotALeg() public {
+        ISwapVM.Order memory xyc = buildAquaOrder(
+            maker, weth, address(usdc), bytes.concat(XYCSwap.build(), Salt.build(44))
+        );
+        vm.expectRevert(SurfaceLens.NotAStrikelineLeg.selector);
+        lens.legOfStrategy(abi.encode(xyc));
+    }
+
+    /// @notice A leg that was never shipped decodes and reports zero depth: the terms are public the
+    ///         moment the bytes exist, and the reserves say whether anyone stands behind them.
+    function test_Single_DecodesAnUnshippedLeg() public view {
+        ISwapVM.Order memory order =
+            buildAquaOrder(maker, weth, address(usdc), _legProgram(2600e18, 12e18, 45, true));
+
+        SurfaceLens.Leg memory leg = lens.legOfOrder(order);
+        assertTrue(leg.isLeg, "decoded from bytes that were never shipped");
+        assertEq(leg.strikeWad, 2600e18, "terms are readable regardless");
+        assertEq(leg.tokensCount, 0, "never shipped");
+        assertFalse(leg.live, "not live");
+        assertEq(leg.reserveRisky, 0, "no reserve");
+    }
+
+    /// @notice The program scanner walks `[opcode][argsLength][args]` exactly, so it finds the curve
+    ///         wherever in the program it sits and reports the wrapper independently.
+    function test_DecodeProgram_FindsTheCurveAnywhereInTheProgram() public view {
+        bytes memory withPrefix = bytes.concat(
+            Deadline.build(uint40(maturity + 30 minutes)),
+            Salt.build(99),
+            Coverage.build(0, 0),
+            RmmSwap.build(
+                RmmSwap.Args({
+                    flags: RmmSwap.FLAG_RISKY_IS_TOKEN_A,
+                    sigmaWad: 0.42e18,
+                    maturity: 1_800_000_000,
+                    strikeWad: 4321e18,
+                    liquidityWad: 7e18,
+                    rateRisky: 1,
+                    rateStable: 1e12
+                })
+            )
+        );
+
+        (RmmSwap.Args memory args, bool found, bool guarded) = lens.decodeProgram(withPrefix);
+        assertTrue(found, "found the curve after three other instructions");
+        assertTrue(guarded, "and the wrapper");
+        assertEq(args.sigmaWad, 0.42e18, "sigma");
+        assertEq(args.maturity, 1_800_000_000, "maturity");
+        assertEq(args.strikeWad, 4321e18, "strike");
+        assertEq(args.liquidityWad, 7e18, "liquidity");
+    }
+
+    /// @notice A truncated instruction stream is rejected, not silently half-read.
+    function test_DecodeProgram_RejectsATruncatedStream() public {
+        vm.expectRevert(abi.encodeWithSelector(SurfaceLens.ProgramMalformed.selector, 0));
+        lens.decodeProgram(hex"5540"); // opcode 0x55, argsLength 0x40, no args
+    }
+
+    // ------------------------------------------------------------------ the surface
+
+    /// @notice What the surface screen is: every live leg on the router, decoded into a
+    ///         (strike, expiry, implied vol) point with a maker attached and a depth behind it.
+    ///         Aqua has no order book, so this is the only place that quote exists.
+    function test_Surface_RanksMakersAtOneStrikeAndExpiry() public {
+        address maker2 = makeAddr("maker2");
+        fund(weth, maker2, 4.2e18);
+        fund(address(usdc), maker2, 9_000e6);
+
+        bytes[] memory strategies = new bytes[](3);
+        (, strategies[0],) = _shipLeg(2800e18, 10e18, 9.22e18, 51); // our maker, 60% vol
+
+        // A second maker writes the same strike and expiry at a wider vol, so they pay more theta.
+        uint64 sigma2 = 0.8e18;
+        bytes memory program2 = bytes.concat(
+            Deadline.build(uint40(maturity + 30 minutes)),
+            Coverage.build(0, 0),
+            RmmSwap.build(
+                RmmSwap.Args({
+                    flags: (weth < address(usdc) ? RmmSwap.FLAG_RISKY_IS_TOKEN_A : 0)
+                        | RmmSwap.FLAG_POST_EXPIRY_ONE_WAY | RmmSwap.FLAG_POST_EXPIRY_OUT_IS_RISKY,
+                    sigmaWad: sigma2,
+                    maturity: maturity,
+                    strikeWad: 2800e18,
+                    liquidityWad: 4e18,
+                    rateRisky: RATE_RISKY,
+                    rateStable: RATE_STABLE
+                })
+            ),
+            Salt.build(52)
+        );
+        ISwapVM.Order memory order2 = buildAquaOrder(maker2, weth, address(usdc), program2);
+        uint256 x2 = 3.4e18;
+        uint256 y2 = sl.stableFor(2800e18, sigma2, maturity, 4e18, x2);
+        (address a2,) = orderTokens(order2);
+        (uint256 amountA2, uint256 amountB2) =
+            a2 == weth ? (x2, y2 / RATE_STABLE) : (y2 / RATE_STABLE, x2);
+        shipOrder(maker2, order2, amountA2, amountB2);
+        strategies[1] = abi.encode(order2);
+
+        // A third leg at a different strike: it must not be mistaken for a quote on this one.
+        (, strategies[2],) = _shipLeg(3000e18, 10e18, 9.88e18, 53);
+
+        SurfaceLens.Leg[] memory legs = lens.book(strategies);
+
+        assertEq(legs[0].maker, maker, "leg 0 maker");
+        assertEq(legs[1].maker, maker2, "leg 1 is a different maker on the same strike");
+        assertEq(legs[0].strikeWad, legs[1].strikeWad, "same strike");
+        assertEq(legs[0].maturity, legs[1].maturity, "same expiry");
+        assertGt(legs[1].sigmaWad, legs[0].sigmaWad, "maker 2 quotes the wider vol");
+        assertGt(legs[1].premiumWad, legs[0].premiumWad, "and therefore the richer premium");
+        assertEq(legs[1].freeRisky, 4.2e18, "each maker's depth is their own wallet");
+
+        console2.log("2800 / 7d premiums, maker 1 vs maker 2:", uint256(legs[0].premiumWad), uint256(legs[1].premiumWad));
+    }
+}

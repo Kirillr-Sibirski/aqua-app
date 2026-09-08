@@ -4,12 +4,26 @@ out = "out"
 test = "test"
 script = "script"
 libs = ["node_modules"]
-solc_version = "0.8.30"
+# No global `solc_version` pin: every file we own declares `pragma solidity 0.8.30;` exactly, so the
+# resolver has no freedom there, while Uniswap v4-core pins `PoolManager.sol` to `pragma solidity 0.8.26;`.
+# A global pin makes that file unresolvable ("No solc version exists that matches the version requirement:
+# =0.8.26") even though 0.8.26 is downloadable. Two compilation units, two compilers, identical bytecode
+# for StrikelineRouter (23,633 B, verified before and after).
 optimizer = true
 optimizer_runs = 700
 via_ir = true
 evm_version = "cancun"
 fs_permissions = [{ access = "read-write", path = "./deployments" }, { access = "read-write", path = "./test/encoding" }]
+
+# Uniswap v4-core does not compile at our optimizer settings. `Pool.swap` hits a Yul stack-too-deep
+# ("Variable memPtr_1 is 1 too deep in the stack") at `optimizer_runs = 700`; upstream builds the
+# package at 44444444 runs, and that is effectively part of its source contract. Restricting the
+# Uniswap paths to their own profile keeps our router on 700 runs and byte-identical.
+additional_compiler_profiles = [{ name = "uniswap", via_ir = true, optimizer = true, optimizer_runs = 44444444 }]
+compilation_restrictions = [
+    { paths = "node_modules/@uniswap/v4-core/**", optimizer_runs = 44444444 },
+    { paths = "node_modules/@uniswap/v4-periphery/**", optimizer_runs = 44444444 },
+]
 
 [fmt]
 single_line_statement_blocks = "multi"
