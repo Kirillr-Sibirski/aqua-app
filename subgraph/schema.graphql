@@ -1,11 +1,9 @@
-"""
-The volatility surface, reconstructed from Aqua's own event log.
-
-Aqua takes a strategy "fully instead of being pre-hashed, for data availability", so the `Shipped`
-event carries the whole program. A Strikeline leg encodes its strike, its implied vol, its maturity
-and its liquidity in the clear inside that program, which makes every option ever written on the
-router publicly readable. This schema is what those bytes become once decoded.
-"""
+# The volatility surface, reconstructed from Aqua's own event log.
+#
+# Aqua takes a strategy "fully instead of being pre-hashed, for data availability", so the `Shipped`
+# event carries the whole program. A Strikeline leg encodes its strike, its implied vol, its maturity
+# and its liquidity in the clear inside that program, which makes every option ever written on the
+# router publicly readable. This schema is what those bytes become once decoded.
 
 "A wallet that has written options on the router."
 type Maker @entity(immutable: false) {
@@ -33,41 +31,42 @@ type Leg @entity(immutable: false) {
   "The app the strategy was shipped to: our router."
   app: Bytes!
 
-  # ---- the pair, as MakerTraits orders it (tokenA < tokenB)
+  "Lower of the two token addresses, as MakerTraits orders them."
   tokenA: Bytes!
   tokenB: Bytes!
-  "The token the curve treats as risky (the underlying being sold upside on)."
+  "The token the curve treats as risky: the underlying being sold upside on."
   tokenRisky: Bytes!
   tokenStable: Bytes!
   riskyIsTokenA: Boolean!
 
-  # ---- the terms, decoded out of the program bytes
   "Strike, 1e18, normalised stable per risky."
   strikeWad: BigInt!
-  "The maker's implied vol, annualised, 1e18. This is the surface's z axis: it is a parameter of
-   the quote, not something solved for."
+  """
+  The maker's implied vol, annualised, 1e18. This is the surface's z axis, and it is a parameter of
+  the quote rather than something solved for: the curve's shape is literally sigma.
+  """
   sigmaWad: BigInt!
   "Expiry, unix seconds."
   maturity: BigInt!
   "Fixed liquidity L, 1e18, in risky units. The notional the leg writes."
   liquidityWad: BigInt!
-  "Raw-to-normalised multipliers, so an 18/6 decimal pair prices in one space."
+  "Raw-to-normalised multiplier for the risky token, so an 18/6 decimal pair prices in one space."
   rateRisky: BigInt!
   rateStable: BigInt!
   "Bit 0 riskyIsTokenA, bit 1 postExpiryOneWay, bit 2 postExpiryOutIsRisky."
   flags: Int!
-  "True when the program also carries the Coverage wrapper, i.e. the depth is margined against the
-   maker's real wallet inside the call that prices the trade."
+  """
+  True when the program also carries the Coverage wrapper, i.e. the quoted depth is margined against
+  the maker's real wallet inside the same call that prices the trade.
+  """
   guarded: Boolean!
 
-  # ---- the bytes themselves, so nothing here has to be taken on trust
-  "abi.encode(order), verbatim from the Shipped event."
+  "abi.encode(order), verbatim from the Shipped event, so nothing above has to be taken on trust."
   strategy: Bytes!
   "The SwapVM program slice of order.data."
   program: Bytes!
 
-  # ---- live state, walked forward by Pushed and Pulled
-  "Aqua's virtual reserve, raw token units."
+  "Aqua's virtual reserve, raw token units, walked forward by Pushed and Pulled."
   reserveRisky: BigInt!
   reserveStable: BigInt!
   docked: Boolean!
@@ -126,9 +125,12 @@ type SurfacePoint @entity(immutable: false) {
   legCount: Int!
   liveLegCount: Int!
 
-  "Widest and tightest implied vol quoted at this point by a live leg. The widest is the best bid:
-   the maker paying the most theta to whoever takes the other side."
+  """
+  Widest implied vol quoted at this point by a live leg. This is the best bid: the maker paying the
+  most theta to whoever takes the other side of the option.
+  """
   maxSigmaWad: BigInt!
+  "Tightest implied vol quoted at this point by a live leg."
   minSigmaWad: BigInt!
   "The live leg quoting maxSigmaWad."
   bestLeg: Leg
