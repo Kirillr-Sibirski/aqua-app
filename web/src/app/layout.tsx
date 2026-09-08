@@ -18,12 +18,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Aqua Terminal",
-    template: "%s · Aqua Terminal",
+    default: "Strikeline",
+    template: "%s · Strikeline",
   },
   description:
-    "Ship, watch and dock self-custodial liquidity positions on 1inch Aqua. Strategies compile to SwapVM programs and tokens stay in your wallet until a trade pulls them.",
-  applicationName: "Aqua Terminal",
+    "A covered call written as a price curve, living in your own wallet. Strikeline compiles an option ladder to 1inch SwapVM programs on Aqua: no vault, no option token, no oracle, no keeper. The tokens never move until a fill.",
+  applicationName: "Strikeline",
 };
 
 export const viewport: Viewport = {
