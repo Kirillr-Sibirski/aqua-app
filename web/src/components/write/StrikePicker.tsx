@@ -149,7 +149,9 @@ export function StrikePicker({
                 riskyBalance={riskyBalance}
               />
             ))}
-            {legs.length > 0 && sizedById.size === 0 && !sizingLoading ? (
+            {legs.some((leg) => leg.liquidityWad > BigInt(0)) &&
+            sizedById.size === 0 &&
+            !sizingLoading ? (
               <TableMessageRow colSpan={COLUMNS}>
                 The router has not returned a reserve for these legs yet.
               </TableMessageRow>
@@ -170,6 +172,22 @@ export function StrikePicker({
       ) : null}
     </div>
   );
+}
+
+/**
+ * A reserve cell before the chain has answered.
+ *
+ * A leg with no notional is not waiting on anything — the router is never asked about it, and never
+ * will be until it has a size. Saying "no size" rather than showing a dash the maker reads as a
+ * slow request is the difference between a form that is loading and a form that is waiting on them.
+ * A put whose row opens at zero is the honest case: it means the wallet holds nothing to secure it.
+ */
+function Unsized({ leg, loading, width }: { leg: LegDraft; loading: boolean; width: string }) {
+  if (leg.liquidityWad === BigInt(0)) {
+    return <span className="text-mini text-ink-3">no size</span>;
+  }
+  if (loading) return <Skeleton className={cn('ml-auto h-3.5', width)} />;
+  return <span className="text-ink-3">&mdash;</span>;
 }
 
 function LegRow({
@@ -236,10 +254,8 @@ function LegRow({
             symbol={pair.risky.symbol}
             size="sm"
           />
-        ) : sizingLoading ? (
-          <Skeleton className="ml-auto h-3.5 w-20" />
         ) : (
-          <span className="text-ink-3">—</span>
+          <Unsized leg={leg} loading={sizingLoading} width="w-20" />
         )}
       </TableCell>
 
@@ -251,10 +267,8 @@ function LegRow({
             symbol={pair.stable.symbol}
             size="sm"
           />
-        ) : sizingLoading ? (
-          <Skeleton className="ml-auto h-3.5 w-24" />
         ) : (
-          <span className="text-ink-3">—</span>
+          <Unsized leg={leg} loading={sizingLoading} width="w-24" />
         )}
       </TableCell>
 

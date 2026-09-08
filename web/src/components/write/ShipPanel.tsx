@@ -56,9 +56,12 @@ export function ShipPanel({
   disabledReason,
 }: ShipPanelProps) {
   const transferLogs = countTransferLogs(steps);
+  // The same predicate `useShipBook` uses to build the plan it will actually run. Listing an
+  // approval for a token the book does not ship would promise a signature request that never
+  // arrives, which is the sort of small lie that makes a maker distrust the rest of the panel.
   const plan = [
-    `Approve ${pair.risky.symbol} to Aqua`,
-    `Approve ${pair.stable.symbol} to Aqua`,
+    ...(riskyNeeded > BigInt(0) ? [`Approve ${pair.risky.symbol} to Aqua`] : []),
+    ...(stableNeeded > BigInt(0) ? [`Approve ${pair.stable.symbol} to Aqua`] : []),
     ...legs.map((leg, i) => `Ship leg ${i + 1} · K ${leg.draft.strike}`),
   ];
 

@@ -28,7 +28,7 @@ import {
   TabPanel,
   Tabs,
 } from '@/components/ui';
-import { ProgramInspector, rateFor, tauWad, useCoverage } from '@/components/curve';
+import { ProgramInspector, WAD, rateFor, tauWad, useCoverage } from '@/components/curve';
 import { useDeployments, useOraclePrice, useTokenBalances } from '@/hooks';
 import { aquaFork } from '@/lib/chain';
 import { addressLt } from '@/lib/swapvm';
@@ -146,19 +146,28 @@ export function WriteWizard() {
           return current.filter((leg) => leg.offset !== offset);
         }
         const strike = strikeFrom(spot, offset);
+        const strikeWad = BigInt(Math.round(strike * 1e6)) * BigInt(1e12);
         const kind = offset >= 0 ? ('call' as const) : ('put' as const);
-        // A default that is a real balance rather than a round number. Calls draw on the risky
-        // side; the put is stable-collateralised, so it starts at half the size and the maker
-        // sizes it against what the stable balance can actually deliver.
-        const base = riskyBalance ?? BigInt(0);
-        const notionalRaw = kind === 'call' ? base : base / BigInt(2);
+        // Each side defaults to the balance that actually backs it, and never to a round number.
+        //
+        // A call hands over the risky asset, so its L is the risky balance. A put hands over the
+        // stable asset: its reserve is `Y = L*K*Phi(d2) <= L*K`, so the stable balance caps L at
+        // `balance / K`. Sizing the put off the risky balance would have picked a number with no
+        // relation to what stands behind it — and the whole screen is about what stands behind
+        // what.
+        const notionalRaw =
+          kind === 'call'
+            ? (riskyBalance ?? BigInt(0))
+            : ((stableBalance ?? BigInt(0)) * rateFor(pair.stable.decimals) * WAD) /
+              strikeWad /
+              rateFor(pair.risky.decimals);
         return [
           ...current,
           {
             id: `${offset}-${saltCounter.current}`,
             offset,
             strike,
-            strikeWad: BigInt(Math.round(strike * 1e6)) * BigInt(1e12),
+            strikeWad,
             kind,
             notional: toDecimalString(notionalRaw, pair.risky.decimals),
             liquidityWad: notionalRaw * rateFor(pair.risky.decimals),
@@ -167,7 +176,7 @@ export function WriteWizard() {
         ].sort((a, b) => a.strike - b.strike);
       });
     },
-    [spot, pair, riskyBalance, chainNow],
+    [spot, pair, riskyBalance, stableBalance, chainNow],
   );
 
   const changeNotional = useCallback(
