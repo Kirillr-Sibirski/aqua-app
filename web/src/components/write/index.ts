@@ -8,7 +8,7 @@
  */
 export { WriteWizard } from './WriteWizard';
 
-export { Terms, ivRatio } from './Terms';
+export { Terms, ivRatio, IV_MAX_PERCENT } from './Terms';
 export type { TermsProps } from './Terms';
 
 export { StrikePicker } from './StrikePicker';

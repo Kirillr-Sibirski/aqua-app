@@ -56,13 +56,30 @@ export interface TermsProps {
   className?: string;
 }
 
-/** Within this much of realised, in ratio terms, the book is charging realised and not a spread. */
+/**
+ * Within this much of realised, in ratio terms, the book is charging realised and not a spread.
+ *
+ * Also the tolerance the "below realised" warning uses, so the three states are disjoint against one
+ * threshold: below, at, above. 0.0005 is half of the last digit the field and the message both show,
+ * which is what stops the app defaulting the field from realised and then warning that the number it
+ * just wrote is below realised.
+ */
 const AT_REALISED = 0.0005;
 
-/** The maker's vol, as a ratio. `undefined` while the field is empty or mid-edit. */
+/**
+ * The largest vol this can be shipped with, as a percent.
+ *
+ * `sigmaWad` is a `uint64`, so anything above ~1844% fails to encode -- and it fails late, inside
+ * `uintN(a.sigmaWad, 8)`, surfacing as "the router could not size these legs" with an encoder
+ * message rather than as a bad value in the field that produced it. 1000% is well inside the
+ * encodable range and already far outside anything a maker would write.
+ */
+export const IV_MAX_PERCENT = 1000;
+
+/** The maker's vol, as a ratio. `undefined` while the field is empty, mid-edit, or unshippable. */
 export function ivRatio(iv: string): number | undefined {
   const value = Number(iv);
-  if (!Number.isFinite(value) || value <= 0) return undefined;
+  if (!Number.isFinite(value) || value <= 0 || value > IV_MAX_PERCENT) return undefined;
   return value / 100;
 }
 
@@ -85,7 +102,21 @@ export function Terms({
   className,
 }: TermsProps) {
   const chosen = ivRatio(iv);
-  const under = chosen !== undefined && realised !== undefined && chosen < realised.sigma;
+  // Out of the encodable range, so `ivRatio` refused it. Named here rather than left to fail inside
+  // the SwapVM encoder, where it arrives as a byte-width error about a field the maker never saw.
+  const typed = Number(iv);
+  const outOfRange = iv.trim() !== '' && Number.isFinite(typed) && typed > IV_MAX_PERCENT;
+  // Compared at the precision the message itself prints, and never against a value the app supplied.
+  // `realised.sigma` is full precision while the field holds at most two decimals of a percent, so a
+  // raw `<` fired on numbers that are equal as far as anyone can see -- including the app's own
+  // default, which rounded realised into the field and then failed its own check against the
+  // unrounded value: "Below trailing realised (33.9%)" in the negative colour under a field reading
+  // 33.9, on the first frame of the write flow, with nothing typed.
+  const under =
+    ivSource !== 'realised' &&
+    chosen !== undefined &&
+    realised !== undefined &&
+    chosen < realised.sigma - AT_REALISED;
 
   const hint = useMemo(() => {
     if (realisedLoading) return 'Reading the feed history…';
@@ -146,9 +177,11 @@ export function Terms({
         label="Implied volatility"
         hint={hint}
         error={
-          under
-            ? `Below trailing realised (${formatPercent(realised.sigma, { fractionDigits: 1 })}). The book would be selling vol into a market moving faster than that.`
-            : undefined
+          outOfRange
+            ? `Above ${IV_MAX_PERCENT}%, which is past what a leg can carry: the curve stores sigma in 64 bits.`
+            : under
+              ? `Below trailing realised (${formatPercent(realised.sigma, { fractionDigits: 1 })}). The book would be selling vol into a market moving faster than that.`
+              : undefined
         }
         aside={
           !realised ? null : ivSource === 'realised' ? (
@@ -173,7 +206,7 @@ export function Terms({
           onValueChange={onIvChange}
           decimals={2}
           symbol="%"
-          invalid={under}
+          invalid={under || outOfRange}
           aria-label="Implied volatility in percent"
         />
       </Field>
