@@ -32,6 +32,45 @@ That is the trade. If ETH moves more than the volatility you chose, you would
 have done better holding. You can withdraw the offer at any moment, and
 withdrawing moves no tokens.
 
+## The app: one card, three fields, one button
+
+The front door is a single 480px card, centred, and nothing else. Three fields and one button:
+
+```
+Sell        10.4        WETH      You hold 10.4 WETH              Max
+if it reaches   2,600   USDC      6.1% above today's 2,450.91
+by          Fri 18 Sep            8 days away, 08:00 UTC
+
+If it is taken in full                              +46.36 USDC
+What you give up                              above 2,604.97
+                    [ Publish offer ]
+```
+
+All three fields arrive pre-filled from the chain, so a person who agrees with the defaults
+publishes in **one click** with a wallet already attached, three from cold. Every figure is a chain
+read: the amount from a `balanceOf` multicall, the price from the Chainlink feed the manifest names,
+the date from the block clock rather than the browser's, and the two lines under the fields from
+`StrikelineViews.stableFor` asked twice in one multicall, once at the offer's own date and once with
+the date set to zero, where the curve degenerates to the constant-sum order it becomes at expiry.
+The card quotes before a wallet is connected, because those are view calls and need no signer.
+
+Nothing on that surface says strike, notional, implied volatility or leg. Those words are correct
+and they are one disclosure away, under *Details*, where someone has asked for them.
+
+There are five screens and two tabs.
+
+| Route | What it is | In the nav |
+|---|---|---|
+| `/` | the card | tab 1 |
+| `/offers` | the positions view: one wallet balance, every offer's claim on it, read at one block | tab 2, once this wallet has published something |
+| `/offer/[hash]` | one offer in full: its curve, the gap that pays it, every trade against it, and the two actions that change it | from a row |
+| `/surface` | every offer any wallet has made, rebuilt from the log. Needs no wallet | footer |
+| `/receipt` | the markout study: one week of real Base prices, replayed | footer |
+
+A positions view is worth having and is never what greets a first-time visitor, so the second tab
+appears only once there is something behind it. `/surface` and `/receipt` are demonstrations of the
+read layer rather than steps in making an offer, so they are reached from a quiet footer line.
+
 ## The two custom SwapVM instructions
 
 ### `RmmSwap` — opcode `0x55` ([src](contracts/src/instructions/RmmSwap.sol))
@@ -322,7 +361,9 @@ subgraph/           The Graph. Decodes the shipped bytes in the mapping into Leg
                     Fill / SurfacePoint. schema.graphql, subgraph.yaml, src/*.ts (AssemblyScript).
   tests/            the mappings run in WebAssembly against a Node host: 18 tests, one golden
                     abi.encode(Order) shared with the Solidity and TypeScript decoders.
-web/                Next.js 16 / React 19 / wagmi 3. Verified TypeScript SwapVM encoder.
+web/                Next.js 16 / React 19 / Mantine 9 / wagmi 3, light theme, one card first.
+                    Verified TypeScript SwapVM encoder. No option maths anywhere in it:
+                    every curve value and preview number is a router call.
 scripts/fork/       anvil Base fork, bootstrap, oracle mock, time warp, smoke test.
 scripts/markout/    the replay tape, and the check that the receipt screen is not stale.
 docs/               ARCHITECTURE.md, CONCEPT.md, OPCODES.md, research, AI-usage disclosure.
@@ -340,7 +381,13 @@ make build
 make fork          # anvil, Base pinned at block 50946000, chain id 31337
 make bootstrap     # deploy the router against the OFFICIAL Aqua, fund wallets
 make smoke         # ship a strategy, quote it, swap it, print the receipt
+make story-setup && make story-1   # four live offers from anvil account #1
+make web           # the app, on http://localhost:3000
 ```
+
+`make web` serves exactly the five product screens above. The diagnostics pages are named
+`page.dev.tsx` and only exist as routes under `make web-dev-routes`; a production build cannot ship
+them.
 
 ## Honest limits
 
