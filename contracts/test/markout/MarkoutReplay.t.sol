@@ -54,8 +54,9 @@ import { Fmt } from "./Fmt.sol";
 ///
 ///          Strikeline - hold  =  (fill markout)  +  sum (W_{i-1} - W_0) * (S_i - S_{i-1}).
 ///
-///      `test_Markout_ReplayAgainstHoldAndPool` asserts that identity to the wei rather than asserting it
-///      in a comment.
+///      `test_Markout_ReplayAgainstHoldAndPool` asserts that identity rather than asserting it in a
+///      comment. Its tolerance is one wei per step, which is the integer division in `W*S` and nothing
+///      else: on the demo window that is 1,185 wei against a two hundred dollar result.
 ///
 ///      ONE THING THE NUMBERS SAY THAT A PITCH WOULD NOT. Against an arbitrage-only taker the fill markout
 ///      is negative by construction -- it is exactly minus what the arbitrageur made, because a rational
@@ -227,7 +228,7 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         Run memory r = _replay(SIGMA, 0);
 
         // The decomposition is an identity, not a narrative. One wei of integer division per step is the
-        // whole tolerance it is allowed.
+        // whole tolerance it is allowed: 1,185 wei of a WAD against a result of order 1e20.
         int256 versusHold = int256(r.endWad) - int256(r.hodlEndWad);
         assertApproxEqAbs(
             r.markoutWad + r.upsideGivenUpWad, versusHold, r.steps, "markout + upside != Strikeline - hold"

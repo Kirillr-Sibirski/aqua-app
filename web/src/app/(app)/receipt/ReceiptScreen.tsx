@@ -259,7 +259,7 @@ function Attribution({
     <section className="flex flex-col gap-4">
       <SectionTitle
         title="Where the difference came from"
-        body="A maker's mark is the ETH they hold times the price, plus their dollars. That splits the week into exactly two parts with nothing left over, and the Foundry test asserts the split to the wei."
+        body="A maker's mark is the ETH they hold times the price, plus their dollars. That splits the week into exactly two parts with nothing left over, and the Foundry test asserts the split holds to within one wei per step of the replay."
       />
       <Table caption="Difference from holding, split into its two parts" minWidth="34rem">
         <TableHead>

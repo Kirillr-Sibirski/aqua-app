@@ -226,7 +226,8 @@ them at the reference price.
 is negative *by construction*: −65.53, which is exactly minus what the arbitrageur made, because a bot
 only crosses when crossing pays it. What the maker is actually paid is the other half of the split —
 the ETH the book did not sell into the rise and bought back into the fall, +266.97 — and the two add
-to +201.45 to the wei, which the test asserts rather than argues. So the premium in this design is not
+back to +201.45, which the test asserts (to within one wei of integer division per step) rather than
+argues. So the premium in this design is not
 a credit that lands in a wallet. It is inventory management, and it stops the moment nobody trades.
 That is the disclosed risk below, with a number on it.
 
