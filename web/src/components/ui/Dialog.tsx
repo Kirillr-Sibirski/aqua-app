@@ -9,6 +9,7 @@ import {
   useBodyScrollLock,
   useEscapeKey,
   useFocusTrap,
+  useInertBackground,
   useMounted,
   useReturnFocus,
 } from './internal';
@@ -119,6 +120,7 @@ function Overlay({
 }: InternalOverlayProps) {
   const mounted = useMounted();
   const panelRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const baseId = useId();
 
   const dismiss = () => {
@@ -126,8 +128,11 @@ function Overlay({
   };
 
   useEscapeKey(open, dismiss);
-  useFocusTrap(open, panelRef, initialFocus);
+  // Order matters: `useReturnFocus` has to record the trigger before `useFocusTrap` moves focus off
+  // it, or it records the panel's own Close button and closing leaves focus on `<body>`.
   useReturnFocus(open);
+  useFocusTrap(open, panelRef, initialFocus);
+  useInertBackground(open, rootRef);
   useBodyScrollLock(open);
 
   // `mounted` keeps the portal out of the server render entirely: there is no document to portal
@@ -135,7 +140,7 @@ function Overlay({
   if (!mounted || !open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-modal">
+    <div ref={rootRef} className="fixed inset-0 z-modal">
       <div
         aria-hidden="true"
         onClick={dismiss}

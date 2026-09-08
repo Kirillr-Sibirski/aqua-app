@@ -85,7 +85,14 @@ export function useEscapeKey(enabled: boolean, handler: () => void): void {
   }, [enabled]);
 }
 
-/** Restore focus to whatever was focused when `active` became true. */
+/**
+ * Restore focus to whatever was focused when `active` became true.
+ *
+ * Must be called BEFORE `useFocusTrap`. Effects run in declaration order, and the trap's first act
+ * is to move focus into the panel; a `useReturnFocus` declared after it therefore recorded the
+ * panel's own Close button as "what was focused before", and on close that node is already
+ * unmounted, so focus fell to `<body>` and a keyboard user was dumped at the top of the document.
+ */
 export function useReturnFocus(active: boolean): void {
   const previous = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -155,6 +162,39 @@ export function useFocusTrap(
     document.addEventListener('keydown', onKeyDown, true);
     return () => document.removeEventListener('keydown', onKeyDown, true);
   }, [active, container, initialFocus]);
+}
+
+/**
+ * Hide the page behind an overlay from assistive technology while `active`.
+ *
+ * A scrim and a focus trap stop a pointer and the Tab key, but neither stops a screen reader's
+ * virtual cursor, which walks the DOM and would happily read the book behind an open modal. `inert`
+ * is the one attribute that removes a subtree from the accessibility tree and from focus at once.
+ *
+ * Applied to every direct child of `<body>` except the overlay's own portal root, because that is
+ * exactly "the page behind this overlay" without the overlay needing to know what the page is.
+ */
+let inertLocks = 0;
+let inerted: HTMLElement[] = [];
+
+export function useInertBackground(active: boolean, portalRoot: RefObject<HTMLElement | null>): void {
+  useEffect(() => {
+    if (!active) return;
+    inertLocks += 1;
+    if (inertLocks === 1) {
+      const root = portalRoot.current;
+      inerted = Array.from(document.body.children).filter(
+        (el): el is HTMLElement => el instanceof HTMLElement && el !== root && !el.inert,
+      );
+      for (const el of inerted) el.inert = true;
+    }
+    return () => {
+      inertLocks -= 1;
+      if (inertLocks > 0) return;
+      for (const el of inerted) el.inert = false;
+      inerted = [];
+    };
+  }, [active, portalRoot]);
 }
 
 /**
