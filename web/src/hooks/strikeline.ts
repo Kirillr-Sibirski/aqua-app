@@ -484,3 +484,42 @@ export function reserveAt(snapshot: ReserveSnapshot | undefined, token: Address)
 export function ceilDiv(a: bigint, b: bigint): bigint {
   return b === ZERO ? ZERO : (a + b - ONE) / b;
 }
+
+// ---------------------------------------------------------------------------
+// Quoting
+// ---------------------------------------------------------------------------
+
+/**
+ * `quote`, typed `view` so it can go out as a plain `eth_call`, with both instructions' errors
+ * attached so a refusal comes back decoded.
+ *
+ * The function entry is written out here rather than spread in from `swapVmQuoteViewAbi` because
+ * viem's return typing depends on the literal ABI, and a spread of two `as const` arrays is exactly
+ * the shape TypeScript most likes to widen.
+ */
+export const quoteWithStrikelineErrorsAbi = [
+  {
+    type: 'function',
+    name: 'quote',
+    stateMutability: 'view',
+    inputs: [
+      {
+        name: 'order',
+        type: 'tuple',
+        components: [
+          { name: 'maker', type: 'address' },
+          { name: 'traits', type: 'uint256' },
+          { name: 'data', type: 'bytes' },
+        ],
+      },
+      { name: 'amount', type: 'uint256' },
+      { name: 'takerTraitsAndData', type: 'bytes' },
+    ],
+    outputs: [
+      { name: 'amountIn', type: 'uint256' },
+      { name: 'amountOut', type: 'uint256' },
+      { name: 'orderHash', type: 'bytes32' },
+    ],
+  },
+  ...strikelineErrorsAbi,
+] as const;

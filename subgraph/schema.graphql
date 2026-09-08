@@ -1,0 +1,139 @@
+"""
+The volatility surface, reconstructed from Aqua's own event log.
+
+Aqua takes a strategy "fully instead of being pre-hashed, for data availability", so the `Shipped`
+event carries the whole program. A Strikeline leg encodes its strike, its implied vol, its maturity
+and its liquidity in the clear inside that program, which makes every option ever written on the
+router publicly readable. This schema is what those bytes become once decoded.
+"""
+
+"A wallet that has written options on the router."
+type Maker @entity(immutable: false) {
+  "The maker's address, lowercase hex."
+  id: ID!
+  legs: [Leg!]! @derivedFrom(field: "maker")
+  fills: [Fill!]! @derivedFrom(field: "maker")
+  "Legs ever shipped, docked ones included."
+  legsShipped: Int!
+  "Legs currently active in Aqua."
+  legsLive: Int!
+  fillCount: Int!
+  firstSeenAt: BigInt!
+  lastSeenAt: BigInt!
+}
+
+"""
+One option, as written. The `id` is the Aqua strategy hash, which is `keccak256` of the shipped
+bytes and therefore also `SwapVM.hash(order)` — the same identity the router, the registry and the
+lens all use.
+"""
+type Leg @entity(immutable: false) {
+  id: ID!
+  maker: Maker!
+  "The app the strategy was shipped to: our router."
+  app: Bytes!
+
+  # ---- the pair, as MakerTraits orders it (tokenA < tokenB)
+  tokenA: Bytes!
+  tokenB: Bytes!
+  "The token the curve treats as risky (the underlying being sold upside on)."
+  tokenRisky: Bytes!
+  tokenStable: Bytes!
+  riskyIsTokenA: Boolean!
+
+  # ---- the terms, decoded out of the program bytes
+  "Strike, 1e18, normalised stable per risky."
+  strikeWad: BigInt!
+  "The maker's implied vol, annualised, 1e18. This is the surface's z axis: it is a parameter of
+   the quote, not something solved for."
+  sigmaWad: BigInt!
+  "Expiry, unix seconds."
+  maturity: BigInt!
+  "Fixed liquidity L, 1e18, in risky units. The notional the leg writes."
+  liquidityWad: BigInt!
+  "Raw-to-normalised multipliers, so an 18/6 decimal pair prices in one space."
+  rateRisky: BigInt!
+  rateStable: BigInt!
+  "Bit 0 riskyIsTokenA, bit 1 postExpiryOneWay, bit 2 postExpiryOutIsRisky."
+  flags: Int!
+  "True when the program also carries the Coverage wrapper, i.e. the depth is margined against the
+   maker's real wallet inside the call that prices the trade."
+  guarded: Boolean!
+
+  # ---- the bytes themselves, so nothing here has to be taken on trust
+  "abi.encode(order), verbatim from the Shipped event."
+  strategy: Bytes!
+  "The SwapVM program slice of order.data."
+  program: Bytes!
+
+  # ---- live state, walked forward by Pushed and Pulled
+  "Aqua's virtual reserve, raw token units."
+  reserveRisky: BigInt!
+  reserveStable: BigInt!
+  docked: Boolean!
+  dockedAt: BigInt
+  dockedTx: Bytes
+
+  shippedAt: BigInt!
+  shippedAtBlock: BigInt!
+  shippedTx: Bytes!
+
+  fills: [Fill!]! @derivedFrom(field: "leg")
+  fillCount: Int!
+  "Cumulative raw amounts that have moved through this leg."
+  volumeIn: BigInt!
+  volumeOut: BigInt!
+
+  "The (strike, expiry) cell of the surface this leg sits in."
+  point: SurfacePoint!
+}
+
+"A single swap against a leg, from the router's own Swapped event."
+type Fill @entity(immutable: true) {
+  "transactionHash-logIndex"
+  id: ID!
+  leg: Leg!
+  maker: Maker!
+  taker: Bytes!
+  tokenIn: Bytes!
+  tokenOut: Bytes!
+  amountIn: BigInt!
+  amountOut: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+"""
+One cell of the surface: every leg any maker has written at this strike and this expiry.
+
+This is the quote Aqua structurally lacks. The registry has no order book — a strategy is opaque
+bytes keyed by its own hash, and nothing aggregates two makers who happen to have written the same
+option. Decoding the log builds that book.
+"""
+type SurfacePoint @entity(immutable: false) {
+  "strikeWad-maturity"
+  id: ID!
+  strikeWad: BigInt!
+  maturity: BigInt!
+  tokenRisky: Bytes!
+  tokenStable: Bytes!
+
+  legs: [Leg!]! @derivedFrom(field: "point")
+  "Explicit membership, so a dock can recompute the cell without a derived-field load."
+  legIds: [String!]!
+  legCount: Int!
+  liveLegCount: Int!
+
+  "Widest and tightest implied vol quoted at this point by a live leg. The widest is the best bid:
+   the maker paying the most theta to whoever takes the other side."
+  maxSigmaWad: BigInt!
+  minSigmaWad: BigInt!
+  "The live leg quoting maxSigmaWad."
+  bestLeg: Leg
+  "Sum of L over live legs: the notional written at this point across all makers."
+  liveLiquidityWad: BigInt!
+
+  updatedAt: BigInt!
+}

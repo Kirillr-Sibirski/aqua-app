@@ -10,7 +10,9 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": { "@/*": ["../web/src/*"] }
   },
   "include": ["fork/**/*.ts", "story/**/*.ts", "arb/**/*.ts", "../web/src/lib/swapvm/**/*.ts"]
 }
