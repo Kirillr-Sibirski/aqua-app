@@ -4,8 +4,8 @@ Seven scenes, one anvil fork of Base, and the same numbers every take.
 
 The video is the one artefact a judge actually watches, so nothing in it is allowed to depend on how
 long the presenter talked, which RPC answered, or whether a price moved while the camera was rolling.
-Every scene is a `make` target that runs in under five seconds, prints a decoded receipt, and asserts
-its own claims. A take that goes wrong is undone in half a second and re-run.
+Every scene is a `make` target that runs in under a second, prints a decoded receipt, and asserts its
+own claims. A take that goes wrong is undone in half a second and re-run.
 
 ```
 make fork          # terminal 1, leave it running
@@ -64,10 +64,11 @@ maker to exactly **10.4 WETH / 24,850 USDC**, sets every approval, installs the 
 real ETH/USD proxy address, anchors the price tape, pins the clock, then freezes the fork with
 `anvil_dumpState` **and** `evm_snapshot`.
 
-**Measured: 9.4 s on a cold Foundry RPC cache, 1.3 s warm.** It ends with
+**Measured: 9.4 s the first time on a machine whose Foundry RPC cache is empty, 5.6 s on a fresh fork
+after that, 1.3 s against a fork that is already warm.** It ends with
 
 ```
-  ok   anvil_dumpState wrote 116 KiB of gzipped chain state to scripts/story/state/demo.json
+  ok   anvil_dumpState wrote 117 KiB of gzipped chain state to scripts/story/state/demo.json
   ok   evm_snapshot 0x0 taken -- a retake inside this anvil session is a full rewind
 ready. `make story-load` returns here in about a second; `make story-1` opens the show.
 ```
@@ -79,30 +80,33 @@ make story-load
 ```
 
 **Measured: 0.48 s** inside a live anvil session (`evm_revert`), **1.13 s** after restarting anvil
-(`anvil_loadState` of the 116 KiB dump). Either way it lands back at take one: nothing shipped, wallet
+(`anvil_loadState` of the 117 KiB dump). Either way it lands back at take one: nothing shipped, wallet
 at 10.4 WETH / 24,850 USDC, clock rewound to the frozen second.
 
 ### The take
 
 | | Machine time | Assertions | Suggested narration |
 |---|---|---|---|
-| `make story-0` | 4.6 s | 26 | 0:20 → 0:45 |
-| `make story-1` | 0.6 s | 14 | 0:45 → 1:10 |
-| `make story-2` | 4.7 s | 15 | 1:10 → 1:45 |
-| `make story-3` | 0.5 s | 12 | 1:45 → 2:05 |
-| `make story-4` | 0.6 s | 18 | 2:05 → 2:25 |
-| `make story-5` | 0.5 s | 18 | 2:25 → 2:45 |
-| `make story-6` | 0.6 s | 19 | 2:45 → 3:00 |
-| `make story-all` | 5.0 s | 96 | (1 through 6, one process) |
+| `make story-0` | 0.58 s | 26 | 0:20 → 0:45 |
+| `make story-1` | 0.69 s | 14 | 0:45 → 1:10 |
+| `make story-2` | 0.70 s | 15 | 1:10 → 1:45 |
+| `make story-3` | 0.49 s | 12 | 1:45 → 2:05 |
+| `make story-4` | 0.71 s | 18 | 2:05 → 2:25 |
+| `make story-5` | 0.53 s | 18 | 2:25 → 2:45 |
+| `make story-6` | 0.80 s | 19 | 2:45 → 3:00 |
+| `make story-all` | 1.6 s | 96 | (1 through 6, one process) |
 
-122 assertions across the seven scenes, and roughly **12 seconds of machine time in a three-minute
-video**. Scenes 0 and 2 are the only two that take long enough to talk over, and both are doing real
-work: three live third-party fills, and fourteen tape steps of bot planning. The other five print
-faster than they can be read, which is the point. Pause, talk, run the next one.
+122 assertions across the seven scenes, and **under five seconds of machine time in a three-minute
+video**. Every scene prints faster than it can be read, which is the point: run it, then talk over the
+output that is already on screen.
 
-Times are for a warm fork. The **first** run of a given scene after an anvil restart can add about
-four seconds while anvil lazily fetches the Base state that scene touches; every run after that is the
-figure above, which is why the dress rehearsal below is worth doing before the camera is on:
+Three of those scenes used to take 4.5 seconds instead of 0.6, intermittently, and scene 0 took 4.5
+every time. That was viem sleeping a full default `pollingInterval` of 4,000 ms before re-asking for a
+receipt that anvil had already written. Every wait in the demo now polls at 25 ms
+(`awaitReceipt` in `lib.ts`). It is worth knowing about because it is invisible: nothing fails, the
+scene simply pauses.
+
+Run the sequence once as a dress rehearsal anyway before the camera is on:
 
 ```bash
 make story-load && for n in 0 1 2 3 4 5 6; do make story-$n; done
@@ -123,7 +127,7 @@ milliseconds and it is the right answer inside a running anvil. Anvil consumes a
 so `load.ts` immediately takes a fresh one.
 
 **`anvil_dumpState` / `anvil_loadState`** is the durable one: it survives restarting anvil, which is
-what makes the demo open in a second rather than a two-minute bootstrap. But it *merges* the dump into
+what makes the demo open in a second rather than a full bootstrap. But it *merges* the dump into
 the current state rather than replacing it, so accounts the dump never held stay where the last run
 left them. After a restart that is exactly right, because those accounts are served from the fork
 again. `make story-load ARGS="--dump"` forces this path.
