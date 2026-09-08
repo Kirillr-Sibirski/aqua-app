@@ -1,4 +1,4 @@
-# Aqua app — top-level developer targets (contracts / local Base fork / web)
+# Strikeline — top-level developer targets (contracts / local Base fork / web)
 #
 #   make fork            start anvil forking Base @ pinned block (chain id 31337) — keep it running in its own terminal
 #   make bootstrap       deploy our router against the OFFICIAL Aqua + fund demo wallets + write deployments manifests

@@ -174,7 +174,7 @@ export default function DevPage() {
 
   return (
     <main className="flex flex-col gap-4 p-4 text-sm max-w-5xl w-full mx-auto">
-      <h1 className="text-lg font-semibold">Aqua app — dev diagnostics</h1>
+      <h1 className="text-lg font-semibold">Strikeline — dev diagnostics</h1>
 
       <Section title="Wallet">
         <ConnectWallet />
