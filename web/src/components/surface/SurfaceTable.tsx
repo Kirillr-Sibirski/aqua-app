@@ -7,7 +7,14 @@
  * because Aqua published the bytes. The right half is priced by `SurfaceLens` at the same block:
  * the curve's own mark, the delta read straight off the reserve, and the premium measured from the
  * reserves that are actually there. A cell the chain has not answered for stays blank.
+ *
+ * A docked leg is one of those. Aqua zeroes its reserves, so the mark inversion `d1 = Phi^-1(1 -
+ * X/L)` lands on the `icdf` clamp and returns a price with no relation to the leg -- 5,036 USDC on a
+ * 2,600 call, equal to its own premium. `SurfaceLens` now refuses to price those rows, and the delta
+ * (which the table can derive itself from the reserve) is blanked here for the same reason: zero
+ * reserves are Aqua's answer about custody, not the curve's answer about a price.
  */
+import Link from 'next/link';
 import { Address as AddressText, Card, Pill, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow, TableSkeletonRows, TokenAmount } from '@/components/ui';
 import { tokenInfo, type Deployments } from '@/lib/contracts';
 import { formatUnits } from '@/lib/ui';
@@ -32,7 +39,12 @@ export function SurfaceTable({ legs, deployments, nowSeconds, loading, onSelect 
       description="Read from Aqua's Shipped log and priced at one block, across every maker. Docked legs stay listed: an option that was withdrawn is part of the record."
       flush
     >
-      <Table caption="Every leg written on this router" hideCaption minWidth="72rem">
+      <Table
+        caption="Every leg written on this router"
+        hideCaption
+        minWidth="72rem"
+        scrollHint="mark, premium, deliverable"
+      >
         <TableHead>
           <TableRow>
             <TableHeaderCell>Maker</TableHeaderCell>
@@ -81,7 +93,7 @@ function LegRow({
   const risky = tokenInfo(leg.tokenRisky, deployments);
   const stable = tokenInfo(leg.tokenStable, deployments);
   const days = nowSeconds === undefined ? undefined : daysToExpiry(leg.maturity, nowSeconds);
-  const delta = leg.pricing ? Number(leg.pricing.deltaWad) / 1e18 : deltaOf(leg);
+  const delta = leg.pricing ? Number(leg.pricing.deltaWad) / 1e18 : leg.docked ? undefined : deltaOf(leg);
   const matured = days !== undefined && days <= 0;
 
   return (
@@ -101,8 +113,16 @@ function LegRow({
       </TableCell>
 
       <TableCell numeric>
-        {formatUnits(leg.strikeWad, 18, { maxFractionDigits: 0 })}
-        <span className="text-ink-3"> {stable.symbol}</span>
+        {/* The strategy hash is the identity, so this URL resolves for any maker's leg, not only
+            for the wallet that wrote it. It is the only path to the curve from this screen. */}
+        <Link
+          href={`/leg/${leg.strategyHash}`}
+          onClick={(e) => e.stopPropagation()}
+          className="rounded-control transition-state hover:text-accent hover:underline hover:underline-offset-2"
+        >
+          {formatUnits(leg.strikeWad, 18, { maxFractionDigits: 0 })}
+          <span className="text-ink-3"> {stable.symbol}</span>
+        </Link>
       </TableCell>
 
       <TableCell numeric>
