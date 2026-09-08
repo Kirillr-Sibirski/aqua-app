@@ -36,7 +36,7 @@ import { WadMath } from "./math/WadMath.sol";
 ///         is returned signed: an approximated `Phi` can put a deep-in-the-money leg a few wei below
 ///         intrinsic, and a lens that clamps that to zero is hiding its own error bar.
 ///
-///      SEPARATE CONTRACT ON PURPOSE. `StrikelineRouter` has 943 B of EIP-170 headroom; none of it is
+///      SEPARATE CONTRACT ON PURPOSE. `StrikelineRouter` has 912 B of EIP-170 headroom; none of it is
 ///      spent here. The lens holds no funds, has no owner and cannot be called by the VM.
 ///
 ///      EVERY BATCH ENTRY IS FAULT-ISOLATED. The input is a public event log, so anyone can ship bytes
@@ -278,6 +278,12 @@ contract SurfaceLens {
 
     /// @dev The curve prices itself. `s = sigma*sqrt(tau)` is the only shape parameter, and the reserve
     ///      point is where it is read from.
+    ///
+    ///      Which is exactly why a leg with no reserve point cannot be priced. A docked strategy reports
+    ///      zero reserves, and `d1 = Phi^-1(1 - 0/L)` is not a price, it is the `icdf` clamp at +-8: on
+    ///      the demo book that prints a mark of 5,036 USDC on a 2,600 call, equal to its own premium.
+    ///      Every one of those fields degrades to `priced == false` instead, which is the blank the
+    ///      surface panel already promises means "the lens has not answered for this leg".
     function _quote(Leg memory leg) private view {
         uint256 tau = RmmSwap.tauOf(leg.maturity, block.timestamp);
         leg.tauWad = tau;
@@ -287,11 +293,24 @@ contract SurfaceLens {
         uint256 y = leg.reserveStable * leg.rateStable;
         uint256 L = leg.liquidityWad;
         uint256 K = leg.strikeWad;
-        if (L == 0 || x > L) {
-            return; // Outside the curve's domain: report the reserves, price nothing.
+        if (!leg.live) {
+            return; // Docked, or never shipped: the zeros are Aqua's, not the curve's.
+        }
+        // Outside the curve's domain: report the reserves, price nothing. The stable bound is checked
+        // here for the same reason as the risky one — without it `riskyOf` reverts `RmmOutOfDomain`,
+        // which `book()`'s catch turns into `isLeg == false`, throwing away terms it had already decoded.
+        if (L == 0 || x > L || y > L * K / WAD) {
+            return;
         }
 
         uint256 s = tau == 0 ? 0 : uint256(leg.sigmaWad) * WadMath.sqrt(tau) / WAD;
+
+        // At the ends of the domain the inversion is the clamp, not the curve, so the mark would be
+        // `K*exp(+-8s - s^2/2)` — a number with no relation to the leg. Settlement is exempt: at
+        // `s == 0` the price is `K` in closed form for every reserve point.
+        if (s != 0 && (x == 0 || x == L)) {
+            return;
+        }
 
         // Marginal price. `X = L*(1 - Phi(d1))` inverts exactly, and `d1` fixes `S` with no price feed:
         //     d1 = Phi^-1(1 - X/L),  S = K*exp(s*d1 - s^2/2)
@@ -313,8 +332,15 @@ contract SurfaceLens {
 
         // The theta band: how far the curve has walked away from the stale reserve point since the last
         // fill, in each direction. This is the premium a taker pays to re-open the curve.
-        uint256 yOnCurve = RmmSwap.stableOf(x, K, s, L);
-        uint256 xOnCurve = RmmSwap.riskyOf(y, K, s, L);
+        //
+        // Read at the GUARDED reserve, not the real one: `RmmSwap.exec` requires `newOut + epsOut <=
+        // balanceOut`, so a band read at the bare curve is one eps short of clearing and the taker who
+        // sends it gets `RmmInsideSpread`. Same arithmetic as `StrikelineViews.bandFor`; the two
+        // published minimums have to agree or `/leg` and `/surface` disagree about the same leg.
+        uint256 epsRisky = Math.ceilDiv(L * RmmSwap.EPS, WAD);
+        uint256 epsStable = Math.ceilDiv(L * K / WAD * RmmSwap.EPS, WAD);
+        uint256 yOnCurve = RmmSwap.stableOf(x > epsRisky ? x - epsRisky : 0, K, s, L);
+        uint256 xOnCurve = RmmSwap.riskyOf(y > epsStable ? y - epsStable : 0, K, s, L);
         leg.minStableIn = yOnCurve > y ? Math.ceilDiv(yOnCurve - y, leg.rateStable) : 0;
         leg.minRiskyIn = xOnCurve > x ? Math.ceilDiv(xOnCurve - x, leg.rateRisky) : 0;
 

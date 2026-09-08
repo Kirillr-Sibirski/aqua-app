@@ -300,20 +300,30 @@ contract SurfaceLensTest is AquaSwapVMTestBase {
 
     /// @notice After maturity the curve is constant-sum at the strike, so the mark is the strike
     ///         exactly, and what is left of the premium is precisely the theta the leg accrued and
-    ///         nobody has collected yet: `premium * L == the stable-side band`.
+    ///         nobody has collected yet: `premium * L == the stable-side band`, plus the one thing the
+    ///         band must carry that the premium does not — `RmmSwap`'s own guard band, which `exec`
+    ///         requires on top of the curve before it will clear anything.
     function test_Matured_MarkCollapsesToTheStrikeAndThePremiumIsTheUncollectedTheta() public {
+        uint128 K = 2600e18;
         uint128 L = 12e18;
-        (, bytes memory strategy,) = _shipLeg(2600e18, L, 8.41e18, 16);
+        (, bytes memory strategy,) = _shipLeg(K, L, 8.41e18, 16);
 
         vm.warp(uint256(maturity) + 1);
         SurfaceLens.Leg memory leg = lens.legOfStrategy(strategy);
 
         assertTrue(leg.matured, "matured");
         assertEq(leg.tauWad, 0, "tau == 0");
-        assertEq(leg.markWad, 2600e18, "the mark is the strike, exactly");
+        assertEq(leg.markWad, K, "the mark is the strike, exactly");
 
         uint256 accrued = uint256(leg.premiumWad) * L / WAD; // normalised stable
-        assertApproxEqRel(accrued, leg.minStableIn * RATE_STABLE, 1e10, "premium * L == the accrued band");
+        uint256 guard = uint256(L) * K / WAD * RmmSwap.EPS / WAD; // `exec`'s epsOut, stable side
+        // Exact to under one raw USDC wei: the only slack is the two ceil roundings between them.
+        assertApproxEqAbs(
+            leg.minStableIn * RATE_STABLE,
+            accrued + guard,
+            RATE_STABLE,
+            "band == uncollected theta + the exec guard band"
+        );
         console2.log("theta waiting for the first assignment (USDC):", leg.minStableIn);
     }
 
@@ -398,7 +408,10 @@ contract SurfaceLensTest is AquaSwapVMTestBase {
         console2.log("sibling depth before / after:", before[1].deliverableRisky, afterFill[1].deliverableRisky);
     }
 
-    /// @notice A docked leg reports itself docked, with nothing left to deliver.
+    /// @notice A docked leg reports itself docked, with nothing left to deliver — and, crucially,
+    ///         nothing priced. Aqua zeroes the reserves on dock, and `d1 = Phi^-1(1 - 0/L)` is the
+    ///         `icdf` clamp at +8, not a price: pricing it anyway printed a 5,036 USDC mark on a
+    ///         2,600 call, equal to its own premium, on a strategy that can never be filled again.
     function test_Book_ReportsADockedLeg() public {
         (ISwapVM.Order memory order, bytes memory strategy,) = _shipLeg(2600e18, 12e18, 8.41e18, 34);
         dockOrder(maker, order);
@@ -409,6 +422,12 @@ contract SurfaceLensTest is AquaSwapVMTestBase {
         assertFalse(leg.live, "not live");
         assertEq(leg.reserveRisky, 0, "no reserve");
         assertEq(leg.deliverableRisky, 0, "and nothing deliverable");
+
+        assertFalse(leg.priced, "and nothing priced");
+        assertEq(leg.markWad, 0, "no mark");
+        assertEq(leg.deltaWad, 0, "no delta");
+        assertEq(leg.premiumWad, 0, "no premium");
+        assertEq(leg.minStableIn, 0, "and no band, because no fill can ever pay it");
     }
 
     // ------------------------------------------------------------------ hostile input
