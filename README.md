@@ -185,8 +185,12 @@ subgraph/           The Graph. Decodes the shipped bytes in the mapping into Leg
                     Fill / SurfacePoint. schema.graphql, subgraph.yaml, src/*.ts (AssemblyScript).
 web/                Next.js 16 / React 19 / wagmi 3. Verified TypeScript SwapVM encoder.
 scripts/fork/       anvil Base fork, bootstrap, oracle mock, time warp, smoke test.
-docs/               CONCEPT.md, research corpus, AI-usage disclosure.
+docs/               ARCHITECTURE.md, CONCEPT.md, OPCODES.md, research, AI-usage disclosure.
 ```
+
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) is the one-page map, with a diagram: which box
+holds the tokens, which box holds the price, and which boxes are 1inch's and not ours.
+`contracts/`, `web/`, `scripts/` and `subgraph/` each carry their own README.
 
 ## Running it
 
