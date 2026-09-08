@@ -119,15 +119,15 @@ export function Terms({
     chosen < realised.sigma - AT_REALISED;
 
   const hint = useMemo(() => {
-    if (realisedLoading) return 'Reading the feed history…';
+    if (realisedLoading) return 'Reading what ETH has actually been doing…';
     if (realised) {
       const where =
         realised.source === 'rounds'
           ? `${realised.moves} price changes in the feed's own rounds`
           : `${realised.moves} price changes across ${realised.observations} readings taken at past blocks`;
-      return `Trailing realised is ${formatPercent(realised.sigma, { fractionDigits: 1 })}, from ${where} over ${formatDuration(realised.spanSeconds)}.`;
+      return `Charge more than ETH has been moving and the offer is expected to pay; charge less and you are selling movement cheap. ETH has actually moved ${formatPercent(realised.sigma, { fractionDigits: 1 })} annualised, measured from ${where} over ${formatDuration(realised.spanSeconds)}. Traders call this number the implied volatility.`;
     }
-    const why = realisedUnavailable ?? 'No realised vol to compare against.';
+    const why = realisedUnavailable ?? 'Nothing measured to compare against.';
     return ivSource === 'unmeasured'
       ? `${why} The number in the field is a starting point, not a measurement.`
       : why;
@@ -136,8 +136,8 @@ export function Terms({
   return (
     <div className={cn('flex flex-col gap-6', className)}>
       <Field
-        label="Pair"
-        hint="One risky asset against one stable. The risky side is what the calls are written on."
+        label="What you would sell"
+        hint="The asset you are offering, and the one you would be paid in."
       >
         <SegmentedControl
           label="Pair"
@@ -148,16 +148,16 @@ export function Terms({
       </Field>
 
       <Field
-        label="Expiry"
+        label="How long the offer runs"
         hint={
           maturity
-            ? `${formatExpiry(maturity)}. The assignment window closes 30 minutes later.`
-            : 'Read from the block clock, not the browser clock.'
+            ? `Runs to ${formatExpiry(maturity)}. It can still be taken for 30 minutes after that, then it is finished.`
+            : 'Counted on the chain\u2019s clock, not your browser\u2019s.'
         }
         aside={
           spot !== undefined ? (
             <span className="font-mono tnum">
-              spot {formatChartNumber(spot, { significantDigits: 10, maxFractionDigits: 2 })}
+              today {formatChartNumber(spot, { significantDigits: 10, maxFractionDigits: 2 })}
               {spotSymbol ? <span className="ml-1 text-ink-3">{spotSymbol}</span> : null}
             </span>
           ) : (
@@ -174,19 +174,19 @@ export function Terms({
       </Field>
 
       <Field
-        label="Implied volatility"
+        label="How much movement you are pricing in"
         hint={hint}
         error={
           outOfRange
-            ? `Above ${IV_MAX_PERCENT}%, which is past what a leg can carry: the curve stores sigma in 64 bits.`
+            ? `Above ${IV_MAX_PERCENT}%, which is past what an offer can carry: the curve stores sigma in 64 bits.`
             : under
-              ? `Below trailing realised (${formatPercent(realised.sigma, { fractionDigits: 1 })}). The book would be selling vol into a market moving faster than that.`
+              ? `Below what ETH has actually been doing (${formatPercent(realised.sigma, { fractionDigits: 1 })}). You would be selling movement cheaper than the market has been delivering it.`
               : undefined
         }
         aside={
           !realised ? null : ivSource === 'realised' ? (
-            <Pill tone="neutral" size="sm">
-              defaulted from realised
+            <Pill tone="neutral" size="sm" title="Trailing realised volatility, measured from the feed">
+              from what ETH has been doing
             </Pill>
           ) : (
             <button
@@ -195,8 +195,9 @@ export function Terms({
                 onUseRealised ? onUseRealised() : onIvChange((realised.sigma * 100).toFixed(1))
               }
               className="rounded-control text-accent transition-state hover:underline"
+              title="Track trailing realised volatility"
             >
-              Use realised
+              Use what ETH has been doing
             </button>
           )
         }
@@ -207,41 +208,42 @@ export function Terms({
           decimals={2}
           symbol="%"
           invalid={under || outOfRange}
-          aria-label="Implied volatility in percent"
+          aria-label="Movement you are pricing in, as an annualised percentage (implied volatility)"
         />
       </Field>
 
       {realised && chosen !== undefined && !under ? (
         chosen - realised.sigma > AT_REALISED ? (
           <p className="text-mini leading-prose text-ink-3">
-            <Pill tone="positive" size="sm">
+            <Pill tone="positive" size="sm" title="Over trailing realised volatility">
               {formatPercent(chosen - realised.sigma, { fractionDigits: 1, sign: 'always' })} over
-              realised
+              what ETH has been doing
             </Pill>{' '}
             <span className="ml-1.5">
-              The spread between what the book charges and what the asset has been doing. It is the
-              reason the position is expected to pay, and it is not a guarantee.
+              You are charging more for movement than ETH has actually been delivering. That gap is
+              the reason the offer is expected to pay. It is not a guarantee, and it pays nothing at
+              all until somebody trades against you.
             </span>
           </p>
         ) : (
           <p className="text-mini leading-prose text-ink-3">
-            <Pill tone="neutral" size="sm">
-              at realised
+            <Pill tone="neutral" size="sm" title="At trailing realised volatility">
+              level with ETH
             </Pill>{' '}
             <span className="ml-1.5">
-              The book would charge exactly what the asset has been doing, which is the break-even
-              assumption rather than an edge. Whether that is enough depends on the move you expect
-              next, which is the one thing no history measures.
+              You would be charging exactly what ETH has been doing, which is break-even rather than
+              an edge. Whether that is enough depends on the move that comes next, which is the one
+              thing no history measures.
             </span>
           </p>
         )
       ) : null}
 
       {!realised && !realisedLoading ? (
-        <Callout tone="info" title="No realised vol to default from">
+        <Callout tone="info" title="Nothing measured to start from">
           {realisedUnavailable} The field opens at {iv}% so the form has somewhere to start, and that
           figure is the one thing on this screen that was not read from the chain. Set it against
-          your own view of the asset, not against the number that is sitting there.
+          your own view of where ETH is going, not against the number that is sitting there.
         </Callout>
       ) : null}
     </div>

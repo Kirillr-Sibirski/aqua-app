@@ -98,27 +98,29 @@ export function PayoffChart({
 
   return (
     <ChartFrame
-      title="Payoff"
+      title="What you would be worth, at every ETH price"
       subtitle={
         <>
           <span className="rounded-control bg-surface-2 px-1.5 py-0.5 font-mono text-micro tracking-normal text-ink-2">
             model
           </span>{' '}
-          Black-Scholes at the vol you chose, not a chain read.
+          Black-Scholes at the movement you chose, not a chain read.
         </>
       }
-      description={`Value of the book in ${stableSymbol} against the price of ${riskySymbol}, at expiry and at the current time to maturity, compared with holding the same reserves. Shaded bands mark the prices at which a leg is assigned.`}
+      description={`What these offers are worth in ${stableSymbol} at each price of ${riskySymbol}, on the date they run to and right now, next to simply holding the same tokens. The shaded bands mark the prices at which you would be sold.`}
       height={height}
       margin={MARGIN}
       state={resolvedState}
       errorMessage={errorMessage}
-      emptyMessage="Add a leg and the payoff appears."
+      emptyMessage="Pick a price and this fills in."
       legend={<Legend hasAssigned={bounds.above !== undefined || bounds.below !== undefined} />}
       footnote={
         <>
-          The book is worth less than holding on both sides of spot, which is what being short
-          volatility means. What it is paid for that is the theta an arbitrageur has to cross, and that
-          number is measured on the leg screen rather than modelled here.
+          On both sides of today&rsquo;s price these offers are worth less than simply holding: that
+          is what selling movement costs you, and it is the risk. What you are paid for taking it is
+          not in this picture and is not paid up front. It builds inside your own quote and only
+          becomes real when somebody trades against it, which is measured on each offer&rsquo;s own
+          screen rather than modelled here.
         </>
       }
     >
@@ -148,7 +150,7 @@ export function PayoffChart({
                   fill="warn"
                   tint={9}
                   edgeColor="warn"
-                  label="assigned"
+                  label="you sell here"
                   labelColor="ink-3"
                 />
               ) : null}
@@ -161,7 +163,7 @@ export function PayoffChart({
                   fill="warn"
                   tint={9}
                   edgeColor="warn"
-                  label="assigned"
+                  label="you buy here"
                   labelColor="ink-3"
                 />
               ) : null}
@@ -210,7 +212,7 @@ function Legend({ hasAssigned }: { hasAssigned: boolean }) {
     <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-mini text-ink-3">
       <Item>
         <Swatch stroke={color('accent')} width={2} />
-        At expiry
+        On the date it runs to
       </Item>
       <Item>
         <Swatch stroke={color('accent')} width={1.5} dash="0 3.6" cap="round" />
@@ -218,14 +220,14 @@ function Legend({ hasAssigned }: { hasAssigned: boolean }) {
       </Item>
       <Item>
         <Swatch stroke={color('ink-3')} width={1.5} dash="4.5 3.4" />
-        Holding
+        If you just held
       </Item>
       {hasAssigned ? (
         <Item>
           <svg width={16} height={8} aria-hidden="true">
             <rect width={16} height={8} fill={colorMix('warn', 9)} stroke={color('warn')} strokeWidth={1} />
           </svg>
-          Assigned
+          You sell here
         </Item>
       ) : null}
     </span>

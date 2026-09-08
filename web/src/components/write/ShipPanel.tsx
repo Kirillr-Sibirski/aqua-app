@@ -62,20 +62,20 @@ export function ShipPanel({
   const plan = [
     ...(riskyNeeded > BigInt(0) ? [`Approve ${pair.risky.symbol} to Aqua`] : []),
     ...(stableNeeded > BigInt(0) ? [`Approve ${pair.stable.symbol} to Aqua`] : []),
-    ...legs.map((leg, i) => `Ship leg ${i + 1} · K ${leg.draft.strike}`),
+    ...legs.map((leg, i) => `Publish offer ${i + 1} · sells at ${leg.draft.strike}`),
   ];
 
   return (
     <Card
-      title="Ship"
+      title="Publish"
       description={
         legs.length === 0
-          ? 'Nothing to ship yet.'
-          : `${legs.length} ${legs.length === 1 ? 'leg' : 'legs'}, one transaction each. Aqua has no multicall, so they land one at a time and each is live the moment it mines.`
+          ? 'Nothing to publish yet.'
+          : `${legs.length} ${legs.length === 1 ? 'offer' : 'offers'}, one transaction each. Aqua has no multicall, so they land one at a time and each one is live the moment it mines.`
       }
       footer={
         transferLogs === undefined ? (
-          <span>Aqua moves no tokens on ship. The receipts will show it.</span>
+          <span>No token moves when you publish. The receipts will show it.</span>
         ) : (
           <span className="flex items-center gap-2">
             <Pill tone={transferLogs === 0 ? 'positive' : 'warning'} size="sm">
@@ -88,19 +88,19 @@ export function ShipPanel({
     >
       <div className="flex flex-col gap-4">
         <dl className="flex flex-col">
-          <CardRow label="Legs">{legs.length}</CardRow>
-          <CardRow label="Expiry">
+          <CardRow label="Offers">{legs.length}</CardRow>
+          <CardRow label="Runs to">
             <span className="font-mono tnum">{maturity ? formatExpiry(maturity) : '—'}</span>
           </CardRow>
-          <CardRow label="Implied vol">
+          <CardRow label="Movement priced in">
             <span className="font-mono tnum">
               {sigma === undefined ? '—' : `${(sigma * 100).toFixed(1)}%`}
             </span>
           </CardRow>
-          <CardRow label={`${pair.risky.symbol} shipped`}>
+          <CardRow label={`${pair.risky.symbol} on offer`}>
             <TokenAmount value={riskyNeeded} decimals={pair.risky.decimals} size="sm" />
           </CardRow>
-          <CardRow label={`${pair.stable.symbol} shipped`}>
+          <CardRow label={`${pair.stable.symbol} on offer`}>
             <TokenAmount value={stableNeeded} decimals={pair.stable.decimals} size="sm" />
           </CardRow>
         </dl>
@@ -108,26 +108,27 @@ export function ShipPanel({
         <Button
           icon={Ship}
           loading={isRunning}
-          loadingLabel="Shipping the book"
+          loadingLabel="Publishing"
           disabled={legs.length === 0 || Boolean(disabledReason)}
           disabledReason={
-            legs.length === 0 ? 'Add at least one leg to ship a book.' : disabledReason
+            legs.length === 0 ? 'Pick at least one price first.' : disabledReason
           }
           onClick={onShip}
         >
-          Ship {legs.length || ''} {legs.length === 1 ? 'leg' : 'legs'}
+          Publish {legs.length || ''} {legs.length === 1 ? 'offer' : 'offers'}
         </Button>
 
         <TxStepper steps={steps} plan={plan} chainId={chainId} />
 
-        {error ? <ErrorState error={error} title="The book was not fully shipped" bare /> : null}
+        {error ? <ErrorState error={error} title="Not every offer was published" bare /> : null}
 
         {shipped && shipped.length > 0 ? (
-          <Callout tone="positive" title="Shipped">
+          <Callout tone="positive" title="Live">
             <p>
-              The wallet still holds every token. Each leg is quoting from{' '}
+              Your wallet still holds every token. Each offer is quoting against{' '}
               <span className="font-mono">{formatUnits(riskyNeeded, pair.risky.decimals)}</span>{' '}
-              {pair.risky.symbol} that never moved.
+              {pair.risky.symbol} that never moved. Nobody has paid you yet: that happens when
+              somebody takes one.
             </p>
             <ul className="mt-2 flex flex-col gap-1">
               {shipped.map((hash, i) => (
@@ -136,7 +137,7 @@ export function ShipPanel({
                     href={`/leg/${hash}`}
                     className="inline-flex items-center gap-1 rounded-control font-mono text-mini tnum text-accent transition-state hover:underline"
                   >
-                    Leg {i + 1}
+                    Offer {i + 1}
                     <ArrowRight size={14} strokeWidth={1.5} aria-hidden="true" />
                   </Link>
                 </li>

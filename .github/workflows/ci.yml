@@ -1,0 +1,99 @@
+name: CI
+
+# Everything a reviewer would run by hand, on every push and every pull request. No secrets, no RPC:
+# the fork suites in both languages detect that no anvil is listening and skip themselves, so a clone
+# with nothing running still gets a green tick that means something.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: contracts (foundry)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+
+      # foundry.toml sets `libs = ["node_modules"]`: @1inch/aqua, @1inch/swap-vm, forge-std, solady,
+      # OpenZeppelin and Uniswap v4 all arrive through npm, so the install has to happen before build.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: contracts/package-lock.json
+      - run: npm ci --no-audit --no-fund
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - run: forge --version
+
+      # --sizes is the gate that matters here: StrikelineRouter ships with 725 B of EIP-170 headroom,
+      # so an instruction that grows the dispatcher fails the build rather than the deploy.
+      - run: forge build --sizes
+
+      # 167 offline tests. The 11 fork tests read FORK_RPC_URL, which is deliberately not set, and
+      # report as skipped. `make test-fork` is the target that runs them.
+      - run: forge test -vv
+
+  web:
+    name: web (next + vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+
+      - name: Route types
+        run: npx next typegen
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx eslint src
+      - name: Production build
+        run: npm run build
+
+      # The design system's own gate: all 22 token pairs against their contrast floor, exit 1 on a
+      # regression. DESIGN.md names 4.5:1 as a rule; this is the rule being enforced.
+      - name: Contrast floor
+        run: node scripts/contrast.mjs
+
+      # 282 tests. The four suites that want the local Base fork probe 127.0.0.1:8545, find nothing,
+      # and skip; the 267 offline ones (encoder vectors, curve math, decoders, formatting) run.
+      - run: npm test
+
+  scripts:
+    name: scripts (typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: scripts
+
+      # The fork tooling, the seven demo scenes and the arbitrage bot share the app's SwapVM encoder
+      # through the `@/` alias, so a change to that encoder has to typecheck against them too.
+      - run: npx tsc --noEmit -p tsconfig.json
+        working-directory: scripts

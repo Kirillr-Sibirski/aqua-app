@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Write a book.
+ * Name your price.
  *
- * Four sections in order — terms, ladder, review, ship — laid out on one page rather than behind a
- * stepper, because this is a terminal and a maker deciding on a strike wants the payoff and the
+ * Four sections in order — terms, prices, review, publish — laid out on one page rather than behind
+ * a stepper, because this is a terminal and a maker deciding on a price wants the payoff and the
  * backing visible while they decide, not two clicks away. The sticky rail carries the only
  * irreversible action.
  *
@@ -239,8 +239,8 @@ export function WriteWizard() {
     return (
       <EmptyState
         icon={Layers}
-        title="Connect a wallet to write a book"
-        description="A leg is written from the wallet that will back it, so the writer needs to know whose balance every quote will be margined against. Nothing is custodied and nothing moves until a fill."
+        title="Connect a wallet to name a price"
+        description="An offer sells the ETH in your own wallet, so this screen has to know whose balance every quote is priced against. Nothing is custodied and no token moves until somebody takes an offer."
         action={<ConnectButton size="md" />}
         note="No extension? The picker offers a demo wallet that signs locally against the Base fork."
       />
@@ -265,7 +265,7 @@ export function WriteWizard() {
       deliverable: coverage.free[pair.risky.address.toLowerCase()],
       claims: sizing.sized
         .filter((leg) => leg.riskyRaw > BigInt(0))
-        .map((leg) => ({ id: leg.draft.id, label: `K ${leg.draft.strike}`, amount: leg.riskyRaw })),
+        .map((leg) => ({ id: leg.draft.id, label: `at ${leg.draft.strike}`, amount: leg.riskyRaw })),
     },
     {
       symbol: pair.stable.symbol,
@@ -274,21 +274,25 @@ export function WriteWizard() {
       deliverable: coverage.free[pair.stable.address.toLowerCase()],
       claims: sizing.sized
         .filter((leg) => leg.stableRaw > BigInt(0))
-        .map((leg) => ({ id: leg.draft.id, label: `K ${leg.draft.strike}`, amount: leg.stableRaw })),
+        .map((leg) => ({ id: leg.draft.id, label: `at ${leg.draft.strike}`, amount: leg.stableRaw })),
     },
   ];
 
   const shipDisabledReason =
     sizing.sized.length === 0
-      ? 'The router has not returned a reserve for these legs yet.'
+      ? 'Waiting for the chain to price these offers.'
       : sigma === undefined
-        ? 'Set an implied volatility above zero.'
+        ? 'Set the movement you are pricing in above zero.'
         : undefined;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)] lg:items-start">
       <div className="flex min-w-0 flex-col gap-8">
-        <Section index={1} title="Terms" description="Shared by every leg in the book.">
+        <Section
+          index={1}
+          title="What you are selling"
+          description="The asset, the date your offers run to, and how much movement you are pricing in. Every offer you publish here shares them."
+        >
           <Terms
             pairs={pairs}
             pairKey={active.key}
@@ -310,8 +314,8 @@ export function WriteWizard() {
 
         <Section
           index={2}
-          title="Ladder"
-          description="Strikes by moneyness, sized in the risky asset. One balance backs all of them."
+          title="The prices you would sell at"
+          description="Pick one price or several. One wallet balance stands behind all of them, so you do not have to choose only one."
         >
           <StrikePicker
             pair={pair}
@@ -327,14 +331,18 @@ export function WriteWizard() {
           {sizing.error ? (
             <ErrorState
               error={sizing.error}
-              title="The router could not size these legs"
+              title="These offers could not be priced"
               onRetry={sizing.refetch}
               bare
             />
           ) : null}
         </Section>
 
-        <Section index={3} title="Review" description="What the book is worth, and what backs it.">
+        <Section
+          index={3}
+          title="What you would earn, and what you would risk"
+          description="What these offers are worth at every ETH price, and what stands behind them."
+        >
           <div className="flex flex-col gap-6">
             <PayoffChart
               legs={payoffLegs}
@@ -342,7 +350,7 @@ export function WriteWizard() {
               riskySymbol={pair.risky.symbol}
               stableSymbol={pair.stable.symbol}
               state={oracle.error ? 'error' : 'ready'}
-              errorMessage={oracle.error ? 'The price feed could not be read.' : undefined}
+              errorMessage={oracle.error ? "Today's ETH price could not be read." : undefined}
             />
 
             <MarginPreview rows={marginRows} loading={balances.isLoading} />
@@ -350,12 +358,13 @@ export function WriteWizard() {
             {sizing.sized.length > 0 ? (
               <div className="flex flex-col gap-3">
                 <p className="max-w-prose text-mini leading-prose text-ink-3">
-                  The bytes Aqua will store. `ship` takes the strategy whole rather than pre-hashed, for
-                  data availability, so these terms are public on chain and any resolver can quote the
-                  leg without an off-chain book.
+                  <em className="not-italic text-ink-2">Mechanically:</em> the bytes Aqua will store.
+                  `ship` takes the strategy whole rather than pre-hashed, for data availability, so
+                  your price and your date are public on chain and anyone can quote the offer without
+                  an off-chain order book.
                 </p>
                 <Tabs defaultValue={sizing.sized[0].draft.id}>
-                  <TabList label="Legs in this book">
+                  <TabList label="Offers in this batch">
                     {sizing.sized.map((leg) => (
                       <Tab key={leg.draft.id} value={leg.draft.id}>
                         K {leg.draft.strike}
@@ -367,7 +376,7 @@ export function WriteWizard() {
                       <ProgramInspector
                         program={leg.program}
                         strategyHash={leg.strategyHash}
-                        title={`Leg · K ${leg.draft.strike}`}
+                        title={`Offer · sells at ${leg.draft.strike}`}
                         description="Deadline, then Coverage wrapping the curve, then RmmSwap, then the salt that makes the hash unique."
                         className="mt-4"
                       />
@@ -388,7 +397,11 @@ export function WriteWizard() {
       </div>
 
       <div className="lg:sticky lg:top-20">
-        <Section index={4} title="Ship" description="Two approvals, then one transaction per leg.">
+        <Section
+          index={4}
+          title="Publish"
+          description="Two approvals, then one transaction per offer. No token moves."
+        >
           <ShipPanel
             pair={pair}
             legs={sizing.sized}

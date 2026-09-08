@@ -95,41 +95,61 @@ export function StrikePicker({
                 </span>
               ) : null}
               <span className="sr-only">
-                {chip.kind === 'call' ? 'covered call' : 'cash-secured put'}
+                {chip.kind === 'call'
+                  ? 'sell your ETH at this price (covered call)'
+                  : 'buy ETH at this price (cash-secured put)'}
               </span>
             </button>
           );
         })}
       </div>
 
-      <p className="max-w-prose text-mini leading-prose text-ink-3">
-        Above spot the reserves start risky-heavy and the leg is a covered call; below spot they start
-        stable-heavy and the same 62 bytes are a cash-secured put. Nothing in the program branches on
-        which; put-call parity does the work.
-      </p>
+      <div className="flex max-w-prose flex-col gap-2 text-mini leading-prose text-ink-3">
+        <p>
+          Pick a price above today&rsquo;s to offer the ETH you already hold. Pick one below to offer
+          to buy ETH with the stable you hold, at a discount. Either way the tokens stay in your
+          wallet until somebody takes the offer.
+        </p>
+        <p>
+          <em className="not-italic text-ink-2">If you already trade options:</em> above spot the
+          reserves start risky-heavy and the leg is a covered call; below spot they start
+          stable-heavy and the same 62 bytes are a cash-secured put. Nothing in the program branches
+          on which; put-call parity does the work.
+        </p>
+      </div>
 
       {legs.length === 0 ? (
         <EmptyState
           icon={Layers}
-          title="No legs yet"
-          description="Pick a moneyness above. One balance can back several legs at once, which is the point of writing a ladder rather than a single position."
+          title="No offers yet"
+          description="Pick a price above. One wallet balance can stand behind several offers at once, so you can name more than one price without holding more ETH."
           action={
             spot === undefined ? undefined : (
               <Button variant="secondary" icon={Plus} onClick={() => onToggleOffset(0.1)}>
-                Add the 10% call
+                Offer at 10% above today&rsquo;s price
               </Button>
             )
           }
         />
       ) : (
-        <Table caption="Legs in this book" hideCaption minWidth="46rem">
+        <Table caption="Offers in this batch" hideCaption minWidth="46rem">
           <TableHead>
             <TableRow>
-              <TableHeaderCell>Leg</TableHeaderCell>
-              <TableHeaderCell numeric>Strike</TableHeaderCell>
-              <TableHeaderCell numeric>Notional (L)</TableHeaderCell>
-              <TableHeaderCell numeric>Risky reserve</TableHeaderCell>
-              <TableHeaderCell numeric>Stable reserve</TableHeaderCell>
+              <TableHeaderCell title="Which side, and how far the strike sits from today's price">
+                Offer
+              </TableHeaderCell>
+              <TableHeaderCell numeric title="Strike, K">
+                You sell at
+              </TableHeaderCell>
+              <TableHeaderCell numeric title="Notional, L in the program">
+                How much {pair.risky.symbol}
+              </TableHeaderCell>
+              <TableHeaderCell numeric title="Risky reserve x = L(1 - Phi(d1))">
+                {pair.risky.symbol} at the start
+              </TableHeaderCell>
+              <TableHeaderCell numeric title="Stable reserve y = router.stableFor(K, sigma, T, L, x)">
+                {pair.stable.symbol} at the start
+              </TableHeaderCell>
               <TableHeaderCell>
                 <span className="sr-only">Remove</span>
               </TableHeaderCell>
@@ -153,7 +173,7 @@ export function StrikePicker({
             sizedById.size === 0 &&
             !sizingLoading ? (
               <TableMessageRow colSpan={COLUMNS}>
-                The router has not returned a reserve for these legs yet.
+                Waiting for the chain to price these offers.
               </TableMessageRow>
             ) : null}
           </TableBody>
@@ -162,7 +182,8 @@ export function StrikePicker({
 
       {legs.length > 0 ? (
         <p className="max-w-prose text-mini leading-prose text-ink-3">
-          The risky reserve is <span className="font-mono">x = L(1 - Phi(d1))</span>, picked here: it
+          <em className="not-italic text-ink-2">Mechanically:</em> the risky reserve is{' '}
+          <span className="font-mono">x = L(1 - Phi(d1))</span>, picked here: it
           only chooses where on the curve the leg starts, and a neighbouring value is simply a
           differently-moneyed leg. The stable reserve is{' '}
           <span className="font-mono">router.stableFor(K, sigma, T, L, x)</span> and is never computed
@@ -184,7 +205,7 @@ export function StrikePicker({
  */
 function Unsized({ leg, loading, width }: { leg: LegDraft; loading: boolean; width: string }) {
   if (leg.liquidityWad === BigInt(0)) {
-    return <span className="text-mini text-ink-3">no size</span>;
+    return <span className="text-mini text-ink-3">no size set</span>;
   }
   if (loading) return <Skeleton className={cn('ml-auto h-3.5', width)} />;
   return <span className="text-ink-3">&mdash;</span>;
@@ -215,11 +236,18 @@ function LegRow({
     <TableRow>
       <TableCell>
         <span className="flex items-center gap-2">
-          <Pill tone={leg.kind === 'call' ? 'accent' : 'neutral'} size="sm">
-            {leg.kind === 'call' ? 'Call' : 'Put'}
+          <Pill
+            tone={leg.kind === 'call' ? 'accent' : 'neutral'}
+            size="sm"
+            title={leg.kind === 'call' ? 'Covered call' : 'Cash-secured put'}
+          >
+            {leg.kind === 'call' ? 'Sell' : 'Buy'}
           </Pill>
           {moneyness !== undefined ? (
-            <span className="font-mono text-mini tnum text-ink-3">
+            <span
+              className="font-mono text-mini tnum text-ink-3"
+              title="How far this price sits from today's"
+            >
               {formatPercent(moneyness, { fractionDigits: 1, sign: 'always' })}
             </span>
           ) : null}
@@ -241,7 +269,7 @@ function LegRow({
             decimals={pair.risky.decimals}
             symbol={pair.risky.symbol}
             balance={riskyBalance}
-            aria-label={`Notional for the ${leg.strike} leg, in ${pair.risky.symbol}`}
+            aria-label={`How much ${pair.risky.symbol} the ${leg.strike} offer covers`}
           />
         </div>
       </TableCell>
@@ -276,7 +304,7 @@ function LegRow({
         <span className="flex justify-end">
           <IconButton
             icon={Trash2}
-            label={`Remove the ${leg.strike} leg`}
+            label={`Remove the ${leg.strike} offer`}
             variant="ghost"
             size="sm"
             onClick={() => onRemove(leg.id)}

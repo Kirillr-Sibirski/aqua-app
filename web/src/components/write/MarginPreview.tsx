@@ -21,7 +21,7 @@ import { colorMix } from '@/lib/ui/tokens';
 
 export interface MarginClaim {
   id: string;
-  /** `K 2,600` — short enough for a tooltip and the values list. */
+  /** `at 2,600` — short enough for a tooltip and the values list. */
   label: string;
   /** Raw token units this leg ships as its virtual reserve. */
   amount: bigint;
@@ -60,8 +60,8 @@ export function MarginPreview({ rows, loading = false, className }: MarginPrevie
 
   return (
     <Card
-      title="Backing"
-      description="One wallet balance behind every leg. Coverage re-proves it on each quote, so a fill on one leg shrinks what its siblings can deliver in the same block."
+      title="What stands behind these offers"
+      description="One wallet balance, behind every offer at once. It is re-checked on every quote, so the moment somebody takes one offer the others shrink by what it used, in the same block."
       className={className}
     >
       <div className="flex flex-col gap-6">
@@ -73,17 +73,17 @@ export function MarginPreview({ rows, loading = false, className }: MarginPrevie
       {overcommittedLegs.length > 0 ? (
         <Callout
           tone="warning"
-          title="One leg is larger than the whole wallet"
+          title="One offer is bigger than your whole wallet"
           className="mt-6"
         >
           {overcommittedLegs.map(({ claim, symbol, decimals, wallet }) => (
             <p key={claim.id}>
-              <span className="font-mono">{claim.label}</span> ships{' '}
-              <span className="font-mono tnum">{formatUnits(claim.amount, decimals)}</span> {symbol} of
-              depth against a wallet holding{' '}
-              <span className="font-mono tnum">{formatUnits(wallet, decimals)}</span>. Sharing a balance
-              across legs is the point; a single leg that exceeds it will refuse its own advertised size
-              even with no sibling filled.
+              The offer <span className="font-mono">{claim.label}</span> puts{' '}
+              <span className="font-mono tnum">{formatUnits(claim.amount, decimals)}</span> {symbol} on
+              offer against a wallet holding{' '}
+              <span className="font-mono tnum">{formatUnits(wallet, decimals)}</span>. Sharing one
+              balance across several offers is the point; a single offer bigger than the balance will
+              refuse its own advertised size even if nobody has taken any of the others.
             </p>
           ))}
         </Callout>
@@ -120,25 +120,25 @@ function MarginBar({ row, loading }: { row: MarginRow; loading: boolean }) {
     <div className="flex flex-col gap-3">
       <StatRow>
         <StatTile
-          label={`${row.symbol} shipped`}
+          label={`${row.symbol} on offer`}
           loading={loading}
           value={<TokenAmount value={total} decimals={row.decimals} size="lg" />}
           unit={row.symbol}
           detail={
             multiple !== undefined
-              ? `${multiple.toFixed(2)}x the wallet balance, margined across ${row.claims.length} ${row.claims.length === 1 ? 'leg' : 'legs'}`
-              : 'Nothing in the wallet to back it'
+              ? `${multiple.toFixed(2)}x what the wallet holds, shared across ${row.claims.length} ${row.claims.length === 1 ? 'offer' : 'offers'}`
+              : 'Nothing in the wallet to stand behind it'
           }
         />
         <StatTile
-          label={`${row.symbol} in the wallet`}
+          label={`${row.symbol} in your wallet`}
           loading={loading}
           value={<TokenAmount value={row.wallet} decimals={row.decimals} size="lg" />}
           unit={row.symbol}
-          detail="Never leaves it. Aqua moves nothing until a fill."
+          detail="It never leaves. Nothing moves until somebody takes an offer."
         />
         <StatTile
-          label="Deliverable now"
+          label="Can sell right now"
           loading={loading}
           value={
             row.deliverable === undefined ? undefined : (
@@ -150,7 +150,7 @@ function MarginBar({ row, loading }: { row: MarginRow; loading: boolean }) {
           detail={
             row.deliverable === undefined
               ? 'coverage() could not be read from the router'
-              : 'balanceOf and allowance, whichever binds'
+              : 'Your balance or your approval, whichever is smaller'
           }
         />
       </StatRow>
@@ -159,7 +159,7 @@ function MarginBar({ row, loading }: { row: MarginRow; loading: boolean }) {
         <div
           className="relative h-3 w-full overflow-hidden rounded-pill bg-surface-2"
           role="img"
-          aria-label={`${row.symbol}: ${formatUnits(total, row.decimals)} shipped across ${row.claims.length} legs against ${formatUnits(row.wallet, row.decimals)} in the wallet`}
+          aria-label={`${row.symbol}: ${formatUnits(total, row.decimals)} on offer across ${row.claims.length} offers against ${formatUnits(row.wallet, row.decimals)} in the wallet`}
         >
           <div className="absolute inset-y-0 left-0 flex w-full">
             {row.claims.map((claim, i) => (
@@ -189,8 +189,8 @@ function MarginBar({ row, loading }: { row: MarginRow; loading: boolean }) {
 
         {row.claims.length > 0 ? (
           <p className="mt-2 max-w-prose text-mini leading-prose text-ink-3">
-            Coverage proves one fill at a time, so the book is backed when the largest single sweep a
-            taker could ask for is deliverable. That is{' '}
+            One buyer is checked at a time, so these offers are covered when the biggest single one
+            somebody could take is sellable right now. That is{' '}
             <span className="font-mono tnum text-ink-2">
               {formatUnits(largest, row.decimals, { significantDigits: 5 })}
             </span>{' '}
@@ -203,7 +203,7 @@ function MarginBar({ row, loading }: { row: MarginRow; loading: boolean }) {
                 <span className="font-mono tnum text-ink-2">
                   {formatUnits(free, row.decimals, { significantDigits: 5 })}
                 </span>{' '}
-                deliverable right now. Backed.
+                you can sell right now. Covered.
               </>
             ) : (
               <>
@@ -211,8 +211,8 @@ function MarginBar({ row, loading }: { row: MarginRow; loading: boolean }) {
                 <span className="font-mono tnum text-ink-2">
                   {formatUnits(free, row.decimals, { significantDigits: 5 })}
                 </span>{' '}
-                is deliverable, so a taker asking for the whole leg would be refused with both
-                numbers rather than filled short.
+                can be sold right now, so a buyer asking for the whole offer would be refused with
+                both numbers rather than filled short.
               </>
             )}
           </p>
