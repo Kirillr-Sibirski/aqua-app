@@ -2,6 +2,10 @@
 
 # Public mainnet RPCs verified working on 2026-09-05: publicnode, drpc. (eth.llamarpc.com returned HTTP 521.)
 FORK_RPC_URL ?= https://ethereum-rpc.publicnode.com
+# The fork suite spans two chains. test/fork/AquaMainnetFork.t.sol needs Ethereum; test/fork/live/
+# AquaBaseLiveFork.t.sol needs Base (8453) and skips itself on anything else, which is how a bare
+# `make test-fork` used to run 5 of 11 and report the other 6 as silent skips.
+BASE_FORK_RPC_URL ?= https://base-rpc.publicnode.com
 
 build:
 	forge build
@@ -15,7 +19,7 @@ test-unit:
 
 # Fork tests against the OFFICIAL Aqua (0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a) + real WETH/USDC.
 test-fork:
-	FORK_RPC_URL=$(FORK_RPC_URL) forge test --match-path 'test/fork/*' -vv
+	FORK_RPC_URL=$(FORK_RPC_URL) BASE_FORK_RPC_URL=$(BASE_FORK_RPC_URL) forge test --match-path 'test/fork/*' -vv
 
 test-gas:
 	forge test --no-match-path 'test/fork/*' --gas-report
