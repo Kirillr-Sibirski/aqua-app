@@ -31,6 +31,24 @@ Add the network to MetaMask as RPC `http://127.0.0.1:8545`, chain id `31337`; af
 | `fork/lib.ts` | Addresses (Aqua, official router, WETH/USDC/cbBTC, Chainlink feeds, Aave v3, whales), anvil accounts, viem clients, manifest types. |
 | `fork/MockAggregatorV3.sol` | Source of the embedded mock runtime (solc 0.8.30, via_ir, 700 runs). |
 
+## The scripted demo (`story/`) and the arbitrage bot (`arb/`)
+
+`fork/` is the infrastructure; the show that runs on top of it lives next door and has its own runbook in
+[`story/README.md`](story/README.md).
+
+```bash
+make story-setup               # deploy StrikelineRouter, seed the wallets, anchor the tape, freeze the fork
+make story-load                # anvil_loadState / evm_revert back to take one, ~0.5 s
+make story-0 ... make story-6  # one scene each;  make story-all runs 1-6;  make story-status
+make bot ARGS="--dry-run"      # the arbitrage bot on its own
+make tape                      # re-capture the real Base ETH/USD series (needs an archive Base RPC)
+```
+
+| Directory | Purpose |
+| --- | --- |
+| `story/` | Seven scenes, each a separate process that prints a decoded receipt and asserts its own claims: a live third-party fill through the official v1.0.2 router, shipping a four-leg book from one wallet, one fill tightening its siblings, theta with no transaction, `NotCovered` with both numbers, constant-sum settlement at the strike, and a zero-transfer roll. 122 assertions, about twelve seconds of machine time. |
+| `arb/` | The bot that trades the book. Sizes analytically off closed-form RMM-01 (a 40-iteration bisection over `quote()` would be ~26M gas against a 30M block limit), prices against a replayed tape of 1,744 real Chainlink ETH/USD rounds captured from Base, and finds the legs in Aqua's `Shipped` log the way a resolver would. |
+
 ## Manifest (`web/public/deployments/local.json`)
 
 `{ chainId, rpcUrl, blockNumber (fork pin), bootstrapBlock, aqua, officialRouter, router, routerName, weth, usdc, cbBtc,
