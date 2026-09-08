@@ -40,9 +40,16 @@
   --selection: color-mix(in oklch, var(--accent) 32%, transparent);
   --scrim: oklch(0.1 0.008 240 / 0.72); /* modal backdrop, no blur */
 
+  /* --- layout constants a component would otherwise hard-code -------------- */
+  /* The app bar's height. A sticky table header offsets by it, or it pins itself
+     underneath the bar and the column headers disappear exactly when they matter. */
+  --header-h: 3.5rem;
+
   /* --- z-index: semantic steps only. Never write an arbitrary z value. ----- */
   --z-dropdown: 10;
   --z-sticky: 20;
+  /* The app bar, above everything else that pins to the top of the page. */
+  --z-app-bar: 25;
   --z-modal-backdrop: 30;
   --z-modal: 40;
   --z-toast: 50;
@@ -152,6 +159,16 @@
 @utility z-sticky {
   z-index: var(--z-sticky);
 }
+@utility z-app-bar {
+  z-index: var(--z-app-bar);
+}
+/* Pins directly under the app bar rather than under the top of the viewport. */
+@utility top-header {
+  top: var(--header-h);
+}
+@utility h-header {
+  height: var(--header-h);
+}
 @utility z-modal-backdrop {
   z-index: var(--z-modal-backdrop);
 }
@@ -163,6 +180,43 @@
 }
 @utility z-tooltip {
   z-index: var(--z-tooltip);
+}
+
+/* A row of stat tiles separated by hairlines rather than by card borders.
+   Real CSS rather than stacked arbitrary variants: the divider has to vanish at the
+   start of each row and come back one breakpoint later, and expressing that as
+   `[&>*+*]:border-l` + `[&>*:nth-child(2n+1)]:border-l-0` +
+   `md:[&>*:nth-child(2n+1)]:border-l` left the first tile with a border added by one
+   utility and no colour from any of them, so it fell back to `currentColor` and drew a
+   1px near-white stripe down the left of the first tile on four screens. Here the
+   colour travels with the border and the last rule wins by source order, which is mine. */
+@utility stat-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 1.5rem;
+  row-gap: 1.5rem;
+
+  & > * {
+    border-left: 1px solid var(--line);
+    padding-left: 1.5rem;
+  }
+  & > *:nth-child(2n + 1) {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  @media (width >= 48rem) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+
+    & > *:nth-child(2n + 1) {
+      border-left: 1px solid var(--line);
+      padding-left: 1.5rem;
+    }
+    & > *:nth-child(4n + 1) {
+      border-left: 0;
+      padding-left: 0;
+    }
+  }
 }
 
 /* For custom controls that must show the ring on a wrapper rather than the
