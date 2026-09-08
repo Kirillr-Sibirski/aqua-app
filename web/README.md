@@ -12,10 +12,8 @@ node scripts/contrast.mjs   # all 22 design-token pairs against their contrast f
 
 The app needs a local Base fork to show anything: `make fork && make bootstrap` from the repo root.
 Without one it renders its disconnected and empty states, which is deliberate — see DESIGN.md.
-
-One optional environment variable. `NEXT_PUBLIC_SUBGRAPH_URL` points `/surface` at a deployed
-subgraph; unset, it reads the same events straight through viem and says so on screen
-([subgraph/README.md](../subgraph/README.md) deploys one).
+One optional variable: `NEXT_PUBLIC_SUBGRAPH_URL` points `/surface` at a deployed subgraph; unset,
+it reads the same events through viem and says so on screen ([how to deploy one](../subgraph/README.md)).
 
 ## Routes
 
@@ -41,5 +39,5 @@ subgraph; unset, it reads the same events straight through viem and says so on s
 | `src/components/ui/` | The primitives DESIGN.md specifies, including the five states every data surface ships |
 | `src/app/globals.css` | The OKLCH tokens. Nothing in the app hard-codes a colour |
 
-`AGENTS.md` is not ours: `next dev` writes it and re-creates it on every run, so it is committed
-to keep the tree clean. `CLAUDE.md` is a one-line include of it.
+`AGENTS.md` is not ours: `next dev` regenerates it on every run, and it is committed so the tree
+stays clean. `CLAUDE.md` includes it.
