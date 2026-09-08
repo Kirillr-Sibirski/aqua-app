@@ -50,6 +50,27 @@ export interface MarkerProps {
 }
 
 const LABEL_INSET = 4;
+/** How far into the margin the leader's elbow sits, between the plot edge and the label baseline. */
+const LEADER_ELBOW = 5;
+
+/**
+ * The elbow that joins a dodged label back to the rule it belongs to.
+ *
+ * `MarkerLayer` slides overlapping labels apart along the axis; without a leader, a label that
+ * moved 20px would read as belonging to its neighbour. Three points: up out of the plot edge,
+ * across to the label's new centre, then a short stub to the text.
+ */
+function leaderPoints(
+  labelAt: number,
+  pos: number,
+  cross: number,
+  labelSide: 'start' | 'end',
+): string {
+  const direction = labelSide === 'start' ? -1 : 1;
+  const elbow = cross + direction * LEADER_ELBOW;
+  const stub = cross + direction * LABEL_INSET;
+  return `${pos},${cross} ${pos},${elbow} ${labelAt},${elbow} ${labelAt},${stub}`;
+}
 
 export function Marker({
   geometry,
