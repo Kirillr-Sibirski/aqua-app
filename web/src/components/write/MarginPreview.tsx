@@ -223,7 +223,7 @@ function MarginBar({ row, loading }: { row: MarginRow; loading: boolean }) {
             <span key={claim.id} className="inline-flex items-center gap-1.5">
               <span
                 aria-hidden="true"
-                className="size-2 shrink-0 rounded-[2px]"
+                className="size-2 shrink-0 rounded-control"
                 style={{ background: colorMix('accent', 88 - i * 14) }}
               />
               <span className="font-mono tnum">{claim.label}</span>

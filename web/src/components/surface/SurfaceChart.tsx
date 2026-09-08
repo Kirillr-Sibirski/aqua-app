@@ -229,13 +229,13 @@ function Legend() {
       <span className="flex items-center gap-1.5">
         <span
           aria-hidden="true"
-          className="inline-block h-3 w-5 rounded-[3px] border border-accent"
+          className="inline-block h-3 w-5 rounded-control border border-accent"
           style={{ background: colorMix('accent', 20) }}
         />
         Yours
       </span>
       <span className="flex items-center gap-1.5">
-        <span aria-hidden="true" className="inline-block h-3 w-5 rounded-[3px] border border-line-strong bg-surface-2" />
+        <span aria-hidden="true" className="inline-block h-3 w-5 rounded-control border border-line-strong bg-surface-2" />
         Other makers
       </span>
     </span>
