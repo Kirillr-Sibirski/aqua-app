@@ -105,12 +105,18 @@ export function Table({
 
 export interface TableHeadProps extends ComponentPropsWithRef<'thead'> {
   /**
-   * Pin the header while the body scrolls. Needs a scroll port with a height — inside a page that
-   * scrolls as a whole, the header pins to the viewport, which is what a long book wants.
+   * Pin the header while the body scrolls.
    *
-   * It pins to `--header-h`, not to 0. The app bar is also sticky at the top of the viewport, so a
-   * `top-0` thead slid underneath it: scrolled down a long table, the column headers were completely
-   * hidden and a half-clipped row bled through the bar. The affordance fired exactly never.
+   * It pins to `0`, and it has to. A sticky element resolves its offsets against the nearest
+   * SCROLLING ANCESTOR, and every table here has one: the `overflow-x-auto` port it lives in.
+   * `overflow-x: auto` makes that box a scroll container in both axes, so the header never reaches
+   * the viewport and an offset of `--header-h` does not clear the app bar -- it pushes the header
+   * 56px DOWN its own port, permanently, on top of the first body row. Measured in Chrome 148 at
+   * 1440x900 on /book: thead 372..421, first row 365..448, a 56px overlap at every scroll position
+   * including rest, which hid the strike and the leg's name behind the column headers.
+   *
+   * The app bar it was trying to clear is not a hazard: no table port scrolls vertically, so the
+   * header stays in its own flow position and passes under the bar with the rest of the page.
    */
   sticky?: boolean;
 }
@@ -120,7 +126,7 @@ export function TableHead({ sticky = true, className, ...props }: TableHeadProps
     <thead
       className={cn(
         // The background is opaque so rows cannot show through as they pass under it.
-        sticky && 'sticky top-header z-sticky bg-surface',
+        sticky && 'sticky top-0 z-sticky bg-surface',
         '[&_th]:border-b [&_th]:border-line-strong',
         className,
       )}
