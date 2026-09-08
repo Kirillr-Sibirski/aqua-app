@@ -241,10 +241,11 @@ describe.skipIf(!fork)('sizing a leg through the router, against the local Base 
     // that separates these reserves from the curve. So each side lands within a factor of the
     // guard -- eps walked through the curve, so the ratio is the mark over the strike, not 1.
     // A TypeScript-computed `y` would be orders of magnitude off this, in either direction.
-    expect(minStableIn).toBeGreaterThan(epsStable / 2n);
-    expect(minStableIn).toBeLessThan(epsStable * 2n);
-    expect(minRiskyIn).toBeGreaterThan(epsRisky / 2n);
-    expect(minRiskyIn).toBeLessThan(epsRisky * 2n);
+    const TWO = BigInt(2);
+    expect(minStableIn).toBeGreaterThan(epsStable / TWO);
+    expect(minStableIn).toBeLessThan(epsStable * TWO);
+    expect(minRiskyIn).toBeGreaterThan(epsRisky / TWO);
+    expect(minRiskyIn).toBeLessThan(epsRisky * TWO);
 
     // --- 4. it trades ----------------------------------------------------------------------------
     const takerAccount = d.accounts.find((a) => a.role?.startsWith('taker')) ?? d.accounts[2];
