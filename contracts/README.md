@@ -9,7 +9,7 @@ so `npm ci` has to run before `forge build`.
 ```bash
 npm ci
 make sizes             # EIP-170 gate on what ships. StrikelineRouter margin today: 725 B
-make test              # 167 offline tests. The 11 fork tests skip without FORK_RPC_URL
+make test              # 170 offline tests. The 11 fork tests skip without FORK_RPC_URL
 make test-fork         # those 11, against the OFFICIAL Aqua on Ethereum and Base
 make test-invariants   # the 43 a reviewer should read first, with their console output
 make deploy RPC=… PK=… # deploy, then re-read the broadcast receipt into deployments/<chainid>.json

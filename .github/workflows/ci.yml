@@ -45,7 +45,7 @@ jobs:
       # deliberately over the limit and that overflow is a measurement (src/spikes/README.md §1).
       - run: make sizes
 
-      # 167 offline tests. The 11 fork tests read FORK_RPC_URL, which is deliberately not set, and
+      # 170 offline tests. The 11 fork tests read FORK_RPC_URL, which is deliberately not set, and
       # report as skipped. `make test-fork` is the target that runs them.
       - run: forge test -vv
 
@@ -78,8 +78,8 @@ jobs:
       - name: Contrast floor
         run: node scripts/contrast.mjs
 
-      # 282 tests. The four suites that want the local Base fork probe 127.0.0.1:8545, find nothing,
-      # and skip; the 267 offline ones (encoder vectors, curve math, decoders, formatting) run.
+      # 291 tests. The four suites that want the local Base fork probe 127.0.0.1:8545, find nothing,
+      # and skip; the 276 offline ones (encoder vectors, curve math, decoders, formatting) run.
       - run: npm test
 
   scripts:

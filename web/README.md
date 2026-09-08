@@ -6,7 +6,7 @@ The maker's screen. Next.js 16 / React 19 / wagmi 3, dark only, every number rea
 npm ci
 npm run dev            # http://localhost:3000. Reads /deployments/local.json, written by `make bootstrap`
 npm run build          # production build, and the typecheck that goes with it
-npm test               # 282 vitest tests. The four fork suites skip when no anvil is listening
+npm test               # 291 vitest tests. The four fork suites skip when no anvil is listening
 node scripts/contrast.mjs   # all 22 design-token pairs against their contrast floor
 ```
 
