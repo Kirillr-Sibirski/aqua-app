@@ -10,12 +10,15 @@
  * quietly go blank on a fork that was bootstrapped before the lens existed, and nothing else fails
  * loudly enough to notice.
  *
- *   anvil --silent &
+ *   make fork                                     # anvil, Base pinned at 50946000
  *   SURFACE_RPC_URL=http://127.0.0.1:8545 npx vitest run src/components/surface
  *
- * Skipped, not failed, without that variable — and the guard is above the `describe` body, because
- * vitest still *collects* a skipped suite and a dereference at collection time takes the file down
- * with it.
+ * It wants a fork rather than a bare anvil, for the same reason the app does: the production read
+ * path batches Aqua's `rawBalances` through Multicall3, and a bare anvil has none. When the chain
+ * carries the official Aqua registry the book is shipped straight into it; otherwise a fresh one is
+ * deployed. Skipped, not failed, when neither is available — and the guard is resolved above the
+ * `describe` body, because vitest still *collects* a skipped suite and a dereference at collection
+ * time takes the file down with it.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +44,30 @@ import { pricingOf, readBook } from '../lens';
 
 const RPC = process.env.SURFACE_RPC_URL;
 
+/** Canonical addresses. Both exist on any fork of a real chain; neither exists on a bare anvil. */
+const MULTICALL3 = '0xcA11bde05977b3631167028862bE2a173976CA11' as Address;
+const AQUA_OFFICIAL = '0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a' as Address;
+
+/**
+ * Probe the chain once, at module scope, so the suite can skip rather than fail.
+ *
+ * Top-level await is deliberate: `describe.skipIf` is evaluated during collection, and a check
+ * inside the body would run too late to prevent the suite from being collected.
+ */
+const chain = await (async () => {
+  if (!RPC) return { usable: false, officialAqua: false };
+  try {
+    const probe = createPublicClient({ chain: foundry, transport: http(RPC) });
+    const [multicall, aqua] = await Promise.all([
+      probe.getCode({ address: MULTICALL3 }),
+      probe.getCode({ address: AQUA_OFFICIAL }),
+    ]);
+    return { usable: !!multicall && multicall !== '0x', officialAqua: !!aqua && aqua !== '0x' };
+  } catch {
+    return { usable: false, officialAqua: false };
+  }
+})();
+
 // Anvil's first two accounts, which are public knowledge and hold nothing but test ether.
 const DEPLOYER = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
 const MAKER_TWO = privateKeyToAccount('0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d');
@@ -65,7 +92,7 @@ interface World {
   fromBlock: bigint;
 }
 
-describe.skipIf(!RPC)('the surface, read off a live chain', () => {
+describe.skipIf(!chain.usable)('the surface, read off a live chain', () => {
   let world: World;
 
   beforeAll(async () => {
@@ -90,7 +117,10 @@ describe.skipIf(!RPC)('the surface, read off a live chain', () => {
       return receipt.contractAddress;
     };
 
-    const aqua = await deploy('Aqua.sol/Aqua.json');
+    // Settle into the official registry when the chain has one. The prize permits redeploying a
+    // modified SwapVM; it never permits redeploying Aqua, and the read layer should be pointed at
+    // the same contract the maker actually shipped into.
+    const aqua = chain.officialAqua ? AQUA_OFFICIAL : await deploy('Aqua.sol/Aqua.json');
     const weth = await deploy('WETHMock.sol/WETHMock.json');
     const usdc = await deploy('TokenMockDecimals.sol/TokenMockDecimals.json', ['USD Coin', 'USDC', 6]);
     const router = await deploy('StrikelineRouter.sol/StrikelineRouter.json', [
@@ -230,6 +260,8 @@ describe.skipIf(!RPC)('the surface, read off a live chain', () => {
     const census = censusOf(legs, 0);
     expect(census.makers).toBe(2);
     expect(census.writtenWad).toBe(BigInt(36) * WAD);
+    // On a fork of Base this is the official registry, unmodified and never redeployed.
+    if (chain.officialAqua) expect(world.aqua).toBe(AQUA_OFFICIAL);
 
     // The reserves come back matched to the sides the curve names, straight from Aqua.
     const near = legs.find((l) => l.strikeWad === BigInt(2600) * WAD)!;
