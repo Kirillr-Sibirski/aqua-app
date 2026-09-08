@@ -267,6 +267,8 @@ Measured with `forge build --sizes` in `contracts/` (solc 0.8.30, via_ir, 700 ru
 
 **Decision: use `solady` `FixedPointMathLib` (`lnWad`, `expWad`, `powWad`, `sqrtWad`) for any curve needing fractional powers / Gaussians.** PRBMath costs ~1.9 KB more for the same math.
 
+> Re-measured in the current tree (the two probe routers now live in `contracts/src/spikes/`): solady **23,966 B** unchanged, PRB **25,950 B (−1,374)**. The 66 B drift on the PRB router is reproducible and comes from a single added NatSpec line — `via_ir` inlining is sensitive to source layout. Verdict unchanged. `contracts/src/spikes/README.md` §1 has the detail.
+
 Accuracy + gas (49 probe tests pass, reference values from Python mpmath in the test comments):
 - **RMM-01 (covered-call replicating curve, Φ/Φ⁻¹ via A&S erfc + Newton):** exactIn risky→stable 657k gas, exactOut 667k; stable→risky 666k/659k. **These are whole-test-body `forge test` figures** (a quote, a `deal` cheatcode, two full balance snapshots, then the swap), not fill costs. The shipped instruction was later priced properly as `gasleft()` deltas around the external call: **113,283 quote / 211,317 swap** for `Deadline . Coverage . RmmSwap . Salt` (`contracts/NOTES.md` §3). Do not quote 657k as Strikeline's gas. Relative error vs reference ≈ 5e-12 … 1e-11 (e.g. 198.981316885147759151 vs 198.982243947718798931 DAI).
 - **Weighted / LBP curve (`pow` on balance ratio):** ~349k gas all four directions; equal weights reproduce XYCSwap to 1e-19; error vs reference ≈ 1e-16.

@@ -52,7 +52,7 @@ export function ShipCalldata({ aqua, router, leg, pair, className }: ShipCalldat
   return (
     <details className={cn('rounded-card border border-line', className)}>
       <summary className="cursor-pointer list-none px-4 py-3 text-meta text-ink-2 transition-state hover:text-ink">
-        The transaction this leg will be shipped in
+        The transaction that publishes this offer
         <span className="ml-2 font-mono text-mini tnum text-ink-3">
           {size(data)} bytes to {truncateHash(aqua)}
         </span>
@@ -65,7 +65,7 @@ export function ShipCalldata({ aqua, router, leg, pair, className }: ShipCalldat
           </Arg>
           <Arg name="strategy" type="bytes" value={`${size(strategy)} bytes`}>
             The order, whole and unhashed. Aqua takes it that way for data availability, which is why
-            K, sigma, T and L are public and any resolver can quote this leg with no off-chain book.
+            K, sigma, T and L are public and anyone can quote this offer with no off-chain book.
           </Arg>
           <Arg name="tokens" type="address[2]" value={leg.tokens.map((token) => truncateHash(token)).join('  ')}>
             {symbolFor(leg.tokens[0])} and {symbolFor(leg.tokens[1])}, in the order the maker traits

@@ -33,17 +33,25 @@ Two identical routers were built — same opcode set, same curve, same four dire
 |---|---:|---:|---|
 | `ProbeRouter` (`AquaOpcodes` + one trivial opcode) | 20,434 | +4,142 | the floor: what the official set alone costs |
 | `CurveProbeRouterSolady` (+ RMM-01 + weighted, on solady `FixedPointMathLib`) | **23,966** | **+610** | **fits** |
-| `CurveProbeRouterPRB` (the same curves on `@prb/math` UD60x18) | 25,884 | **−1,308** | does not fit |
+| `CurveProbeRouterPRB` (the same curves on `@prb/math` UD60x18) | 25,950 | **−1,374** | does not fit |
 
-PRBMath costs ~1.9 KB more for the same math. That single number decided the backend, and the
-610 B of headroom left over is what forced `StrikelineOpcodes` to drop `PeggedSwap` (−1,394 B) to
-make room for the second custom instruction. The shipped router lands at **23,851 B, 725 B under
-the limit** — a margin that only exists because this was measured before the curve was written
-rather than after.
+PRBMath costs ~2 KB more for the same math. That single number decided the backend, and the 610 B
+of headroom left over is what forced `StrikelineOpcodes` to drop `PeggedSwap` (−1,394 B) to make
+room for the second custom instruction. The shipped router lands at **23,851 B, 725 B under the
+limit** — a margin that only exists because this was measured before the curve was written rather
+than after.
 
 The verdict is only as good as the compiler settings it was taken under, which is exactly why both
 routers are still compiled. If a dependency bump ever makes solady the loser, the table above
 changes on the next `forge build --sizes` instead of quietly becoming a false claim in a doc.
+
+> `docs/research/router-size-budget.md` §12 records **25,884 B** for the PRB router, measured
+> 2026-09-06. The 66 B difference is real and reproducible: adding the one-line `@dev` comment at
+> the top of `CurveProbeRouterPRB.sol` moves it from 25,884 to 25,950 and removing it moves it back.
+> `via_ir`'s inlining decisions are sensitive to things that are not supposed to affect codegen —
+> the same effect `NOTES.md` §3 warns about for the shipped router. It changes no verdict (PRB
+> misses by ~1.3 KB either way), and it is a decent argument for keeping the contract compiled
+> instead of trusting a byte count typed into a document.
 
 > **`test_RMM_*` gas numbers in this suite are not fill costs.** They read 657k–667k because a
 > Foundry `gas:` figure is the whole test body: a quote, a `deal` cheatcode, two full balance

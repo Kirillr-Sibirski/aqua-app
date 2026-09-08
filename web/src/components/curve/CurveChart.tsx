@@ -87,6 +87,13 @@ const ZOOM_PAD = 0.06;
 /** Breathing room around the wedge in the band window, as a fraction of the wedge's own size. */
 const BAND_PAD = 0.35;
 
+/** Two significant figures, so a magnification reads as the order of magnitude it is. */
+function roundToTwoFigures(value: number): number {
+  if (!Number.isFinite(value) || value === 0) return 0;
+  const step = 10 ** (Math.floor(Math.log10(Math.abs(value))) - 1);
+  return Math.round(value / step) * step;
+}
+
 function toPoints(samples: readonly CurveSample[]): ChartPoint[] {
   return samples.map((s) => ({ x: s.x, y: s.y }));
 }
@@ -150,8 +157,9 @@ export function CurveChart({
   const wedgeVisible = Boolean(band) && wedgePx >= WEDGE_VISIBLE_PX;
 
   // How far the band window is blown up past the whole curve, for the caption. One number, because
-  // both axes are windowed on the same wedge with the same padding.
-  const magnification = atBand ? maxY / (domain.y[1] - domain.y[0] || 1) : 0;
+  // both axes are windowed on the same wedge with the same padding, and rounded to two figures
+  // because "about 221,522x" is a precision the word "about" has already disclaimed.
+  const magnification = atBand ? roundToTwoFigures(maxY / (domain.y[1] - domain.y[0] || 1)) : 0;
 
   return (
     <ChartFrame
@@ -193,9 +201,7 @@ export function CurveChart({
         atBand ? (
           <>
             The same wedge, blown up about{' '}
-            <span className="font-mono tnum">
-              {formatChartNumber(magnification, { significantDigits: 2 })}×
-            </span>{' '}
+            <span className="font-mono tnum">{formatChartNumber(magnification)}×</span>{' '}
             so it is a mark rather than a rounding error. Its three corners are chain reads: the
             reserve point from Aqua&rsquo;s ledger, the two others from{' '}
             <span className="font-mono">bandFor</span>. Across a span this narrow the curve between
@@ -310,7 +316,7 @@ export function CurveChart({
                 cx={x(reserve.x)}
                 cy={y(reserve.y)}
                 geometry={geometry}
-                label={`${formatChartNumber(bandDy, { significantDigits: 3, maxFractionDigits: 6 })} ${stableSymbol}`}
+                label={`gap ${formatChartNumber(bandDy, { significantDigits: 3, maxFractionDigits: 6 })} ${stableSymbol}`}
               />
             ) : null}
 

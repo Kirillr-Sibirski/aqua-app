@@ -117,8 +117,8 @@ export function Footer({ className }: { className?: string }) {
             </p>
 
             <p className="max-w-md leading-prose">
-              Aqua records allowances, not deposits. The tokens backing every leg stay in the
-              maker&rsquo;s wallet until a fill pulls them.
+              Aqua records allowances, not deposits. The tokens behind every offer stay in your own
+              wallet until somebody takes one.
             </p>
           </div>
         </div>

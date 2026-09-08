@@ -66,7 +66,7 @@ function Head() {
         <TableHeaderCell numeric title="Implied volatility">
           Movement priced in
         </TableHeaderCell>
-        <TableHeaderCell numeric title="Moneyness: X/L = Phi(-d1), the share of the offer still in the risky asset">
+        <TableHeaderCell numeric title="Moneyness: the share of the offer still sitting in the risky asset, which is its delta per unit of liquidity">
           Share still unsold
         </TableHeaderCell>
         <TableHeaderCell numeric title="Deliverable depth">
@@ -135,8 +135,9 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
             )}
           </span>
           <span className="text-mini text-ink-3">
-            {/* Docked legs repeat their terms exactly — a rolled book ends with several rows reading
-                the same strike, expiry and vol — so they carry the block they were shipped in. */}
+            {/* Withdrawn offers repeat their terms exactly (a rolled book ends with several rows
+                reading the same strike, expiry and vol) so they carry the block they were shipped
+                in. */}
             {leg.status === 'docked' ? (
               <>
                 <span className="font-mono tnum">
@@ -300,8 +301,8 @@ export function LegsTable({ book, connected, connectAction, highlight, onHighlig
             <span>
               How much you can sell is what the guard would actually allow this instant, not what the
               offer advertises. <em className="not-italic text-ink-2">Mechanically:</em> the share
-              still unsold is <span className="font-mono">X/L = Phi(-d1)</span>, read straight from
-              the reserves, so no oracle is consulted anywhere on this screen.
+              still unsold is <span className="font-mono">Phi(-d1)</span>, read straight from the
+              reserves rather than modelled, so no oracle is consulted anywhere on this screen.
             </span>
             <span className="font-mono text-mini tnum text-ink-3">
               {live.length} live

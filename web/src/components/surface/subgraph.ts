@@ -15,7 +15,14 @@ import type { SurfaceLeg } from './types';
 
 export const SUBGRAPH_URL: string | undefined = process.env.NEXT_PUBLIC_SUBGRAPH_URL;
 
-const QUERY = `query Surface($first: Int!) {
+/**
+ * The query this page runs, exported so the screen can show it.
+ *
+ * A read layer that will not show its own query is asking to be trusted rather than checked, and
+ * this one is the product's second contribution: it is the question Aqua cannot answer about
+ * itself.
+ */
+export const SURFACE_QUERY = `query Surface($first: Int!) {
   _meta { block { number } hasIndexingErrors }
   legs(first: $first, orderBy: shippedAtBlock, orderDirection: desc) {
     id
@@ -87,7 +94,7 @@ export async function fetchSubgraphSurface(
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ query: QUERY, variables: { first: options.first ?? 1000 } }),
+    body: JSON.stringify({ query: SURFACE_QUERY, variables: { first: options.first ?? 1000 } }),
     signal: options.signal,
   });
   if (!response.ok) throw new SubgraphError(`HTTP ${response.status}`);

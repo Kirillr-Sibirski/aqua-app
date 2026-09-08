@@ -56,8 +56,9 @@ export function NetworkGuard({ className }: NetworkGuardProps) {
       >
         {deployment.isConfigured ? (
           <>
-            Reads on this page come from {deployment.name}, so the book below is correct. Shipping,
-            docking and swapping will fail until the wallet is on the same chain.
+            The numbers on this page are read from {deployment.name}, so they are correct.
+            Publishing an offer, taking one down or trading will fail until the wallet is on the same
+            chain.
           </>
         ) : (
           <>

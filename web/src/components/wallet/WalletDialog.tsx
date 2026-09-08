@@ -29,7 +29,7 @@ export function WalletDialog({ open, onClose, chainId }: WalletDialogProps) {
       onClose={onClose}
       size="sm"
       title="Connect a wallet"
-      description="Signing stays in the wallet you pick. Aqua never takes custody of the tokens backing your legs."
+      description="Signing stays in the wallet you pick. Nothing here ever takes custody of the tokens behind your offers."
       bodyClassName="px-2 py-2"
     >
       {open ? <WalletList onClose={onClose} chainId={chainId} /> : null}

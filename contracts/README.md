@@ -26,7 +26,6 @@ make deploy RPC=… PK=… # deploy, then re-read the broadcast receipt into dep
 | `src/SurfaceLens.sol` | Prices a whole book in one `eth_call`. A separate contract, so it spends none of the router's headroom |
 | `src/hooks/` | The same curve as a Uniswap v4 hook, which is what makes the venue comparison an experiment rather than an argument |
 | `src/spikes/` | `ProbeRouter` and the math benchmarks that came first. Kept because they are the control in several comparisons, not because they ship |
-| `src/mocks/` | Test doubles: a WETH, a decimals-configurable ERC-20, a callback taker |
 | `test/invariants/` | SwapVM's own `CoreInvariants` suite run against a shipped leg, the frozen wire format, the decimal vectors, the gas table |
 | `test/strikeline/` | The nine claims the README makes, each one measured |
 | `test/fork/` | Real WETH and USDC through the official Aqua and the official unmodified router |
