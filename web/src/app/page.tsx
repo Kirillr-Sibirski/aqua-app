@@ -10,10 +10,11 @@
  * is modelled, defaulted or filled in.
  */
 import { Layers } from 'lucide-react';
+import Link from 'next/link';
 import { useMemo } from 'react';
 import type { Address } from 'viem';
 import type { SupportedChainId } from '@/lib/chain';
-import { useConnection } from 'wagmi';
+import { useBlock, useConnection } from 'wagmi';
 import { AppShell, PageHeader, useDeploymentChain, useIsHydrated } from '@/components/shell';
 import { addressUrl, explorerFor, isForkOfBase } from '@/components/shell/explorer';
 import { ConnectButton } from '@/components/wallet';
@@ -37,8 +38,9 @@ import {
   TokenAmount,
 } from '@/components/ui';
 import { useDeployments, useShippedStrategies, useTokenBalances } from '@/hooks';
+import { decodeLegProgram, formatCountdown, sigmaRatio } from '@/hooks/strikeline';
 import { tokenInfo, type ShippedStrategy } from '@/lib/contracts';
-import { formatUnits } from '@/lib/ui';
+import { formatPercent, formatUnits, truncateHash } from '@/lib/ui';
 
 export default function OverviewPage() {
   return (
@@ -134,13 +136,17 @@ function Inventory() {
 // Book
 // ---------------------------------------------------------------------------
 
-const COLUMNS = 5;
+const COLUMNS = 6;
 
 function Book() {
   const hydrated = useIsHydrated();
   const { address } = useConnection();
   const { chainId } = useDeploymentChain();
   const { strategies, isLoading, error, refetch } = useShippedStrategies(address);
+  // The chain's clock, never the browser's: the fork is warped, and an expiry counted against
+  // `Date.now()` would be wrong by days on the demo.
+  const { data: block } = useBlock({ chainId: chainId as SupportedChainId, watch: true, query: { enabled: hydrated } });
+  const nowSeconds = block ? Number(block.timestamp) : undefined;
 
   const explorer = explorerFor(chainId);
   const forkLocal = isForkOfBase(chainId);
@@ -211,7 +217,7 @@ function Book() {
   return (
     <Card
       title="Book"
-      description={`${strategies.length} ${strategies.length === 1 ? 'leg' : 'legs'} shipped to the Strikeline router, read from Aqua's Shipped logs.`}
+      description={`${strategies.length} ${strategies.length === 1 ? 'strategy' : 'strategies'} shipped to the Strikeline router by this wallet, read from Aqua's Shipped logs. The terms are decoded from the bytes the event carried.`}
       flush
     >
       <BookTable>
@@ -219,6 +225,7 @@ function Book() {
           <LegRow
             key={`${strategy.strategyHash}-${strategy.logIndex}`}
             strategy={strategy}
+            nowSeconds={nowSeconds}
             explorerUrl={
               explorer && !forkLocal ? addressUrl(explorer, strategy.app) : undefined
             }
@@ -231,10 +238,16 @@ function Book() {
 
 function BookTable({ children }: { children: React.ReactNode }) {
   return (
-    <Table caption="Legs shipped from this wallet" hideCaption minWidth="52rem">
+    <Table
+      caption="Legs shipped from this wallet"
+      hideCaption
+      minWidth="56rem"
+      scrollHint="reserves, block"
+    >
       <TableHead>
         <TableRow>
           <TableHeaderCell>Leg</TableHeaderCell>
+          <TableHeaderCell>Terms</TableHeaderCell>
           <TableHeaderCell>Pair</TableHeaderCell>
           <TableHeaderCell>Status</TableHeaderCell>
           <TableHeaderCell numeric>Recorded in Aqua</TableHeaderCell>
@@ -246,21 +259,72 @@ function BookTable({ children }: { children: React.ReactNode }) {
   );
 }
 
-function LegRow({ strategy, explorerUrl }: { strategy: ShippedStrategy; explorerUrl?: string }) {
+function LegRow({
+  strategy,
+  explorerUrl,
+  nowSeconds,
+}: {
+  strategy: ShippedStrategy;
+  explorerUrl?: string;
+  nowSeconds?: number;
+}) {
   const { deployments } = useDeployments();
   const [tokenA, tokenB] = strategy.tokens;
   const a = tokenInfo(tokenA, deployments);
   const b = tokenInfo(tokenB, deployments);
+  // The terms are in the bytes Aqua published; a table that shows only the hash is asking the
+  // reader to take the most interesting thing on the row on trust.
+  const rmm = decodeLegProgram(strategy.program).rmm;
+  const risky = rmm ? (rmm.flags & 1 ? a : b) : undefined;
+  const stable = rmm ? (rmm.flags & 1 ? b : a) : undefined;
 
   return (
     <TableRow>
       <TableCell>
-        <AddressText
-          value={strategy.strategyHash}
-          kind="hash"
-          what="strategy hash"
-          href={explorerUrl}
-        />
+        {rmm ? (
+          <Link
+            href={`/leg/${strategy.strategyHash}`}
+            className="rounded-control font-mono text-meta text-ink transition-state hover:text-accent hover:underline hover:underline-offset-2"
+          >
+            {truncateHash(strategy.strategyHash)}
+          </Link>
+        ) : (
+          <AddressText
+            value={strategy.strategyHash}
+            kind="hash"
+            what="strategy hash"
+            href={explorerUrl}
+          />
+        )}
+      </TableCell>
+
+      <TableCell>
+        {rmm ? (
+          <span className="flex flex-col gap-0.5 leading-num">
+            <span className="font-mono text-meta tnum text-ink">
+              {formatUnits(rmm.strikeWad, 18, { significantDigits: 18, maxFractionDigits: 2 })}{' '}
+              <span className="text-ink-2">{rmm.flags & 4 ? 'call' : 'put'}</span>
+              {stable ? <span className="ml-1 text-ink-3">{stable.symbol}</span> : null}
+            </span>
+            <span className="font-mono text-mini tnum text-ink-3">
+              {formatPercent(sigmaRatio(rmm.sigmaWad), { fractionDigits: 1 })} IV
+              {nowSeconds !== undefined ? (
+                <>
+                  <span className="mx-1.5">·</span>
+                  {rmm.maturity - nowSeconds > 0 ? formatCountdown(rmm.maturity - nowSeconds) : 'expired'}
+                </>
+              ) : null}
+              {risky ? (
+                <>
+                  <span className="mx-1.5">·</span>
+                  L {formatUnits(rmm.liquidityWad, 18, { significantDigits: 6 })} {risky.symbol}
+                </>
+              ) : null}
+            </span>
+          </span>
+        ) : (
+          <span className="text-mini text-ink-3">not an option leg</span>
+        )}
       </TableCell>
 
       <TableCell>
