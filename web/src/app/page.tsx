@@ -52,13 +52,13 @@ export default function OverviewPage() {
   return (
     <AppShell>
       <PageHeader
-        title="Name the price you'd sell at. Get paid to wait."
+        title="Name a price you'd be happy to sell your ETH at. Whoever takes it pays you for the wait."
         subtitle={
           <>
             <span className="block">
-              Covered calls written from the ETH in your own wallet. You pick the price and the
-              date; every day nobody takes it, the next buyer pays more. Nothing is custodied — the
-              tokens never move until someone fills.
+              The ETH never leaves your wallet. You pick the price and the date, and every day
+              nobody takes the offer, the next buyer pays more for it. Nothing is custodied: the
+              tokens do not move until somebody fills.
             </span>
             <span className="mt-2 block">
               If ETH runs past your price, you sell at your price and keep what you were paid. That
