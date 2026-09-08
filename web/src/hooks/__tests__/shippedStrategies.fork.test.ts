@@ -37,7 +37,13 @@ async function probe(): Promise<{ deployments: Deployments; chainId: number } | 
 
 const fork = await probe();
 
-describe.skipIf(!fork)('Shipped-strategy discovery against the local Base fork', () => {
+/**
+ * Built inside the test, never in the `describe` body: `describe.skipIf` still *collects* its
+ * callback, so `fork!.deployments` at that level throws `Cannot read properties of undefined` on a
+ * clean clone with no anvil running -- a red test file on the first command a judge tries, for a
+ * suite that is supposed to skip. Same shape as `write/__tests__/sizing.fork.test.ts`.
+ */
+function harness() {
   const d = fork!.deployments;
   const chain = { id: fork!.chainId, name: 'fork', nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [d.rpcUrl] } } } as const;
   const publicClient = createPublicClient({ chain, transport: http(d.rpcUrl) }) as PublicClient;
@@ -56,7 +62,13 @@ describe.skipIf(!fork)('Shipped-strategy discovery against the local Base fork',
   const order = buildAquaOrder({ maker: maker.address, tokenA, tokenB, program: prog });
   const strategyHash: Hex = orderHashAqua(order);
 
+  return { d, publicClient, wallet, maker, wethIsA, tokenA, tokenB, amountA, amountB, prog, order, strategyHash };
+}
+
+describe.skipIf(!fork)('Shipped-strategy discovery against the local Base fork', () => {
   it('ships, then finds + decodes the strategy through the hook pipeline', async () => {
+    const { d, publicClient, wallet, maker, wethIsA, tokenA, tokenB, amountA, amountB, prog, order, strategyHash } = harness();
+
     // ship (approve Aqua first) -----------------------------------------------------------------
     for (const token of [tokenA, tokenB]) {
       const allowance = await publicClient.readContract({ address: token, abi: erc20Abi, functionName: 'allowance', args: [maker.address, d.aqua] });

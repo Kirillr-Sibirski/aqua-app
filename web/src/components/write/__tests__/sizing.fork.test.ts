@@ -236,10 +236,15 @@ describe.skipIf(!fork)('sizing a leg through the router, against the local Base 
         `  guard band for scale: ${formatUnits(epsStable, 18)} stable / ${formatUnits(epsRisky, 18)} risky`,
     );
 
-    // A few seconds of decay is all that separates the reserves from the curve, and that is far
-    // below the instruction's own epsilon. A TypeScript-computed `y` would not land here.
-    expect(minStableIn).toBeLessThan(epsStable);
-    expect(minRiskyIn).toBeLessThan(epsRisky);
+    // Right after a ship the band IS essentially that guard band: `bandFor` publishes the smallest
+    // trade `exec` will clear, which is the curve gap PLUS eps, and a few seconds of decay is all
+    // that separates these reserves from the curve. So each side lands within a factor of the
+    // guard -- eps walked through the curve, so the ratio is the mark over the strike, not 1.
+    // A TypeScript-computed `y` would be orders of magnitude off this, in either direction.
+    expect(minStableIn).toBeGreaterThan(epsStable / 2n);
+    expect(minStableIn).toBeLessThan(epsStable * 2n);
+    expect(minRiskyIn).toBeGreaterThan(epsRisky / 2n);
+    expect(minRiskyIn).toBeLessThan(epsRisky * 2n);
 
     // --- 4. it trades ----------------------------------------------------------------------------
     const takerAccount = d.accounts.find((a) => a.role?.startsWith('taker')) ?? d.accounts[2];

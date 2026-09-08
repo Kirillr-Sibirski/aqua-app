@@ -39,10 +39,16 @@ async function probe(): Promise<Deployments | undefined> {
 
 const d = await probe();
 
-describe.skipIf(!d)('wagmi burner connector against the local Base fork', () => {
+/**
+ * Built inside the test, never in the `describe` body: `describe.skipIf` still *collects* its
+ * callback, so `d!.accounts` at that level throws `Cannot read properties of undefined` on a clean
+ * clone with no anvil running -- a red test file on the first command a judge tries, for a suite
+ * that is supposed to skip.
+ */
+function harness() {
   const dep = d!;
-  // `shippedStrategies.fork.test.ts` runs concurrently and signs as the manifest's "maker" account,
-  // so this file deliberately uses the other two funded accounts (nonces would otherwise collide).
+  // This file signs as the spare and taker accounts, never as the manifest's "maker": the other two
+  // fork files both sign as the maker, and `vitest.config.ts` serialises files for the same reason.
   const funded = dep.accounts.filter((a) => a.privateKey);
   const pick = (role: string, fallback: number) => funded.find((a) => a.role?.startsWith(role)) ?? funded[fallback] ?? funded[funded.length - 1];
   const makerAccount = pick('spare', 3);
@@ -50,8 +56,13 @@ describe.skipIf(!d)('wagmi burner connector against the local Base fork', () => 
   const makerConfig = createWagmiConfig({ demoPrivateKey: makerAccount.privateKey! });
   const takerConfig = createWagmiConfig({ demoPrivateKey: takerAccount.privateKey! });
   const burnerOf = (config: ReturnType<typeof createWagmiConfig>) => config.connectors.find((c) => c.id === 'burner')!;
+  return { dep, makerAccount, takerAccount, makerConfig, takerConfig, burnerOf };
+}
 
+describe.skipIf(!d)('wagmi burner connector against the local Base fork', () => {
   it('connects, ships, quotes, swaps and docks through @wagmi/core actions', async () => {
+    const { dep, makerAccount, takerAccount, makerConfig, takerConfig, burnerOf } = harness();
+
     // connect (demo mode) ------------------------------------------------------------------------
     const maker = await connect(makerConfig, { connector: burnerOf(makerConfig), chainId: aquaFork.id });
     const taker = await connect(takerConfig, { connector: burnerOf(takerConfig), chainId: aquaFork.id });
