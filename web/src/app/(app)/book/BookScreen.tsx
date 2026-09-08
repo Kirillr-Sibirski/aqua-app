@@ -66,7 +66,7 @@ export function BookScreen() {
       />
 
       <div className="mt-8 flex flex-col gap-10">
-        <KpiStrip kpis={book.kpis} blockTimestamp={book.blockTimestamp} loading={connected && book.isLoading} />
+        <KpiStrip kpis={book.kpis} connected={connected} blockTimestamp={book.blockTimestamp} loading={connected && book.isLoading} />
 
         <SharedInventory
           book={book}

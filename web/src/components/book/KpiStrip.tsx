@@ -25,6 +25,8 @@ import type { BookKpis } from '@/hooks/useBook';
 
 export interface KpiStripProps {
   kpis: BookKpis;
+  /** False before a wallet is connected: there is no book, so every tile shows a rule, not a zero. */
+  connected?: boolean;
   /** The chain's own clock, so "last fill" is honest on a fork whose time has been warped. */
   blockTimestamp?: bigint;
   loading?: boolean;
@@ -58,7 +60,14 @@ function Amounts({ entries }: { entries: BookKpis['thetaByToken'] }) {
   );
 }
 
-export function KpiStrip({ kpis, blockTimestamp, loading = false, className }: KpiStripProps) {
+export function KpiStrip({ kpis, connected = true, blockTimestamp, loading = false, className }: KpiStripProps) {
+  // Disconnected is not the same as empty. "Backed 100%" with no wallet attached is a claim about a
+  // book that does not exist, so every figure falls back to a rule until there is a maker to read.
+  // The captions go with them: the header already says there is no wallet, and repeating it five
+  // times across one strip is noise.
+  const detail = (value: React.ReactNode) => (connected ? value : undefined);
+  const figure = <T,>(value: T | undefined): T | undefined => (connected ? value : undefined);
+
   const thetaDetail = kpis.thetaPending
     ? 'Replaying the band at each fill block'
     : kpis.thetaFills === 0
@@ -79,16 +88,18 @@ export function KpiStrip({ kpis, blockTimestamp, loading = false, className }: K
           <StatTile
             label="Notional written"
             loading={loading}
-            value={kpis.writtenToken ? multiple(kpis.writtenMultiple) : undefined}
-            empty="0x"
+            value={figure(kpis.writtenToken ? multiple(kpis.writtenMultiple) : undefined)}
+            empty={connected ? '0x' : '—'}
             detail={
-              kpis.writtenToken ? (
-                <>
-                  {formatUnits(kpis.writtenToken.written, kpis.writtenToken.decimals, { significantDigits: 6 })} {kpis.writtenToken.symbol} written on{' '}
-                  {formatUnits(kpis.writtenToken.coverage, kpis.writtenToken.decimals, { significantDigits: 6 })} held
-                </>
-              ) : (
-                'Nothing written yet'
+              detail(
+                kpis.writtenToken ? (
+                  <>
+                    {formatUnits(kpis.writtenToken.written, kpis.writtenToken.decimals, { significantDigits: 6 })} {kpis.writtenToken.symbol} written on{' '}
+                    {formatUnits(kpis.writtenToken.coverage, kpis.writtenToken.decimals, { significantDigits: 6 })} held
+                  </>
+                ) : (
+                  'Nothing written yet'
+                ),
               )
             }
           />
@@ -98,20 +109,22 @@ export function KpiStrip({ kpis, blockTimestamp, loading = false, className }: K
           <StatTile
             label="Backed"
             loading={loading}
-            value={kpis.backedToken ? backedText(kpis.backed) : undefined}
-            empty="100.0%"
+            value={figure(kpis.backedToken ? backedText(kpis.backed) : undefined)}
+            empty={connected ? '100.0%' : '—'}
             detail={
-              kpis.backedToken ? (
-                kpis.backed >= 1 ? (
-                  <>Deepest {kpis.backedToken.symbol} leg deliverable in full</>
+              detail(
+                kpis.backedToken ? (
+                  kpis.backed >= 1 ? (
+                    <>Deepest {kpis.backedToken.symbol} leg deliverable in full</>
+                  ) : (
+                    <>
+                      Deepest {kpis.backedToken.symbol} leg wallet-bound at{' '}
+                      {formatUnits(kpis.backedToken.coverage, kpis.backedToken.decimals, { significantDigits: 6 })}
+                    </>
+                  )
                 ) : (
-                  <>
-                    Deepest {kpis.backedToken.symbol} leg wallet-bound at{' '}
-                    {formatUnits(kpis.backedToken.coverage, kpis.backedToken.decimals, { significantDigits: 6 })}
-                  </>
-                )
-              ) : (
-                'No obligation to back'
+                  'No obligation to back'
+                ),
               )
             }
           />
@@ -121,8 +134,8 @@ export function KpiStrip({ kpis, blockTimestamp, loading = false, className }: K
           <StatTile
             label="Theta captured"
             loading={loading}
-            value={kpis.thetaByToken.length === 0 ? undefined : <Amounts entries={kpis.thetaByToken} />}
-            detail={thetaDetail}
+            value={figure(kpis.thetaByToken.length === 0 ? undefined : <Amounts entries={kpis.thetaByToken} />)}
+            detail={detail(thetaDetail)}
           />
         </Tile>
 
@@ -130,8 +143,8 @@ export function KpiStrip({ kpis, blockTimestamp, loading = false, className }: K
           <StatTile
             label="Book delta"
             loading={loading}
-            value={kpis.deltaByToken.length === 0 ? undefined : <Amounts entries={kpis.deltaByToken} />}
-            detail={<>Sum of the legs&rsquo; risky reserves</>}
+            value={figure(kpis.deltaByToken.length === 0 ? undefined : <Amounts entries={kpis.deltaByToken} />)}
+            detail={detail(<>Sum of the legs&rsquo; risky reserves</>)}
           />
         </Tile>
 
@@ -139,8 +152,8 @@ export function KpiStrip({ kpis, blockTimestamp, loading = false, className }: K
           <StatTile
             label="Fills, 24h"
             loading={loading}
-            value={formatUnits(BigInt(kpis.fills24h), 0)}
-            detail={lastFill ? `Last ${lastFill} on the chain clock` : 'No fill on record'}
+            value={figure(formatUnits(BigInt(kpis.fills24h), 0))}
+            detail={detail(lastFill ? `Last ${lastFill} on the chain clock` : 'No fill on record')}
           />
         </Tile>
       </div>
