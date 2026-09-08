@@ -49,11 +49,18 @@ const FORK_BLOCK = Number(process.env.ANVIL_FORK_BLOCK ?? 50946000);
 /** Set FUND_VIA_STORAGE=1 to skip whale impersonation and exercise the anvil_setStorageAt fallback. */
 const FORCE_STORAGE = process.env.FUND_VIA_STORAGE === '1';
 
+/**
+ * Seeded at irregular amounts on purpose. DESIGN.md: round demo numbers read as fake even when they
+ * are real, and the maker's own inventory is already 10.4 WETH / 24,850 USDC for that reason -- but
+ * the Overview screen was still printing `10,000 ETH` and `5 cbBTC` beside them. The ETH target is
+ * deliberately above anvil's own 10,000 default, because funding only tops up and would otherwise
+ * leave the round number in place.
+ */
 const FUND = {
-  eth: parseEther(process.env.FUND_ETH ?? '1000'),
-  weth: parseUnits(process.env.FUND_WETH ?? '100', 18),
-  usdc: parseUnits(process.env.FUND_USDC ?? '500000', 6),
-  cbBtc: parseUnits(process.env.FUND_CBBTC ?? '5', 8),
+  eth: parseEther(process.env.FUND_ETH ?? '12450.75'),
+  weth: parseUnits(process.env.FUND_WETH ?? '146.83', 18),
+  usdc: parseUnits(process.env.FUND_USDC ?? '418655', 6),
+  cbBtc: parseUnits(process.env.FUND_CBBTC ?? '1.4472', 8),
 };
 
 const routerAbiMin = [
