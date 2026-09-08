@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * The compiled leg, decoded and raw, side by side.
+ * The compiled offer, decoded and raw, side by side.
  *
  * `Aqua.ship` takes the strategy whole rather than pre-hashed, explicitly for data availability, so
  * `K`, `sigma`, `T` and `L` are public and any resolver can quote the position without an off-chain
- * book. That makes the bytes the agreement, and a maker about to sign them should be able to read
+ * book. That makes the bytes the agreement, and anyone reading an offer should be able to read
  * them. Hence both halves: a field-by-field decode, and the actual blob with each instruction's
  * byte run tinted so the four segments are visible in it.
  *
@@ -14,8 +14,8 @@
  * decode on a review screen is a program that gets shipped anyway.
  */
 import { useMemo } from 'react';
+import { Alert, Badge, Button, CopyButton, Group, Paper, Stack, Text } from '@mantine/core';
 import { size, type Hex } from 'viem';
-import { Card, CopyButton, ErrorState, Pill } from '@/components/ui';
 import { cn } from '@/lib/ui';
 import { explainProgram, type DecodedInstruction } from './program';
 
@@ -26,8 +26,8 @@ export interface ProgramInspectorProps {
   title?: string;
   description?: string;
   /**
-   * Render without the card frame, for an inspector already inside one. DESIGN.md rules out nested
-   * cards, and `Card` degrades rather than nesting — this is the explicit form of that.
+   * Render without the panel frame, for an inspector already inside one. DESIGN.md rules out
+   * nested cards, and this is the explicit form of that.
    */
   bare?: boolean;
   className?: string;
@@ -36,28 +36,26 @@ export interface ProgramInspectorProps {
 export function ProgramInspector({
   program,
   strategyHash,
-  title = 'Compiled program',
-  description = 'What Aqua stores, and what every quote runs. Four instructions, no fee among them.',
+  title = 'The program this offer is',
+  description = 'What Aqua stores, and what every quote runs. Four instructions, and no fee among them.',
   bare = false,
   className,
 }: ProgramInspectorProps) {
   const decoded = useMemo(() => {
     try {
-      return { instructions: explainProgram(program), error: undefined };
+      return { instructions: explainProgram(program), error: undefined as unknown };
     } catch (error) {
-      return { instructions: [], error };
+      return { instructions: [] as DecodedInstruction[], error };
     }
   }, [program]);
 
   const bytes = size(program);
 
   if (decoded.error) {
-    return bare ? (
-      <ErrorState error={decoded.error} title="The program could not be decoded" bare className={className} />
-    ) : (
-      <Card title={title} className={className}>
-        <ErrorState error={decoded.error} title="The program could not be decoded" bare />
-      </Card>
+    return (
+      <Alert color="ember" variant="light" title="The program could not be decoded" className={className}>
+        {decoded.error instanceof Error ? decoded.error.message : 'The bytes stop mid-instruction.'}
+      </Alert>
     );
   }
 
@@ -70,14 +68,16 @@ export function ProgramInspector({
       </ol>
 
       <div className="mt-4 border-t border-line pt-4">
-        <p className="text-mini text-ink-3">Raw bytes</p>
+        <Text size="xs" c="var(--ink-3)">
+          Raw bytes
+        </Text>
         <RawBytes instructions={decoded.instructions} />
       </div>
     </>
   );
 
   const footer = (
-    <>
+    <Group justify="space-between" gap="md" wrap="wrap" className="text-mini text-ink-3">
       <span className="font-mono tnum">
         {bytes} bytes · {decoded.instructions.length} instructions
       </span>
@@ -87,34 +87,49 @@ export function ProgramInspector({
           <span className="truncate font-mono tnum text-ink-2">{strategyHash}</span>
         </span>
       ) : null}
-    </>
+    </Group>
+  );
+
+  const header = (
+    <Group justify="space-between" align="flex-start" gap="md" wrap="nowrap">
+      <div className="min-w-0">
+        {bare ? null : (
+          <Text fw={500} size="sm" c="var(--ink)">
+            {title}
+          </Text>
+        )}
+        <Text size="xs" c="var(--ink-3)" className="max-w-prose leading-prose">
+          {description}
+        </Text>
+      </div>
+      <CopyButton value={program} timeout={1400}>
+        {({ copied, copy }) => (
+          <Button size="compact-xs" variant="default" onClick={copy} className="shrink-0">
+            {copied ? 'Copied' : 'Copy bytes'}
+          </Button>
+        )}
+      </CopyButton>
+    </Group>
   );
 
   if (bare) {
     return (
       <div className={className}>
-        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 pb-3">
-          <p className="max-w-prose text-mini leading-prose text-ink-3">{description}</p>
-          <CopyButton value={program} what="program bytes" />
-        </div>
-        {body}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line pt-3 text-mini text-ink-3">
-          {footer}
-        </div>
+        {header}
+        <div className="mt-3">{body}</div>
+        <div className="mt-3 border-t border-line pt-3">{footer}</div>
       </div>
     );
   }
 
   return (
-    <Card
-      title={title}
-      description={description}
-      className={className}
-      actions={<CopyButton value={program} what="program bytes" />}
-      footer={footer}
-    >
-      {body}
-    </Card>
+    <Paper withBorder p="md" bg="var(--surface)" className={className}>
+      <Stack gap="sm">
+        {header}
+        {body}
+        <div className="border-t border-line pt-3">{footer}</div>
+      </Stack>
+    </Paper>
   );
 }
 
@@ -130,16 +145,16 @@ function InstructionRow({ instruction }: { instruction: DecodedInstruction }) {
           <code
             className={cn(
               'rounded-control px-1.5 py-0.5 font-mono text-mini tnum',
-              instruction.custom ? 'bg-accent/15 text-accent' : 'bg-surface-2 text-ink-2',
+              instruction.custom ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-ink-2',
             )}
           >
             0x{instruction.opcode.toString(16).padStart(2, '0')}
           </code>
           <span className="font-mono text-meta text-ink">{instruction.name}</span>
           {instruction.custom ? (
-            <Pill tone="accent" size="sm">
-              custom
-            </Pill>
+            <Badge size="xs" variant="light" color="petrol" radius="sm">
+              ours
+            </Badge>
           ) : null}
           <span className="font-mono text-mini tnum text-ink-3">{instruction.byteLength} B</span>
         </div>
@@ -171,8 +186,11 @@ function InstructionRow({ instruction }: { instruction: DecodedInstruction }) {
 /**
  * The blob, with each instruction's run tinted.
  *
- * The two-byte `[opcode][len]` header of each instruction is dimmed and its arguments are not, so
- * the structure of the program is legible in the hex itself rather than only in the list above it.
+ * The two-byte `[opcode][len]` header of each instruction is distinguished by weight and its
+ * arguments are not, so the structure of the program is legible in the hex itself rather than only
+ * in the list above it. By weight and not by dimming: `text-accent/70` over `--surface` measures
+ * 3.68:1, under the floor, and the bytes it would dim are `9303` and `5500` — the Coverage and
+ * RmmSwap markers, which are the one thing on this screen a 1inch judge is looking for.
  */
 function RawBytes({ instructions }: { instructions: readonly DecodedInstruction[] }) {
   return (
@@ -182,11 +200,13 @@ function RawBytes({ instructions }: { instructions: readonly DecodedInstruction[
         const body = instruction.bytes.slice(2);
         return (
           <span key={instruction.offset} title={`${instruction.name} @ ${instruction.offset}`}>
-            {/* The header bytes are distinguished by weight, not by dimming. `text-accent/70`
-                composited over `--surface` measured 3.68:1, under the 4.5:1 floor -- and the bytes
-                it dimmed are `9303` and `5500`, the 0x93 Coverage and 0x55 RmmSwap markers, which
-                is the one thing on this screen a 1inch judge is looking for. */}
-            <span className={instruction.custom ? 'font-semibold text-accent underline decoration-accent-dim underline-offset-2' : 'text-ink-3'}>
+            <span
+              className={
+                instruction.custom
+                  ? 'font-semibold text-accent underline decoration-accent-dim underline-offset-2'
+                  : 'text-ink-3'
+              }
+            >
               {body.slice(0, 4)}
             </span>
             <span className={instruction.custom ? 'text-accent' : 'text-ink-2'}>{body.slice(4)}</span>
