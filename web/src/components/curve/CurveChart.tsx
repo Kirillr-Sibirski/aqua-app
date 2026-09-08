@@ -83,6 +83,9 @@ const WEDGE_VISIBLE_PX = 2;
 /** How much of the full risky range the zoomed view keeps either side of what it has to contain. */
 const ZOOM_PAD = 0.06;
 
+/** Breathing room around the wedge in the band window, as a fraction of the wedge's own size. */
+const BAND_PAD = 0.35;
+
 function toPoints(samples: readonly CurveSample[]): ChartPoint[] {
   return samples.map((s) => ({ x: s.x, y: s.y }));
 }
@@ -114,14 +117,27 @@ export function CurveChart({
   const empty = livePoints.length === 0 && settlementPoints.length === 0;
   const resolvedState: ChartState = state === 'ready' && empty ? 'empty' : state;
 
+  // Both sides of the wedge, in reserve units. `bandFor` returns zero on whichever side the curve
+  // has not moved away from yet, and a window built on a zero extent has no scale to draw at.
+  const bandDx = band && reserve ? band.xOnCurve - reserve.x : 0;
+  const bandDy = band && reserve ? band.yOnCurve - reserve.y : 0;
+
   const canZoom = Boolean(reserve) && maxX > 0 && maxY > 0;
-  const zoomed = canZoom && zoom === 'reserve';
+  const canZoomBand = canZoom && bandDx > 0 && bandDy > 0;
+  // The band scale can disappear underneath a selection -- a fill lands, the reserves snap back to
+  // the curve, and there is no wedge left to scale to -- so the rendered scale is derived rather
+  // than trusted, and falls back to the whole curve instead of drawing a window of nothing.
+  const scale: Zoom = zoom === 'band' && !canZoomBand ? 'full' : canZoom ? zoom : 'full';
+  const atBand = scale === 'band';
+  const zoomed = scale === 'reserve';
   const domain = useMemo(
     () =>
-      zoomed && reserve
-        ? reserveWindow({ live: livePoints, settlement: settlementPoints, reserve, band, maxX, maxY })
-        : { x: [0, maxX || 1] as const, y: [0, maxY || 1] as const },
-    [zoomed, reserve, band, livePoints, settlementPoints, maxX, maxY],
+      reserve && band && scale === 'band'
+        ? bandWindow(reserve, band)
+        : reserve && scale === 'reserve'
+          ? reserveWindow({ live: livePoints, settlement: settlementPoints, reserve, band, maxX, maxY })
+          : { x: [0, maxX || 1] as const, y: [0, maxY || 1] as const },
+    [scale, reserve, band, livePoints, settlementPoints, maxX, maxY],
   );
 
   // The wedge in pixels, not in reserve units. On a full-range y-domain of 0..L*K the band right
@@ -129,54 +145,80 @@ export function CurveChart({
   // an ochre swatch pointing at a path with a 0x0 bounding box. Measured here rather than guessed:
   // this is the same domain the marks are drawn against.
   const plotHeight = height - MARGIN.top - MARGIN.bottom;
-  const wedgePx =
-    band && reserve
-      ? ((band.yOnCurve - reserve.y) / (domain.y[1] - domain.y[0] || 1)) * plotHeight
-      : 0;
+  const wedgePx = band && reserve ? (bandDy / (domain.y[1] - domain.y[0] || 1)) * plotHeight : 0;
   const wedgeVisible = Boolean(band) && wedgePx >= WEDGE_VISIBLE_PX;
+
+  // How far the band window is blown up past the whole curve, for the caption. One number, because
+  // both axes are windowed on the same wedge with the same padding.
+  const magnification = atBand ? maxY / (domain.y[1] - domain.y[0] || 1) : 0;
 
   return (
     <ChartFrame
-      title="Trading curve"
-      description={`Stable reserve against risky reserve for this leg. The solid line is where a trade clears ${scrubbed ? 'at the scrubbed time' : 'now'}, the dashed line is the constant-sum order at the strike that the curve becomes at expiry, and the shaded wedge is the decay a taker has to cross to reach it from the reserve point. X runs from 0 to ${formatChartNumber(maxX)} ${riskySymbol}; Y from 0 to ${formatChartNumber(maxY)} ${stableSymbol}.`}
+      title="How this offer prices a trade"
+      description={`${stableSymbol} against ${riskySymbol} for this offer. The solid line is where a trade clears ${scrubbed ? 'at the time you dragged to' : 'right now'}, the dashed line is what the offer becomes on the date it runs to, and the shaded wedge is the gap a buyer has to cross to reach it. X runs from 0 to ${formatChartNumber(maxX)} ${riskySymbol}; Y from 0 to ${formatChartNumber(maxY)} ${stableSymbol}.`}
       subtitle={subtitle}
       height={height}
       margin={MARGIN}
       state={resolvedState}
       errorMessage={errorMessage}
       emptyMessage="The router returned no curve samples for this leg."
-      legend={<Legend scrubbed={scrubbed} hasBand={wedgeVisible} />}
+      legend={<Legend scrubbed={scrubbed} hasBand={wedgeVisible} hasSettlement={!atBand} />}
       actions={
         canZoom ? (
           <SegmentedControl
             label="Scale"
             size="sm"
             items={[
-              { value: 'full', label: 'Full curve' },
-              { value: 'reserve', label: 'At the reserve' },
+              { value: 'full', label: 'Whole offer' },
+              { value: 'reserve', label: 'Where it sits now' },
+              {
+                value: 'band',
+                label: 'The gap, to scale',
+                disabled: !canZoomBand,
+                disabledReason:
+                  'The price has not moved off the reserve point yet, so there is no gap to scale to.',
+              },
             ]}
-            value={zoom}
+            value={scale}
             onValueChange={(next) => setZoom(next as Zoom)}
           />
         ) : undefined
       }
       footnote={
-        <>
-          {band && reserve && !wedgeVisible ? (
-            <>
-              The theta band here is{' '}
-              <span className="font-mono tnum">
-                {formatChartNumber(band.yOnCurve - reserve.y, { significantDigits: 3, maxFractionDigits: 6 })}{' '}
-                {stableSymbol}
-              </span>
-              , under one pixel at this scale, so the wedge is not drawn and the legend does not claim
-              it. Scrub toward expiry to watch it open.{' '}
-            </>
-          ) : null}
-          Every point is a <span className="font-mono">stableFor</span> call into the router, sampled over
-          one multicall. No curve maths runs in the browser.
-          {zoomed ? ' The axes are windowed on the reserve point and do not start at zero.' : null}
-        </>
+        atBand ? (
+          <>
+            The same wedge, blown up about{' '}
+            <span className="font-mono tnum">
+              {formatChartNumber(magnification, { significantDigits: 2 })}×
+            </span>{' '}
+            so it is a mark rather than a rounding error. Its three corners are chain reads: the
+            reserve point from Aqua&rsquo;s ledger, the two others from{' '}
+            <span className="font-mono">bandFor</span>. Across a span this narrow the curve between
+            them is straight to a billionth of a {stableSymbol}, so the sampled polyline and the
+            expiry line are left off rather than drawn at a resolution they do not have.
+          </>
+        ) : (
+          <>
+            {band && reserve && !wedgeVisible ? (
+              <>
+                The gap here is{' '}
+                <span className="font-mono tnum">
+                  {formatChartNumber(bandDy, { significantDigits: 3, maxFractionDigits: 6 })}{' '}
+                  {stableSymbol}
+                </span>
+                , under one pixel at this scale, so it is marked rather than drawn to size and the
+                legend does not claim it.{' '}
+                {canZoomBand
+                  ? 'Switch the scale to "The gap, to scale" to see it, or scrub'
+                  : 'Scrub'}{' '}
+                toward expiry to watch it open.{' '}
+              </>
+            ) : null}
+            Every point is a <span className="font-mono">stableFor</span> call into the router, sampled over
+            one multicall. No curve maths runs in the browser.
+            {zoomed ? ' The axes are windowed on the reserve point and do not start at zero.' : null}
+          </>
+        )
       }
       table={
         <ValuesTable
@@ -214,7 +256,13 @@ export function CurveChart({
                 />
               ) : null}
 
-              {settlementPoints.length > 0 ? (
+              {/* At band scale the 48-point polyline is a chain of secants whose sag between two
+                  neighbouring samples is several times the whole wedge, so drawing it here would
+                  put the "curve" visibly off the corners it is supposed to pass through. The two
+                  corners ARE the curve at this width, to a billionth of a stable unit; that segment
+                  is the wedge's own top edge, already drawn above. Same for the settlement line,
+                  which is hundreds of units away and would only be a stripe along one edge. */}
+              {!atBand && settlementPoints.length > 0 ? (
                 <CurveLine
                   points={settlementPoints}
                   xScale={x}
@@ -225,8 +273,21 @@ export function CurveChart({
                 />
               ) : null}
 
-              {livePoints.length > 0 ? (
+              {!atBand && livePoints.length > 0 ? (
                 <CurveLine points={livePoints} xScale={x} yScale={y} stroke="accent" strokeWidth={2} />
+              ) : null}
+
+              {atBand && band && reserve ? (
+                <CurveLine
+                  points={[
+                    { x: reserve.x, y: band.yOnCurve },
+                    { x: band.xOnCurve, y: reserve.y },
+                  ]}
+                  xScale={x}
+                  yScale={y}
+                  stroke="accent"
+                  strokeWidth={2}
+                />
               ) : null}
 
               {fills.map((fill) => (
@@ -236,15 +297,28 @@ export function CurveChart({
               {reserve ? <ReserveDot cx={x(reserve.x)} cy={y(reserve.y)} /> : null}
             </PlotArea>
 
+            {/* The wedge exists but is under a pixel: mark where it is and say how big, rather than
+                draw a mark whose size would be a lie. The label is the same figure the footnote and
+                the terms rail print, so the annotation adds a position, not a number. */}
+            {band && reserve && !wedgeVisible && bandDy > 0 ? (
+              <BandCallout
+                cx={x(reserve.x)}
+                cy={y(reserve.y)}
+                geometry={geometry}
+                label={`${formatChartNumber(bandDy, { significantDigits: 3, maxFractionDigits: 6 })} ${stableSymbol}`}
+              />
+            ) : null}
+
             {/* Below ~380px the unit doubles every label's width and the axis smears. It moves to
-                the axis name, which is said once. */}
+                the axis name, which is said once. The band window's ticks carry six or seven
+                decimals, which is wide enough that the unit has to move for the same reason. */}
             <Axis
               geometry={geometry}
               scale={x}
               orientation="bottom"
-              count={compact ? 3 : 5}
-              unit={compact ? undefined : riskySymbol}
-              label={compact ? riskySymbol : undefined}
+              count={compact || atBand ? 3 : 5}
+              unit={compact || atBand ? undefined : riskySymbol}
+              label={compact || atBand ? riskySymbol : undefined}
             />
             <Axis geometry={geometry} scale={y} orientation="left" count={4} />
             <text
@@ -387,7 +461,7 @@ function Legend({ scrubbed, hasBand }: { scrubbed: boolean; hasBand: boolean }) 
         <svg width={16} height={8} aria-hidden="true">
           <line x1={0} y1={4} x2={16} y2={4} stroke={color('accent')} strokeWidth={2} />
         </svg>
-        {scrubbed ? 'Scrubbed' : 'Now'}
+        {scrubbed ? 'At that time' : 'Now'}
       </LegendItem>
       <LegendItem>
         <svg width={16} height={8} aria-hidden="true">
@@ -401,14 +475,16 @@ function Legend({ scrubbed, hasBand }: { scrubbed: boolean; hasBand: boolean }) 
             strokeDasharray="4.5 3.4"
           />
         </svg>
-        Expiry
+        On its date
       </LegendItem>
       {hasBand ? (
         <LegendItem>
           <svg width={16} height={8} aria-hidden="true">
             <rect width={16} height={8} fill={colorMix('warn', 16)} stroke={color('warn')} strokeWidth={1} />
           </svg>
-          {scrubbed ? 'Theta band at that time' : 'Theta band'}
+          <span title={scrubbed ? 'Theta band at that time' : 'Theta band'}>
+            {scrubbed ? 'Minimum trade then' : 'Minimum trade'}
+          </span>
         </LegendItem>
       ) : null}
     </span>
@@ -445,7 +521,7 @@ function ValuesTable({
   const rows = live.filter((_, i) => i % step === 0 || i === live.length - 1);
 
   return (
-    <Table caption="Sampled curve points, the live reserve point and every fill" hideCaption minWidth="30rem">
+    <Table caption="Sampled curve points, where the offer sits now, and every trade" hideCaption minWidth="30rem">
       <TableHead>
         <TableRow>
           <TableHeaderCell>Point</TableHeaderCell>
@@ -463,14 +539,14 @@ function ValuesTable({
         ))}
         {reserve ? (
           <TableRow highlighted>
-            <TableCell>Reserve point</TableCell>
+            <TableCell>Where it sits now</TableCell>
             <TableCell numeric>{formatChartNumber(reserve.x)}</TableCell>
             <TableCell numeric>{formatChartNumber(reserve.y)}</TableCell>
           </TableRow>
         ) : null}
         {band ? (
           <TableRow>
-            <TableCell>Band corners</TableCell>
+            <TableCell>Minimum trade corners</TableCell>
             <TableCell numeric>{formatChartNumber(band.xOnCurve)}</TableCell>
             <TableCell numeric>{formatChartNumber(band.yOnCurve)}</TableCell>
           </TableRow>

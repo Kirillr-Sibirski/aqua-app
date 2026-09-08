@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * One leg, in full.
+ * One offer, in full.
  *
- * The whole screen is a chain read. The leg's economics come out of the 62 argument bytes of its
+ * The whole screen is a chain read. The offer's economics come out of the 62 argument bytes of its
  * `RmmSwap` instruction, decoded exactly as `RmmSwap.parse` decodes them at fill time — there is no
  * registry, no subgraph and no JSON beside the app that remembers what strike this position was
  * written at, because `Aqua.ship` publishes the strategy whole and that is the only record.
@@ -86,11 +86,11 @@ export function LegDetail({ hash }: LegDetailProps) {
   if (strategies.error) {
     return (
       <>
-        <PageHeader title={`Leg ${truncateHash(hash)}`} />
+        <PageHeader title={`Offer ${truncateHash(hash)}`} />
         <ErrorState
           className="mt-8"
           error={strategies.error}
-          title="Could not read the Shipped log"
+          title="Could not read the chain's log of offers"
           onRetry={() => void strategies.refetch()}
         />
       </>
@@ -100,18 +100,18 @@ export function LegDetail({ hash }: LegDetailProps) {
   if (!strategy || !deployments) {
     return (
       <>
-        <PageHeader title={`Leg ${truncateHash(hash)}`} />
+        <PageHeader title={`Offer ${truncateHash(hash)}`} />
         <EmptyState
           className="mt-8"
           icon={Link2Off}
-          title="No leg with this hash"
-          description="Aqua keys every balance by keccak256 of the strategy bytes, so a leg exists only if it was shipped to this router from the block the deployment was made at. Nothing here was shipped under that hash."
+          title="No offer with this hash"
+          description="An offer is identified by the hash of its own bytes, so it exists only if it was published to this router after the deployment block. Nothing was published under that hash."
           action={
             <Link
               href="/write"
               className="inline-flex h-10 items-center rounded-control border border-line bg-surface-2 px-4 text-body font-medium text-ink transition-state hover:border-line-strong"
             >
-              Write a book
+              Name your price
             </Link>
           }
         />
@@ -249,12 +249,12 @@ function Leg({
   if (!rmm) {
     return (
       <>
-        <PageHeader title={`Leg ${truncateHash(strategy.strategyHash)}`} />
+        <PageHeader title={`Offer ${truncateHash(strategy.strategyHash)}`} />
         <EmptyState
           className="mt-8"
           icon={Layers}
-          title="Not a Strikeline leg"
-          description="This strategy was shipped to the Strikeline router but its program carries no RmmSwap instruction, so it has no strike, no implied vol and no expiry to show. It is some other SwapVM program using the same app."
+          title="Not a Strikeline offer"
+          description="This strategy was shipped to the Strikeline router but its program carries no RmmSwap instruction, so it has no price, no date and no volatility to show. It is some other SwapVM program using the same app."
         />
         <ProgramInspector className="mt-6" program={strategy.program} strategyHash={strategy.strategyHash} />
       </>
@@ -282,7 +282,7 @@ function Leg({
       id: `${fill.transactionHash}-${fill.logIndex}`,
       x: Number(viemFormatUnits(fx, 18)),
       y: Number(viemFormatUnits(fy, 18)),
-      label: `Fill ${i + 1}`,
+      label: `Trade ${i + 1}`,
     };
   });
 
@@ -300,36 +300,53 @@ function Leg({
         title={
           <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span>
-              {risky.symbol} {kind ?? 'leg'}
+              {kind === 'call' ? 'Sell' : kind === 'put' ? 'Buy' : 'Trade'} {risky.symbol} at
             </span>
             <span className="font-mono tnum text-ink-2">
-              K {formatChartNumber(strike, { significantDigits: 12, maxFractionDigits: 2 })}
+              {formatChartNumber(strike, { significantDigits: 12, maxFractionDigits: 2 })}{' '}
+              {stable.symbol}
             </span>
           </span>
         }
         subtitle={
-          kind === 'call'
-            ? 'A covered call written as a price curve. The reserves below are virtual balances in Aqua; the tokens themselves have never left the maker\u2019s wallet.'
-            : kind === 'put'
-              ? 'A cash-secured put written as a price curve, from the same 62 bytes as a call. Which one it is was decided only by the side of the strike its reserves started on.'
-              : 'A price curve with no one-way settlement gate, so at expiry it trades in both directions. The reserves below are virtual balances in Aqua.'
+          <>
+            <span className="block">
+              {kind === 'call'
+                ? `An offer to sell ${risky.symbol} at this price. Whoever takes it pays the maker for the wait, and nobody is paid up front: the payment only becomes real when somebody trades.`
+                : kind === 'put'
+                  ? `An offer to buy ${risky.symbol} at this price, paid for with ${stable.symbol}. Whoever takes it pays the maker for the wait, and nobody is paid up front: the payment only becomes real when somebody trades.`
+                  : `An offer with no one-way gate at its date, so it keeps trading in both directions afterwards. Nobody is paid up front: the payment only becomes real when somebody trades.`}
+            </span>
+            <span className="mt-2 block text-ink-3">
+              The tokens never left the maker&rsquo;s wallet. The reserves below are balances Aqua
+              records, not tokens it holds.
+            </span>
+            <span className="mt-2 block text-ink-3">
+              <em className="not-italic text-ink-2">If you already trade options:</em>{' '}
+              {kind === 'put'
+                ? 'a cash-secured put written as an RMM-01 price curve, from the same 62 bytes as a call; which one it is was decided only by the side of the strike its reserves started on.'
+                : 'a covered call written as an RMM-01 price curve, with the premium arriving as a two-sided spread that widens with theta rather than as an up-front credit.'}
+            </span>
+          </>
         }
         meta={
           <>
             {strategy.docked ? (
-              <Pill tone="neutral" dot>
-                Docked
+              <Pill tone="neutral" dot title="Docked in Aqua">
+                Withdrawn
               </Pill>
             ) : expired ? (
-              <Pill tone="warning" dot>
-                In assignment
+              <Pill tone="warning" dot title="Past maturity: in assignment">
+                Past its date
               </Pill>
             ) : (
               <Pill tone="positive" dot>
-                Active
+                Live
               </Pill>
             )}
-            <Pill tone="accent">{formatPercent(sigma, { fractionDigits: 0 })} IV</Pill>
+            <Pill tone="accent" title="Implied volatility">
+              {formatPercent(sigma, { fractionDigits: 0 })} movement priced in
+            </Pill>
             <AddressText
               value={strategy.strategyHash}
               kind="hash"
@@ -366,12 +383,12 @@ function Leg({
               subtitle={
                 scrubbedSeconds === undefined
                   ? 'Sampling…'
-                  : `${formatDuration(scrubbedSeconds)} to maturity · sigma ${formatPercent(sigma, { fractionDigits: 0 })} · L ${formatChartNumber(liquidity)} ${risky.symbol}`
+                  : `${formatDuration(scrubbedSeconds)} left · ${formatPercent(sigma, { fractionDigits: 0 })} movement priced in · ${formatChartNumber(liquidity)} ${risky.symbol} on offer`
               }
               state={live.error ? 'error' : live.isLoading ? 'loading' : 'ready'}
               errorMessage={
                 live.error
-                  ? 'The router did not return curve samples. Check that the deployment points at a StrikelineRouter.'
+                  ? 'The chain did not return the curve for this offer. Check that the deployment points at a StrikelineRouter.'
                   : undefined
               }
             />
@@ -385,24 +402,28 @@ function Leg({
                 disabled={expired || remainingNow === undefined}
                 disabledReason={
                   expired
-                    ? 'This leg has matured; the curve is already the settlement line.'
-                    : 'Waiting for the router to report tau.'
+                    ? 'This offer is past its date; the curve is already the settlement line.'
+                    : 'Waiting for the chain to report the time left.'
                 }
               />
             </Card>
           </div>
 
           <Card
-            title="Fills"
-            description="Replayed from Aqua's own ledger events. Every pull decrements the strategy's virtual balance and every push increments it, so the reserve point walks across fills with no maker transaction."
+            title="Who has taken this offer"
+            description="Replayed from the chain's own ledger. Every trade moves the offer along its curve without the maker signing anything, which is why the reserves below change on their own."
             flush
           >
-            <Table caption="Fills against this leg" hideCaption minWidth="42rem">
+            <Table caption="Trades against this offer" hideCaption minWidth="42rem">
               <TableHead>
                 <TableRow>
                   <TableHeaderCell>Transaction</TableHeaderCell>
-                  <TableHeaderCell numeric>Out</TableHeaderCell>
-                  <TableHeaderCell numeric>In</TableHeaderCell>
+                  <TableHeaderCell numeric title="Aqua pull: what left the strategy">
+                    Paid out
+                  </TableHeaderCell>
+                  <TableHeaderCell numeric title="Aqua push: what came back in">
+                    Taken in
+                  </TableHeaderCell>
                   <TableHeaderCell numeric>Block</TableHeaderCell>
                 </TableRow>
               </TableHead>
@@ -411,7 +432,8 @@ function Leg({
                   <TableMessageRow colSpan={4}>Reading the ledger…</TableMessageRow>
                 ) : ledger.fills.length === 0 ? (
                   <TableMessageRow colSpan={4}>
-                    Nothing has crossed this curve yet. A trade has to clear the decay band before it can.
+                    Nobody has taken this offer yet, so nothing has been paid. A trade has to be at
+                    least the minimum size shown on the right before it can.
                   </TableMessageRow>
                 ) : (
                   ledger.fills.map((fill) => {
@@ -462,23 +484,26 @@ function Leg({
         </div>
 
         <div className="flex flex-col gap-6 lg:sticky lg:top-20">
-          <Card title="Terms" description="Read out of the RmmSwap arguments, the only record of them.">
+          <Card
+            title="The offer"
+            description="Read out of the offer's own published bytes, which are the only record of it anywhere."
+          >
             <dl className="flex flex-col">
-              <CardRow label="Strike">
+              <CardRow label={<span title="Strike, K">Price it sells at</span>}>
                 <span className="font-mono tnum">
                   {formatChartNumber(strike, { significantDigits: 12, maxFractionDigits: 2 })}{' '}
                   {stable.symbol}
                 </span>
               </CardRow>
-              <CardRow label="Implied vol">
+              <CardRow label={<span title="Implied volatility, sigma">Movement priced in</span>}>
                 <span className="font-mono tnum">{formatPercent(sigma, { fractionDigits: 1 })}</span>
               </CardRow>
-              <CardRow label="Liquidity (L)">
+              <CardRow label={<span title="Liquidity, L">How much it covers</span>}>
                 <span className="font-mono tnum">
                   {formatChartNumber(liquidity)} {risky.symbol}
                 </span>
               </CardRow>
-              <CardRow label="Expiry">
+              <CardRow label={<span title="Expiry, the maturity in the program">Runs to</span>}>
                 <span className="font-mono tnum">{formatExpiry(rmm.maturity)}</span>
               </CardRow>
               <CardRow label="Time left">
@@ -486,27 +511,27 @@ function Leg({
                   {remainingNow === undefined ? '—' : formatDuration(remainingNow)}
                 </span>
               </CardRow>
-              <CardRow label="tau (router)">
+              <CardRow label={<span title="tau, the time the curve itself is reading">tau (from the chain)</span>}>
                 <span className="font-mono tnum">
                   {tau.tauWad === undefined
                     ? '—'
                     : `${(Number(tau.tauWad) / 1e18).toFixed(6)} y`}
                 </span>
               </CardRow>
-              <CardRow label="Maker">
+              <CardRow label="Written by">
                 <AddressText value={strategy.maker} size="meta" />
               </CardRow>
             </dl>
           </Card>
 
           <Card
-            title="Theta band"
-            description="The gap decay has opened between the stale reserve point and the curve. No transaction created it; whoever crosses it pays it to the maker."
+            title="Minimum trade size right now"
+            description="Time passing has opened a gap between where the last trade left this offer and where its price is now. Nobody created it with a transaction. Whoever crosses it pays it to the maker, which is how the maker gets paid at all. Traders call it the theta band."
           >
             {band.band ? (
               <StatRow className="md:grid-cols-2">
                 <StatTile
-                  label={`Smallest ${stable.symbol} trade`}
+                  label={`Smallest ${stable.symbol} trade it will take`}
                   value={
                     <TokenAmount
                       value={ceilFromWad(band.band.minStableIn, rmm.rateStable)}
@@ -517,10 +542,10 @@ function Leg({
                   unit={stable.symbol}
                   // Ceiled, not floored: `bandFor` publishes the smallest normalised input `exec`
                   // will clear, and a minimum that rounds down is one raw unit short of clearing.
-                  detail="Anything below this reverts RmmInsideSpread"
+                  detail="Smaller than this and the trade is refused"
                 />
                 <StatTile
-                  label={`Smallest ${risky.symbol} trade`}
+                  label={`Smallest ${risky.symbol} trade it will take`}
                   value={
                     <TokenAmount
                       value={ceilFromWad(band.band.minRiskyIn, rmm.rateRisky)}
@@ -529,22 +554,22 @@ function Leg({
                     />
                   }
                   unit={risky.symbol}
-                  detail="The other side of the same band"
+                  detail="The other side of the same gap"
                 />
               </StatRow>
             ) : band.isLoading ? (
               <Skeleton className="h-16 w-full" />
             ) : (
               <p className="text-meta text-ink-3">
-                The router did not return a band for these reserves.
+                The chain did not return a minimum for these reserves.
               </p>
             )}
 
             {band.band && scrubbedBand.band && settled > 0 && scrubbedSeconds !== undefined ? (
               <div className="mt-4 border-t border-line pt-4">
                 <p className="text-mini leading-prose text-ink-3">
-                  At <span className="font-mono tnum">{formatDuration(scrubbedSeconds)}</span> to
-                  maturity, with no transaction in between, the same reserves would refuse anything
+                  With <span className="font-mono tnum">{formatDuration(scrubbedSeconds)}</span>{' '}
+                  left and nobody having traded in between, the same offer would refuse anything
                   under:
                 </p>
                 <dl className="mt-2 flex flex-col">
@@ -588,12 +613,12 @@ function Leg({
           </Card>
 
           <Card
-            title="Deliverable now"
-            description="What Coverage would allow this instant, read from the same wallet balance every sibling leg is quoting against."
+            title="How much you can sell right now"
+            description="What the guard would actually allow this instant, read from the same wallet balance every other offer from this maker is quoting against. Traders call it the deliverable depth."
           >
             <StatRow className="md:grid-cols-2">
               <StatTile
-                label={`${risky.symbol} free`}
+                label={`${risky.symbol} it can sell`}
                 value={
                   coverage.free[riskyToken.toLowerCase()] === undefined ? undefined : (
                     <TokenAmount
@@ -607,13 +632,13 @@ function Leg({
                 empty="not read"
                 detail={
                   <>
-                    Virtual reserve{' '}
+                    On offer{' '}
                     <TokenAmount value={riskyRaw} decimals={risky.decimals} size="sm" />
                   </>
                 }
               />
               <StatTile
-                label={`${stable.symbol} free`}
+                label={`${stable.symbol} it can sell`}
                 value={
                   coverage.free[stableToken.toLowerCase()] === undefined ? undefined : (
                     <TokenAmount
@@ -627,7 +652,7 @@ function Leg({
                 empty="not read"
                 detail={
                   <>
-                    Virtual reserve{' '}
+                    On offer{' '}
                     <TokenAmount value={stableRaw} decimals={stable.decimals} size="sm" />
                   </>
                 }
@@ -672,7 +697,7 @@ function snapToMinute(seconds: number): number {
 function LegSkeleton({ hash }: { hash: string }) {
   return (
     <>
-      <PageHeader title={`Leg ${truncateHash(hash)}`} />
+      <PageHeader title={`Offer ${truncateHash(hash)}`} />
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)] lg:items-start">
         <div className="flex flex-col gap-8">
           <Skeleton className="h-80 w-full" radius="card" label="the trading curve" />

@@ -180,7 +180,7 @@ export function RollPanel({
     setDone(undefined);
     const plan: TxPlanStep[] = [
       {
-        label: `Ship the rolled leg · ${formatExpiry(next.maturity)}`,
+        label: `Publish the offer at the new date · ${formatExpiry(next.maturity)}`,
         send: () =>
           writeContract({
             address: aqua,
@@ -191,7 +191,7 @@ export function RollPanel({
           }),
       },
       {
-        label: 'Dock the old leg',
+        label: 'Withdraw the old offer',
         send: () =>
           writeContract({
             address: aqua,
@@ -219,7 +219,7 @@ export function RollPanel({
     try {
       await run([
         {
-          label: 'Dock this leg',
+          label: 'Withdraw this offer',
           send: () =>
             writeContract({
               address: aqua,
@@ -240,13 +240,13 @@ export function RollPanel({
   const transferLogs = countTransferLogs(steps);
   const notMaker =
     !canAct || !address || address.toLowerCase() !== maker.toLowerCase()
-      ? 'Only the maker of this leg can roll or dock it.'
+      ? 'Only the wallet that wrote this offer can move it or take it down.'
       : undefined;
 
   return (
     <Card
-      title="Roll or retire"
-      description="Both are pure accounting in Aqua. Ship writes a virtual balance, dock zeroes it, and neither performs a transfer."
+      title="Move it later, or take it down"
+      description="Both are bookkeeping. Neither moves a token, and there is nothing to withdraw because nothing was ever deposited."
       footer={
         transferLogs === undefined ? (
           <span className="font-mono tnum">0 tokens will move</span>
@@ -262,7 +262,7 @@ export function RollPanel({
     >
       <div className="flex flex-col gap-4">
         <SegmentedControl
-          label="New tenor"
+          label="New date"
           size="sm"
           items={EXPIRY_PRESETS.map((p) => ({ value: String(p.days), label: p.label }))}
           value={String(tenor)}
@@ -270,7 +270,7 @@ export function RollPanel({
         />
 
         <dl className="flex flex-col">
-          <CardRow label="New expiry">
+          <CardRow label="Runs to">
             <span className="font-mono tnum">
               {next ? formatExpiry(next.maturity) : <Skeleton className="h-3.5 w-40" />}
             </span>
@@ -278,7 +278,7 @@ export function RollPanel({
           <CardRow label={`${riskySymbol} carried over`}>
             <TokenAmount value={riskyRaw} decimals={riskyDecimals} size="sm" />
           </CardRow>
-          <CardRow label={`${stableSymbol} on the new curve`}>
+          <CardRow label={`${stableSymbol} at the new date`}>
             {next ? (
               <TokenAmount value={next.stableRaw} decimals={stableDecimals} size="sm" />
             ) : (
@@ -288,21 +288,23 @@ export function RollPanel({
         </dl>
 
         <p className="text-mini leading-prose text-ink-3">
-          The rolled leg keeps K, sigma and L and inherits the reserves this one holds right now, so it
-          opens at the moneyness the fills left rather than at a remembered starting point. Its stable
-          side is <span className="font-mono">stableFor</span> at the new maturity, read from the router.
+          The new offer keeps the same price, the same size and the same movement, and picks up
+          wherever the trades so far have left this one. <em className="not-italic text-ink-2">Mechanically:</em>{' '}
+          it keeps K, sigma and L, inherits the current reserves, and its stable side is{' '}
+          <span className="font-mono">stableFor</span> at the new maturity, read from the router.
         </p>
 
         <div className="flex flex-wrap gap-2">
           <Button
             icon={RotateCw}
             loading={isRunning && done === undefined}
-            loadingLabel="Rolling"
+            loadingLabel="Moving it"
             disabled={!next || Boolean(notMaker)}
-            disabledReason={notMaker ?? 'Waiting for the router to price the new curve.'}
+            disabledReason={notMaker ?? 'Waiting for the chain to price the offer at the new date.'}
             onClick={() => void roll()}
+            title="Roll"
           >
-            Roll
+            Move to a later date
           </Button>
           <Button
             variant="danger"
@@ -310,30 +312,31 @@ export function RollPanel({
             disabled={Boolean(notMaker)}
             disabledReason={notMaker}
             onClick={() => setConfirmingDock(true)}
+            title="Dock"
           >
-            Dock
+            Take it down
           </Button>
         </div>
 
         <TxStepper
           steps={steps}
           chainId={chainId}
-          plan={['Ship the rolled leg', 'Dock the old leg']}
+          plan={['Publish the offer at the new date', 'Withdraw the old offer']}
         />
 
-        {error ? <ErrorState error={error} title="The roll did not complete" bare /> : null}
+        {error ? <ErrorState error={error} title="The move did not complete" bare /> : null}
 
         {done === 'rolled' && next ? (
-          <Callout tone="positive" title="Rolled" icon={Ship}>
-            The old hash is dead for good: Aqua writes <span className="font-mono">0xff</span> on
-            dock and never lets it be shipped again. The new leg is already quoting.
+          <Callout tone="positive" title="Moved" icon={Ship}>
+            The old offer is gone for good: the chain writes <span className="font-mono">0xff</span>{' '}
+            over it and will never accept it again. The new one is already quoting.
           </Callout>
         ) : null}
 
         {done === 'docked' ? (
-          <Callout tone="info" title="Docked">
-            The virtual balances are zero and the strategy can no longer be filled. The wallet is
-            untouched; there was never anything in Aqua to withdraw.
+          <Callout tone="info" title="Taken down">
+            Nobody can take this offer any more. Your wallet is untouched: there was never anything
+            held anywhere to withdraw.
           </Callout>
         ) : null}
 
@@ -341,7 +344,7 @@ export function RollPanel({
           open={confirmingDock}
           onClose={() => setConfirmingDock(false)}
           size="sm"
-          title="Dock this leg"
+          title="Take this offer down"
           description="This cannot be undone, and it is not the same as closing a position."
           footer={
             <>
@@ -349,23 +352,21 @@ export function RollPanel({
                 Keep quoting
               </Button>
               <Button variant="danger" icon={Trash2} onClick={() => void dock()}>
-                Dock the leg
+                Take it down
               </Button>
             </>
           }
         >
           <div className="flex flex-col gap-3 text-meta leading-prose text-ink-2">
             <p>
-              Quoting stops in the block this lands in. Aqua writes{' '}
-              <span className="font-mono">0xff</span> into the strategy&rsquo;s token counts, so this
-              hash can never be shipped again. The same K, sigma and L can only come back under a
-              fresh salt, as a different position with a different history.
+              Quoting stops in the block this lands in, and this offer can never be published again.
+              The same price, size and movement can only come back as a new offer with its own
+              history.
             </p>
             <p>
-              No token moves and there is nothing to withdraw: the reserves were virtual balances,
-              and the wallet has held the whole amount the entire time. If the intent is to move the
-              position to a later expiry, roll instead. That ships the new leg first, so the book is
-              never dark between the two.
+              No token moves and there is nothing to withdraw: your wallet has held the whole amount
+              the entire time. If you only want a later date, move it instead. That publishes the new
+              offer first, so you are never absent from the market in between.
             </p>
           </div>
         </Dialog>
@@ -373,14 +374,14 @@ export function RollPanel({
         {next ? (
           <details className="rounded-card border border-line">
             <summary className="cursor-pointer list-none px-4 py-3 text-meta text-ink-2 transition-state hover:text-ink">
-              The program the roll would ship
+              The program this would publish
             </summary>
             <div className="px-4 pb-4">
               <ProgramInspector
                 bare
                 program={next.program}
                 strategyHash={next.strategyHash}
-                title="Rolled leg"
+                title="The offer at its new date"
                 description="Same K, sigma and L; a new maturity, a new deadline, and a fresh salt so the hash does not collide with the leg it replaces."
               />
             </div>

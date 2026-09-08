@@ -394,11 +394,12 @@ export function pull(
 }
 
 /**
- * `Swapped(bytes32 orderHash, address taker, address tokenIn, address tokenOut, address receiver,
- * uint256 amountIn, uint256 amountOut)` — the router's own fill event.
+ * `Swapped(bytes32 orderHash, address maker, address taker, address tokenIn, address tokenOut,
+ * uint256 amountIn, uint256 amountOut)` — the router's own fill event, in its own parameter order.
  */
 export function swap(
   hashArg: i32,
+  makerArg: i32,
   takerArg: i32,
   tokenInArg: i32,
   tokenOutArg: i32,
@@ -410,13 +411,13 @@ export function swap(
   timestamp: i64
 ): void {
   let params = eventParams(
-    ['orderHash', 'taker', 'tokenIn', 'tokenOut', 'receiver', 'amountIn', 'amountOut'],
+    ['orderHash', 'maker', 'taker', 'tokenIn', 'tokenOut', 'amountIn', 'amountOut'],
     [
       ethereum.Value.fromFixedBytes(argBytes(hashArg)),
+      ethereum.Value.fromAddress(argAddress(makerArg)),
       ethereum.Value.fromAddress(argAddress(takerArg)),
       ethereum.Value.fromAddress(argAddress(tokenInArg)),
       ethereum.Value.fromAddress(argAddress(tokenOutArg)),
-      ethereum.Value.fromAddress(argAddress(takerArg)),
       ethereum.Value.fromUnsignedBigInt(argWord(amountInArg)),
       ethereum.Value.fromUnsignedBigInt(argWord(amountOutArg)),
     ]

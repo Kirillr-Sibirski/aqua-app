@@ -3,10 +3,12 @@
  *
  * Three implementations read the same bytes: `contracts/src/SurfaceLens.sol`,
  * `subgraph/src/decode.ts` and this one. A one-byte disagreement between them would put a wrong
- * strike on screen with no error anywhere, so the golden vector below is the exact
- * `abi.encode(order)` a Foundry test shipped to a live Aqua — printed by
+ * strike on screen with no error anywhere, so all three are pinned to one file —
+ * `subgraph/tests/golden.json`, the exact `abi.encode(order)` a Foundry test shipped to a live
+ * Aqua, printed by
  * `contracts/test/surface/SurfaceLens.t.sol::test_Decode_RecoversTheTermsFromTheShippedBytes`,
- * whose assertions fix every field it decodes to.
+ * whose assertions fix every field it decodes to. `subgraph/tests/decode.test.mjs` runs the
+ * AssemblyScript decoder over the same file.
  *
  * Regenerate: `forge test --match-test test_Decode_RecoversTheTermsFromTheShippedBytes -vv`
  */

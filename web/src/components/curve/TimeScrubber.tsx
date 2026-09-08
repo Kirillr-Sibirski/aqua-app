@@ -69,14 +69,14 @@ export function TimeScrubber({
     <div className={cn('flex flex-col gap-2', className)}>
       <div className="flex items-baseline justify-between gap-4">
         <label htmlFor={id} className="text-mini text-ink-2">
-          Time to maturity
+          Time left. Drag to look ahead.
         </label>
         <span className="font-mono text-meta tnum text-ink">
           {formatDuration(left)}
           {atNow ? <span className="ml-2 text-mini text-ink-3">live</span> : null}
           {floored ? (
-            <span className="ml-2 text-mini text-warn">
-              tau floored at {formatDuration(floorSeconds)}
+            <span className="ml-2 text-mini text-warn" title="tau is floored at this remaining time">
+              the clock stops shortening inside {formatDuration(floorSeconds)}
             </span>
           ) : null}
         </span>
@@ -122,7 +122,7 @@ export function TimeScrubber({
           icon={RotateCcw}
           onClick={() => onValueChange(0)}
           disabled={atNow}
-          disabledReason={atNow ? 'The curve is already at the current block.' : undefined}
+          disabledReason={atNow ? 'Already showing today.' : undefined}
         >
           Now
         </Button>
