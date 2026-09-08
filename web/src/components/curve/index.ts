@@ -44,11 +44,7 @@ export type { DecodedField, DecodedInstruction } from './program';
 export { ProgramInspector } from './ProgramInspector';
 export type { ProgramInspectorProps } from './ProgramInspector';
 
-export { CurveChart } from './CurveChart';
-export type { BandCorner, CurveChartProps, FillMarker, ReservePoint } from './CurveChart';
-
-export { TimeScrubber, formatDuration } from './TimeScrubber';
-export type { TimeScrubberProps } from './TimeScrubber';
+export { formatDuration } from './duration';
 
 export {
   readLegLedger,
