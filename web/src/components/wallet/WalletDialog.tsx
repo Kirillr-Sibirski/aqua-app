@@ -152,7 +152,11 @@ function ConnectorRow({ name, detail, icon, badge, pending, onClick }: Connector
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-body text-ink">{name}</span>
-        {detail ? <span className="block truncate text-mini text-ink-3">{detail}</span> : null}
+        {/* Wraps. The demo connector's detail is a safety string -- "Signs locally with the fork's
+            maker key. Never use it on a live network." -- and `truncate` cut it at "Never u…",
+            which is exactly the clause that matters. A warning is the one string that must not be
+            ellipsized. */}
+        {detail ? <span className="block text-mini leading-prose text-ink-3">{detail}</span> : null}
       </span>
       {pending ? (
         <span className="flex shrink-0 items-center gap-2 text-mini text-ink-3">
