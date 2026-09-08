@@ -136,8 +136,13 @@ export function useLegSizing({
     allowFailure: false,
     query: {
       enabled: ready,
-      // Sized against a maturity and a spot that both move; a stale reserve is a wrong reserve.
+      // A stale reserve is a wrong reserve, and it can go stale two ways. Usually the query re-keys
+      // on its own, because `x` is chosen from a `tau` that shrinks every block. But when the risky
+      // token's decimals round that drift away, the arguments stop moving while the answer does
+      // not: `StrikelineViews._sNow` reads `block.timestamp`, so `stableFor` returns a different
+      // `y` for the same five arguments at a later block. The poll is what closes that second door.
       staleTime: 4_000,
+      refetchInterval: 8_000,
       retry: false,
     },
   });
