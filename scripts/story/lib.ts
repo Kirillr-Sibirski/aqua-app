@@ -85,6 +85,12 @@ export interface StoryState {
   /** Spot the book was written against, WAD, from the replayed tape. */
   spotWadAtShip?: string;
   legs: StoredLeg[];
+  /**
+   * The last RMM fill before maturity, recorded by scene 2 so that scene 5 can put the gas of a
+   * settlement fill next to the gas of a live-curve one. Both are real receipts from the same
+   * instruction on the same router; the difference is the `tau == 0` branch skipping the Gaussian.
+   */
+  lastFill?: { scene: string; label: string; tx: Hex; gas: string; blockNumber: number; tauWad: string };
   /** Append-only log of what each scene did, so a re-run can tell the presenter where they are. */
   history: Array<{ scene: string; at: string; forkTs: number; note: string }>;
 }

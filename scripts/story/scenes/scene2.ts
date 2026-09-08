@@ -26,7 +26,7 @@
 import { runBot, type Fill } from '../../arb/bot.ts';
 import { legName } from '../../arb/discover.ts';
 import { EPS_WAD, WAD, ceilDiv } from '../../arb/rmm.ts';
-import { coverageOf, quoteAt, readReserves, restoreOrder, takerDataFor } from '../book.ts';
+import { coverageOf, quoteAt, readReserves, restoreOrder, takerDataFor, tauNow } from '../book.ts';
 import type { Ctx } from '../context.ts';
 import {
   check,
@@ -250,6 +250,14 @@ export async function run(ctx: Ctx, argv: string[]): Promise<void> {
     ['the mechanism', `${tightened.length} untouched leg(s) tightened in block ${at}. No keeper. No shared storage. No message.`],
     ['why', 'Coverage reads balanceOf(maker) inside the same call that prices the trade, and every leg reads the same wallet.'],
   ]);
+  ctx.state.lastFill = {
+    scene: '2',
+    label: legName(fill.plan.leg),
+    tx: fill.txHash,
+    gas: fill.gasUsed.toString(),
+    blockNumber: Number(fill.blockNumber),
+    tauWad: (await tauNow(ctx.d.router, fill.plan.leg.params.maturity, fill.blockNumber)).toString(),
+  };
   note(
     ctx.state,
     '2',
