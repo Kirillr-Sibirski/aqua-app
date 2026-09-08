@@ -70,30 +70,94 @@ keeper, no shared storage, no message passing. Over-allocation becomes portfolio
 It runs *after* the curve on purpose: clamping `balanceOut` beforehand would move the reserve point and
 therefore change the **price**, not just the size — quoting a different option than the maker wrote.
 
-## The read layer: a volatility surface out of Aqua's event log
+## The read layer: reading a market out of a log, with The Graph
 
-`Aqua.ship` takes the strategy *"fully instead of being pre-hashed, for data availability"*, and the
-`Shipped` event carries those bytes verbatim. A Strikeline leg's 62 `RmmSwap` argument bytes hold the
-strike, the implied vol, the maturity and the liquidity **in the clear**. So every option any maker has
-ever written on this router is decodable by anyone holding the log, with no cooperation from the maker,
-no off-chain order book and no price feed.
+A market needs a price list. Before you sell anything you want to know what the same thing is
+fetching from everyone else — and here, nobody publishes one. Each offer is a small program its
+maker put on chain, and the registry holding it keys that program by the hash of its own bytes and
+relates nothing to anything. Two people offering to sell ETH at the same price on the same date are
+two unrelated storage slots. There is no order book to read and no feed to subscribe to.
 
-That makes something possible that does not currently exist anywhere in DeFi: **an implied-volatility
-surface read off-chain state alone.** Three pieces build it, and each degrades to the next.
+What there is, is the log. `Aqua.ship` takes the strategy *"fully instead of being pre-hashed, for
+data availability"*, so the `Shipped` event carries the whole program, and a Strikeline offer's 62
+`RmmSwap` argument bytes hold the price, the date, the size and the volatility **in the clear**.
+Anyone holding the log can recover the terms of every offer any maker has ever made here — with no
+cooperation from the maker, no off-chain book and no price feed. The market is already public. It
+has just never been assembled.
 
-| | | |
-|---|---|---|
-| [`contracts/src/SurfaceLens.sol`](contracts/src/SurfaceLens.sol) | A view contract that prices a whole book in one call: terms, live Aqua reserves, mark, delta, premium and theta band per leg. | 9,179 B runtime, a **separate** contract so it spends none of the router's EIP-170 headroom. Prices the four-leg demo ladder in one `eth_call` for 1,376,728 gas. Every batch entry is fault-isolated in `try/catch`, so a strategy that is not a leg comes back `isLeg == false` instead of taking the book down. |
-| [`subgraph/`](subgraph/README.md) | **The Graph.** Indexes the official Aqua's `Shipped`/`Docked`/`Pushed`/`Pulled` and our router's `Swapped`, decoding the strategy bytes inside the AssemblyScript mapping into `Leg`, `Maker`, `Fill` and `SurfacePoint`. | Aqua's events carry no indexed parameters, so the `app` filter lives in the mapping. `SurfacePoint` is the aggregation the registry has no notion of: a strategy is opaque bytes keyed by its own hash, and nothing relates two makers who wrote the same option. |
-| [`web/src/app/(app)/surface`](web/src/app/(app)/surface/page.tsx) | Strike on x, expiry on y, implied vol as the surface, every live leg plotted and yours marked. Plus **"best bid for a 7-day 2,800 call, across all makers"** — the quote Aqua structurally lacks. | Needs no wallet: it reads a public log. If the subgraph is not running it pulls the same `Shipped` events straight through viem and decodes them with the same byte offsets; if the lens is not deployed it runs the contract's own init code inside one `eth_call`. The demo never waits on external infrastructure. |
+*If you already trade options:* this is an implied-volatility surface reconstructed from on-chain
+state alone, which does not currently exist anywhere in DeFi. Strike on one axis, expiry on the
+other, σ read straight out of the program bytes rather than solved for, and a cross-maker best bid
+at each cell.
 
-The lens is the read that matters for a solver: one multicall returns the deliverable depth `Coverage`
-will actually honour on every leg at once, which is the number an order book would publish and Aqua
-does not have.
+### `subgraph/` — **The Graph**, which is where the assembling happens ([README](subgraph/README.md))
+
+A subgraph indexes the official Aqua's `Shipped`, `Docked`, `Pushed` and `Pulled` plus our router's
+`Swapped`, and **decodes the strategy bytes inside the AssemblyScript mapping** — so what lands in
+the index is not a blob keyed by a hash but four entities: `Leg` (one offer: its price, date, size,
+vol, live reserves, and whether its depth is margined), `Maker`, `Fill`, and `SurfacePoint`.
+
+`SurfacePoint` is the one that exists nowhere on chain: a cell of the surface, holding every maker
+who wrote that option, the widest live vol among them, and the size written across all of them. The
+mapping creates and maintains it on every ship and every dock. **That entity is the price list**, and
+this is the query it answers:
+
+```graphql
+{ surfacePoints(where: { strikeWad: "2800000000000000000000", liveLegCount_gt: 0 }) {
+    liveLegCount  maxSigmaWad  liveLiquidityWad
+    bestLeg { maker { id } sigmaWad liquidityWad reserveRisky guarded } } }
+```
+
+```json
+{ "liveLegCount": 2, "maxSigmaWad": "680000000000000000", "liveLiquidityWad": "24000000000000000000",
+  "bestLeg": { "maker": { "id": "0x2d4f7b1c…b3a2" }, "sigmaWad": "680000000000000000",
+    "liquidityWad": "12000000000000000000", "reserveRisky": "7040000000000000000", "guarded": true } }
+```
+
+Three makers wrote that 2,800 call and one withdrew. The better of the two still standing pays 68%
+vol, and its size is margined against its wallet rather than merely advertised.
+
+That response is a **transcript, not an illustration.** `subgraph/tests/` runs the mappings
+themselves — compiled with the exact `asc` arguments `graph build` uses, against an in-memory store
+playing graph-node's host — and writes the answer out. 18 tests: seven pin the decode to one real
+`abi.encode(Order)` captured from the Foundry suite (K, σ, maturity, L, plus the six inputs it must
+decline rather than guess at), and eleven ship, push, pull, fill and dock a book of four offers from
+three makers and assert the entity graph that comes out.
+
+Aqua's events carry no indexed parameters, so the `app` filter cannot live in the manifest and lives
+in the mapping instead — which is also what lets one deployment index every Strikeline offer on the
+registry rather than only ours.
+
+### `contracts/src/SurfaceLens.sol` — the numbers a log cannot carry ([src](contracts/src/SurfaceLens.sol))
+
+The bytes are fixed; the price is not, because it moves with the clock. A view contract prices a
+whole book in one call: terms, live Aqua reserves, mark, delta, premium and the theta band per
+offer. 9,179 B runtime, a **separate** contract so it spends none of the router's EIP-170
+headroom, and it prices the four-leg demo ladder in one `eth_call` for 1,376,728 gas. Every batch
+entry is fault-isolated in `try/catch`, so a strategy that is not an offer comes back
+`isLeg == false` instead of taking the book down.
+
+This is the read that matters to a solver: one call returns the deliverable depth `Coverage` will
+actually honour on every leg at once, which is the number an order book would publish and Aqua does
+not have.
+
+### `web/src/app/(app)/surface` — the screen, which needs no wallet ([src](web/src/app/(app)/surface/page.tsx))
+
+Every offer anyone has made, with the best bid across all makers at the top, because that is the
+quote the registry structurally lacks. Underneath it sits a panel that names its own sources: which
+path answered this page load, how far behind the index is, and the query above with the strike and
+expiry currently on screen substituted in, ready to paste into a playground.
+
+It reads a public log, so it works with nothing connected; a wallet only marks which offers are
+yours. If the subgraph is not running it pulls the same `Shipped` events straight through viem and
+decodes them with the same byte offsets, and says so on screen. If the lens is not deployed it runs
+the contract's own init code inside one `eth_call`. The demo never waits on external infrastructure
+— and the two decode paths are a cross-check on each other: if they disagreed about a price, one of
+them would be wrong.
 
 ```bash
 make subgraph        # graph codegen && graph build
-make test-surface    # 20 Foundry tests on the lens, then the read path against the fork
+make test-surface    # 18 mapping tests, 20 Foundry tests on the lens, then the read path on the fork
 ```
 
 ## The same curve in a pool: a Uniswap v4 hook, and what it costs
@@ -178,6 +242,8 @@ contracts/          Foundry. The router, the two instructions, the math, the tes
   src/math/         Gaussian.sol (A&S 7.1.26 erfc + bisection), WadMath.sol (solady)
   src/StrikelineRouter.sol, StrikelineOpcodes.sol, StrikelineViews.sol
   src/SurfaceLens.sol                                   <- the read layer, off the router
+  src/spikes/       the feasibility spikes, with a README saying what each one measured.
+                    Nothing here ships; `src/instructions/` is exactly the two files above.
   test/strikeline/  the nine thesis tests
   test/surface/     the lens: decode, mark, delta, premium, band, cross-maker ranking
   test/fork/        mainnet-fork fills through the official Aqua + official router
