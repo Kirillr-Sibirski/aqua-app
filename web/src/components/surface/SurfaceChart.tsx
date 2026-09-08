@@ -88,19 +88,19 @@ export function SurfaceChart({
   return (
     <ChartFrame
       title="Volatility surface"
-      description={`Implied volatility by strike and expiry, decoded from the program bytes of ${chips.length} live quote${chips.length === 1 ? '' : 's'} on this router. Horizontal axis is the strike in ${stableSymbol}; vertical axis is days to expiry; each chip is labelled with its implied volatility as a percentage.`}
+      description={`Every price and date somebody is quoting, decoded from the published bytes of ${chips.length} live offer${chips.length === 1 ? '' : 's'} on this router. Horizontal axis is the price they would sell at in ${stableSymbol}; vertical axis is days until the offer runs out; each chip is labelled with the movement that maker priced in.`}
       subtitle={
         expiries.length === 1
-          ? 'One expiry on the book, so this is a smile rather than a surface. A second expiry adds the second row.'
-          : `${expiries.length} expiries, ${chips.length} live points.`
+          ? 'Each chip is one price somebody is quoting, labelled with the movement they priced in. Only one date is on offer so far, so this is one row rather than a surface.'
+          : `Each chip is one price somebody is quoting, labelled with the movement they priced in. ${expiries.length} dates, ${chips.length} live points.`
       }
       height={height}
       margin={{ top: 20, right: 34, bottom: 34, left: 62 }}
       state={resolvedState}
-      emptyMessage="No live quote has been written on this router yet. The surface is built from Aqua's Shipped log, so it fills in the moment a leg lands."
+      emptyMessage="Nobody is quoting on this router yet. This is built from the chain's own log, so it fills in the moment the first offer lands."
       errorMessage={errorMessage}
       legend={<Legend />}
-      footnote="Implied vol is a parameter of each quote, read out of the RmmSwap arguments, not solved for. Docked legs are not drawn; they are listed in the table below."
+      footnote="The movement priced in is something each maker chose and published, read straight out of their offer, not solved for. Offers that were taken down are not drawn; they are listed in the table below."
       table={<ChipTable chips={chips} stableSymbol={stableSymbol} />}
       tableLabel="the points"
     >
@@ -248,10 +248,14 @@ function ChipTable({ chips, stableSymbol }: { chips: readonly Chip[]; stableSymb
     <Table caption="Points on the surface" hideCaption minWidth="34rem">
       <TableHead>
         <TableRow>
-          <TableHeaderCell numeric>Strike ({stableSymbol})</TableHeaderCell>
+          <TableHeaderCell numeric title="Strike, K">
+            Sells at ({stableSymbol})
+          </TableHeaderCell>
           <TableHeaderCell numeric>Days</TableHeaderCell>
-          <TableHeaderCell numeric>Implied vol</TableHeaderCell>
-          <TableHeaderCell numeric>Quotes</TableHeaderCell>
+          <TableHeaderCell numeric title="Implied volatility">
+            Movement
+          </TableHeaderCell>
+          <TableHeaderCell numeric>Offers</TableHeaderCell>
           <TableHeaderCell>Yours</TableHeaderCell>
         </TableRow>
       </TableHead>

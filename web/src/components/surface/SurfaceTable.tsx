@@ -35,27 +35,43 @@ export interface SurfaceTableProps {
 export function SurfaceTable({ legs, deployments, nowSeconds, loading, onSelect }: SurfaceTableProps) {
   return (
     <Card
-      title="Every leg on the router"
-      description="Read from Aqua's Shipped log and priced at one block, across every maker. Docked legs stay listed: an option that was withdrawn is part of the record."
+      title="Every offer on this router"
+      description="Read from the chain's own log and priced at one block, across every wallet. Offers that were taken down stay listed: one that was withdrawn is still part of the record."
       flush
     >
       <Table
-        caption="Every leg written on this router"
+        caption="Every offer made on this router"
         hideCaption
         minWidth="72rem"
-        scrollHint="mark, premium, deliverable"
+        scrollHint="mark, option value, how much can be sold"
       >
         <TableHead>
           <TableRow>
-            <TableHeaderCell>Maker</TableHeaderCell>
-            <TableHeaderCell numeric>Strike</TableHeaderCell>
-            <TableHeaderCell numeric>Expiry</TableHeaderCell>
-            <TableHeaderCell numeric>Implied vol</TableHeaderCell>
-            <TableHeaderCell numeric>Notional</TableHeaderCell>
-            <TableHeaderCell numeric>Delta</TableHeaderCell>
-            <TableHeaderCell numeric>Mark</TableHeaderCell>
-            <TableHeaderCell numeric>Premium</TableHeaderCell>
-            <TableHeaderCell numeric>Deliverable</TableHeaderCell>
+            <TableHeaderCell title="Maker">Wallet</TableHeaderCell>
+            <TableHeaderCell numeric title="Strike, K">
+              Sells at
+            </TableHeaderCell>
+            <TableHeaderCell numeric title="Time to expiry">
+              Time left
+            </TableHeaderCell>
+            <TableHeaderCell numeric title="Implied volatility">
+              Movement
+            </TableHeaderCell>
+            <TableHeaderCell numeric title="Notional, L">
+              Size
+            </TableHeaderCell>
+            <TableHeaderCell numeric title="Delta, Phi(-d1) read from the reserves">
+              Delta
+            </TableHeaderCell>
+            <TableHeaderCell numeric title="Mark: the price the curve is quoting right now">
+              Mark
+            </TableHeaderCell>
+            <TableHeaderCell numeric title="Premium, the Black-Scholes value measured from the reserves">
+              Option value
+            </TableHeaderCell>
+            <TableHeaderCell numeric title="Deliverable depth">
+              Can sell now
+            </TableHeaderCell>
             <TableHeaderCell>Status</TableHeaderCell>
           </TableRow>
         </TableHead>
@@ -165,12 +181,12 @@ function LegRow({
       <TableCell>
         <div className="flex items-center gap-1.5">
           {leg.docked ? (
-            <Pill tone="neutral" size="sm" dot>
-              Docked
+            <Pill tone="neutral" size="sm" dot title="Docked in Aqua">
+              Withdrawn
             </Pill>
           ) : matured ? (
-            <Pill tone="warning" size="sm" dot>
-              Settling
+            <Pill tone="warning" size="sm" dot title="Past maturity: settling, assignment only">
+              Past its date
             </Pill>
           ) : (
             <Pill tone="positive" size="sm" dot>
@@ -178,8 +194,8 @@ function LegRow({
             </Pill>
           )}
           {!leg.docked && !leg.guarded ? (
-            <Pill tone="warning" size="sm">
-              Unproven
+            <Pill tone="warning" size="sm" title="No Coverage instruction wraps the curve">
+              Wallet not checked
             </Pill>
           ) : null}
         </div>

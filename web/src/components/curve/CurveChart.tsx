@@ -23,7 +23,8 @@ import { ChartFrame, PlotArea, type ChartState } from '@/components/charts/Chart
 import { CurveLine } from '@/components/charts/CurveLine';
 import { Grid } from '@/components/charts/Grid';
 import { formatChartNumber } from '@/components/charts/format';
-import { round, type ChartPoint } from '@/components/charts/types';
+import { estimateMonoTextWidth } from '@/components/charts/geometry';
+import { round, type ChartGeometry, type ChartPoint } from '@/components/charts/types';
 import {
   SegmentedControl,
   Table,
@@ -155,7 +156,11 @@ export function CurveChart({
   return (
     <ChartFrame
       title="How this offer prices a trade"
-      description={`${stableSymbol} against ${riskySymbol} for this offer. The solid line is where a trade clears ${scrubbed ? 'at the time you dragged to' : 'right now'}, the dashed line is what the offer becomes on the date it runs to, and the shaded wedge is the gap a buyer has to cross to reach it. X runs from 0 to ${formatChartNumber(maxX)} ${riskySymbol}; Y from 0 to ${formatChartNumber(maxY)} ${stableSymbol}.`}
+      description={
+        atBand
+          ? `The gap on this offer, drawn at its own scale. The shaded wedge is what a buyer has to cross before a trade clears; its corners are the two smallest trades that do, ${formatChartNumber(bandDx, { significantDigits: 3 })} ${riskySymbol} in and ${formatChartNumber(bandDy, { significantDigits: 3 })} ${stableSymbol} in. X runs from ${formatChartNumber(domain.x[0])} to ${formatChartNumber(domain.x[1])} ${riskySymbol}; Y from ${formatChartNumber(domain.y[0])} to ${formatChartNumber(domain.y[1])} ${stableSymbol}.`
+          : `${stableSymbol} against ${riskySymbol} for this offer. The solid line is where a trade clears ${scrubbed ? 'at the time you dragged to' : 'right now'}, the dashed line is what the offer becomes on the date it runs to, and the shaded wedge is the gap a buyer has to cross to reach it. X runs from 0 to ${formatChartNumber(maxX)} ${riskySymbol}; Y from 0 to ${formatChartNumber(maxY)} ${stableSymbol}.`
+      }
       subtitle={subtitle}
       height={height}
       margin={MARGIN}

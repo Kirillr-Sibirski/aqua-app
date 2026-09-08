@@ -690,7 +690,7 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
     }
 
     /// @dev A daily thinning of the path, so the terminal output shows the shape without 169 rows.
-    function _printPath(Run memory r) private view {
+    function _printPath(Run memory r) private pure {
         console2.log("");
         console2.log("  Path, one row per day (USD)");
         console2.log("  day    spot        Strikeline    hold          5bp pool      fills");
