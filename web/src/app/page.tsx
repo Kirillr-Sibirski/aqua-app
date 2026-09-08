@@ -14,12 +14,13 @@
  * that earns and what it gives up and one button that publishes it. The positions view still
  * exists, still matters, and is a second tab that appears once there is something in it.
  */
-import { OfferCard, SellChrome } from '@/components/sell';
+import { OfferCard } from '@/components/sell';
+import { AppChrome } from '@/components/shell';
 
 export default function SellPage() {
   return (
-    <SellChrome>
+    <AppChrome layout="card">
       <OfferCard />
-    </SellChrome>
+    </AppChrome>
   );
 }

@@ -29,13 +29,11 @@ import Link from 'next/link';
 import { useState } from 'react';
 import type { Hex } from 'viem';
 import { useConnection } from 'wagmi';
-import { useDeploymentChain } from '@/components/shell/useDeploymentChain';
-import { useIsHydrated } from '@/components/shell/useIsHydrated';
-import { describeError } from '@/components/ui';
+import { AppChrome, useDeploymentChain, useIsHydrated } from '@/components/shell';
+
 import { useBook } from '@/hooks/useBook';
-import { formatTokenAmount } from '@/lib/ui';
+import { describeError, formatTokenAmount } from '@/lib/ui';
 import { BackingBar } from './BackingBar';
-import { OffersChrome } from './OffersChrome';
 import { OffersDisconnected, OffersNone } from './OffersEmpty';
 import { OffersTable } from './OffersTable';
 import { HATCH } from './visual';
@@ -66,7 +64,7 @@ export function OffersScreen() {
   const hasOffers = connected && !book.error && (book.isLoading || book.legs.length > 0);
 
   return (
-    <OffersChrome
+    <AppChrome
       blockNumber={book.blockNumber}
       readChainName={wrongNetwork ? deploymentChain.name : undefined}
     >
@@ -154,7 +152,7 @@ export function OffersScreen() {
           <Footnotes book={book} wrongNetwork={wrongNetwork} readChainName={deploymentChain.name} />
         </div>
       )}
-    </OffersChrome>
+    </AppChrome>
   );
 }
 

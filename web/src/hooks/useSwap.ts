@@ -5,6 +5,7 @@ import { readContract } from 'wagmi/actions';
 import { aquaFork } from '@/lib/chain';
 import { tokenInfo } from '@/lib/contracts';
 import { buildTakerTraits, decodeOrder, swapVmAbi, type Order } from '@/lib/swapvm';
+import { formatUnits } from '@/lib/ui';
 import { strikelineErrorsAbi } from './strikeline';
 
 /**
@@ -122,7 +123,23 @@ export function useSwap() {
         },
       ];
 
-      const done = await run(plan);
+      /**
+       * Denominating the one refusal whose units are unambiguous.
+       *
+       * `Coverage.NotCovered(needed, free)` compares raw `tokenOut` amounts against the maker's own
+       * `balanceOf ∧ allowance`, so both arguments are that token and can be printed as it. The
+       * `RmmSwap` errors are deliberately left as exact integers: `RmmInsideSpread` is a
+       * WAD-normalised reserve difference on the out side in the exact-in branch and on the in side
+       * in the exact-out branch, so a decimals guess would render a wrong number, and a wrong number
+       * is worse here than a long one.
+       */
+      const outMeta = tokenInfo(tokenOut, deployments);
+      const formatArg = (value: string, _index: number, name: string) =>
+        name === 'NotCovered'
+          ? `${formatUnits(BigInt(value), outMeta.decimals, { significantDigits: 8 })} ${outMeta.symbol}`
+          : undefined;
+
+      const done = await run(plan, formatArg);
       const last = done[done.length - 1];
       if (!last?.hash) throw new Error('swap did not produce a transaction hash');
 

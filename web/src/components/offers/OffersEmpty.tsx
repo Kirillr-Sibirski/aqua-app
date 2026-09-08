@@ -9,9 +9,10 @@
  * that resolves it. No feature list, no second button competing with the first.
  */
 import { Button, Paper, Text, Title } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { ConnectButton } from '@/components/wallet';
+import { ConnectModal } from '@/components/sell';
 
 function Shell({ title, children, action }: { title: string; children: ReactNode; action: ReactNode }) {
   return (
@@ -34,10 +35,27 @@ function Shell({ title, children, action }: { title: string; children: ReactNode
   );
 }
 
-/** No wallet. The offers exist on chain under an address; without one there is nothing to read. */
+/**
+ * No wallet. The offers exist on chain under an address; without one there is nothing to read.
+ *
+ * The button is the same control the header carries and opens the same picker; there is one wallet
+ * UI in this app. It is `filled` here and `default` in the bar because this one is the only action
+ * on the screen and that one sits beside a card whose own primary button must win.
+ */
 export function OffersDisconnected() {
+  const [opened, { open, close }] = useDisclosure(false);
   return (
-    <Shell title="Connect a wallet to see your offers" action={<ConnectButton size="md" />}>
+    <Shell
+      title="Connect a wallet to see your offers"
+      action={
+        <>
+          <Button size="md" onClick={open}>
+            Connect wallet
+          </Button>
+          <ConnectModal opened={opened} onClose={close} />
+        </>
+      }
+    >
       Your offers live on chain under your own address, not in a database beside this app. Connect a
       wallet and this page reads them back out of it — the terms, what your wallet can still hand
       over, and what past buyers have paid you.

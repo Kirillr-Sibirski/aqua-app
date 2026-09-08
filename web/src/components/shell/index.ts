@@ -1,21 +1,21 @@
 /**
  * The frame. One import for anything that draws chrome around a screen.
+ *
+ * One chrome, one nav, one wallet control. `AppChrome` replaced a pair of shells that disagreed
+ * about how many routes exist — two tabs on the card and the positions view, four items plus a
+ * network pill and a second wallet UI everywhere else — which a person saw directly as the header
+ * growing when they clicked their own offer.
  */
-export { AppShell } from './AppShell';
-export type { AppShellProps } from './AppShell';
+export { AppChrome } from './AppChrome';
+export type { AppChromeProps } from './AppChrome';
+
+export { SiteFooter } from './SiteFooter';
 
 export { PageHeader } from './PageHeader';
 export type { PageHeaderProps } from './PageHeader';
 
-export { Footer } from './Footer';
-export { NavBar } from './NavBar';
-export { MobileNav } from './MobileNav';
-export { NetworkPill } from './NetworkPill';
 export { Wordmark, WordmarkMark } from './Wordmark';
 export type { WordmarkProps } from './Wordmark';
-
-export { NAV_ITEMS, readyNavItems, isNavItemActive } from './nav';
-export type { NavItem } from './nav';
 
 export {
   explorerFor,

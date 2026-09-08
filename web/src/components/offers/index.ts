@@ -10,8 +10,6 @@
  */
 export { OffersScreen } from './OffersScreen';
 
-export { OffersChrome } from './OffersChrome';
-export type { OffersChromeProps } from './OffersChrome';
 
 export { BackingBar } from './BackingBar';
 export type { BackingBarProps } from './BackingBar';

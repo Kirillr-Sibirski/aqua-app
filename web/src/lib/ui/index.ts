@@ -5,5 +5,7 @@
  * it. Nothing here renders — components import from it, never the other way round.
  */
 export { cn } from './cn';
+export { describeError, explainError } from './error';
+export type { DescribedError, ErrorArgFormatter } from './error';
 export * from './tokens';
 export * from './format';

@@ -37,12 +37,11 @@ import {
   toRawReserve,
   type RmmArgs,
 } from '@/components/curve';
-import { countTransferLogs } from '@/components/tx/TxStepper';
 import { EXPIRY_PRESETS, formatExpiry, maturityAt } from '@/components/sell/expiry';
 import { aquaFork } from '@/lib/chain';
 import { aquaAbi } from '@/lib/contracts';
 import { buildAquaOrder, encodeStrategyForShip } from '@/lib/swapvm';
-import { useTxFlow, type TxPlanStep } from '@/hooks';
+import { countTransferLogs, useTxFlow, type TxPlanStep } from '@/hooks';
 import { formatUnits } from '@/lib/ui';
 import { Num, Panel, Row } from './bits';
 import { TxSteps } from './TxSteps';

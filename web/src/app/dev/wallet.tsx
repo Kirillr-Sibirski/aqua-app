@@ -1,10 +1,12 @@
 'use client';
 
 /**
- * Minimal, unstyled-but-tidy wallet controls: every injected wallet the browser announced
- * (MetaMask / Rabby / … via EIP-6963) plus the burner "demo mode" connector, the connected account,
- * the current chain and a switch-to-fork button. Product UI will replace this; the logic (which
- * connector ids exist, how demo mode is entered) is meant to be reused.
+ * The diagnostics page's own wallet control, and it lives here rather than in `components/`.
+ *
+ * The product's wallet UI is the three controls in `components/sell/WalletButton.tsx` and there is
+ * exactly one of it. This is a debugging surface where seeing every connector id and the raw
+ * connection status is the point, so it keeps its own plain-HTML control instead of dressing the
+ * product one up — and keeping it inside `app/dev/` means it leaves the tree with the route.
  */
 import { useMemo } from 'react';
 import { useConnect, useConnection, useConnectors, useDisconnect, useSwitchChain } from 'wagmi';
@@ -91,5 +93,3 @@ export function ConnectWallet({ className, chainId = FORK_CHAIN_ID }: ConnectWal
     </div>
   );
 }
-
-export default ConnectWallet;

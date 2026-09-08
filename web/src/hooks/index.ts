@@ -25,5 +25,5 @@ export type { DockParams, DockResult, UseDockReturn } from './useDock';
 export { useOraclePrice } from './useOraclePrice';
 export type { OraclePrice, UseOraclePriceOptions, UseOraclePriceReturn } from './useOraclePrice';
 
-export { useTxFlow, errorMessage } from './useTxFlow';
+export { useTxFlow, errorMessage, countTransferLogs, ERC20_TRANSFER_TOPIC } from './useTxFlow';
 export type { TxStep, TxStepStatus, TxPlanStep, UseTxFlowReturn } from './useTxFlow';

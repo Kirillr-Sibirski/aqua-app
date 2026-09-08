@@ -31,7 +31,7 @@ import {
   useThetaBand,
 } from '@/components/curve';
 import { formatByWhen, formatExpiry } from '@/components/sell/expiry';
-import { AppShell, useIsHydrated } from '@/components/shell';
+import { AppChrome, useIsHydrated } from '@/components/shell';
 import { MATURED_MATURITY, useCurveSamples } from '@/hooks/useCurveSamples';
 import { ceilFromWad } from '@/hooks/strikeline';
 import { formatPercent, formatUnits, truncateHash } from '@/lib/ui';
@@ -127,11 +127,7 @@ export function OfferScreen({ hash }: OfferScreenProps) {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <AppShell>
-      <div className="mx-auto w-full max-w-[56rem]">{children}</div>
-    </AppShell>
-  );
+  return <AppChrome>{children}</AppChrome>;
 }
 
 // ---------------------------------------------------------------------------

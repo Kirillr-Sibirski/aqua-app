@@ -96,3 +96,63 @@ export function describeError(error: unknown): DescribedError {
 
   return { name, message, args, rejected };
 }
+
+// ---------------------------------------------------------------------------
+// One line, for a button, a toast or a strip under a form
+// ---------------------------------------------------------------------------
+
+/**
+ * The argument names the two custom instructions revert with.
+ *
+ * viem's decoder returns positional values and drops the parameter names from the ABI, so the
+ * numbers arrive as a bare list. `NotCovered(6000000000000000000, 5400000000000000000)` is already
+ * far more than "the contract function reverted", but `needed 6, free 5.4` is what a person can act
+ * on, and the names come from the Solidity signatures rather than from a guess about order.
+ */
+const ARG_NAMES: Record<string, readonly string[]> = {
+  NotCovered: ['needed', 'free'],
+  RmmExceedsReserve: ['requested', 'available'],
+  RmmInsideSpread: ['shortfall'],
+  CoverageHaircutTooLarge: ['haircut, bps'],
+};
+
+/**
+ * How a call site turns one decoded revert argument into something denominated.
+ *
+ * Only the screen that made the call knows which token an argument counts, so the formatter is
+ * passed in rather than guessed at. Return `undefined` and the raw integer is printed, which is
+ * still exact.
+ */
+export type ErrorArgFormatter = (
+  value: string,
+  index: number,
+  errorName: string,
+) => string | undefined;
+
+/**
+ * The one line a UI shows when a write or a view refuses.
+ *
+ * The rule is that a decoded custom error always beats viem's `shortMessage`, because
+ * `shortMessage` for a reverted call is the generic *The contract function "swap" reverted.* — it
+ * names neither the guard that refused nor the numbers it refused with, and those numbers are the
+ * entire reason the errors ABI is attached to the call in the first place.
+ */
+export function explainError(error: unknown, formatArg?: ErrorArgFormatter): string {
+  const described = describeError(error);
+  if (described.rejected) return 'Cancelled in your wallet.';
+
+  const name = described.name;
+  if (name === undefined || described.args.length === 0) {
+    return name && described.message.startsWith('The contract function')
+      ? `${name}. ${described.message}`
+      : described.message;
+  }
+
+  const names = ARG_NAMES[name];
+  const parts = described.args.map((value, i) => {
+    const shown = formatArg?.(value, i, name) ?? value;
+    const label = names?.[i];
+    return label ? `${label} ${shown}` : shown;
+  });
+  return `${name}: ${parts.join(', ')}`;
+}

@@ -25,7 +25,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Badge, Button, Group } from '@mantine/core';
 import { AlertTriangle, Info, RefreshCw } from 'lucide-react';
 import { useConnection } from 'wagmi';
-import { AppShell, PageHeader, useIsHydrated } from '@/components/shell';
+import { AppChrome, PageHeader, useIsHydrated } from '@/components/shell';
 import {
   BestQuote,
   ReadLayer,
@@ -62,7 +62,7 @@ export default function SurfacePage() {
   const loading = !hydrated || surface.isLoading;
 
   return (
-    <AppShell>
+    <AppChrome>
       <PageHeader
         title="Every offer, from every wallet"
         subtitle="Nobody publishes a price list for these offers — each one is a small program sitting on chain on its own, related to nothing. This page assembles the list, out of the chain's own log, so you can see who is paying most for the wait before you sell anything."
@@ -203,6 +203,6 @@ export default function SurfacePage() {
           </>
         )}
       </div>
-    </AppShell>
+    </AppChrome>
   );
 }

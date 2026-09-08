@@ -8,6 +8,7 @@
 #   make test / make test-fork      Foundry unit tests / fork tests against the official Aqua on Ethereum
 #   make markout         SIMULATION: replay the real Base price tape through the book vs holding vs a pool
 #   make web             next dev
+#   make web-dev-routes  next dev, with /dev and /dev/diag routed
 #
 #   THE READ LAYER (The Graph — subgraph/README.md has the deployment)
 #   make subgraph        graph codegen && graph build — the vol surface, indexed out of Aqua's Shipped bytes
@@ -127,6 +128,12 @@ markout: $(TSX)
 
 web:
 	cd $(ROOT)web && npm run dev
+
+# The five product screens plus /dev, /dev/theme and /dev/diag. Those three are debugging surfaces:
+# their files are named page.dev.tsx / route.dev.ts and next.config.ts only counts those extensions
+# as routes when DEV_ROUTES=1, so a production build cannot ship them.
+web-dev-routes:
+	cd $(ROOT)web && DEV_ROUTES=1 npm run dev
 
 # ---------------------------------------------------------------------------- the read layer
 # subgraph/ indexes the OFFICIAL Aqua's Shipped/Docked/Pushed/Pulled plus our router's Swapped, and

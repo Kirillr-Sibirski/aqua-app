@@ -37,7 +37,7 @@ import {
   usd,
   volPercent,
 } from '@/components/receipt';
-import { AppShell, PageHeader } from '@/components/shell';
+import { AppChrome, PageHeader } from '@/components/shell';
 
 /**
  * The one screen in this app whose numbers are not a chain read, and the one screen that says so in
@@ -64,7 +64,7 @@ import { AppShell, PageHeader } from '@/components/shell';
 export function ReceiptScreen() {
   if (!replayIsUsable(REPLAY)) {
     return (
-      <AppShell>
+      <AppChrome>
         <Alert
           variant="light"
           color="ember"
@@ -77,7 +77,7 @@ export function ReceiptScreen() {
             the Foundry replay and publish it again with scripts/markout/publish.ts.
           </p>
         </Alert>
-      </AppShell>
+      </AppChrome>
     );
   }
 
@@ -86,7 +86,7 @@ export function ReceiptScreen() {
   const days = REPLAY.expiryDays;
 
   return (
-    <AppShell>
+    <AppChrome>
       <PageHeader
         title="What a week of this was worth"
         subtitle="One wallet named a price to sell its ETH at, and a real week of Base ETH prices was replayed against it. This page marks that week against simply holding the same coins, and against putting them in an ordinary liquidity pool."
@@ -195,7 +195,7 @@ export function ReceiptScreen() {
 
         <Reproduce replay={REPLAY} />
       </div>
-    </AppShell>
+    </AppChrome>
   );
 }
 

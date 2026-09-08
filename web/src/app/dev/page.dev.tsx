@@ -10,7 +10,7 @@ import { formatUnits, parseUnits, type Address, type Hex } from 'viem';
 import { useConnection } from 'wagmi';
 import { getBlock } from 'wagmi/actions';
 import { useConfig } from 'wagmi';
-import { ConnectWallet, shortAddress } from '@/components/wallet';
+
 import {
   useAquaBalances,
   useDeployments,
@@ -26,6 +26,7 @@ import { aquaFork, FORK_RPC_URL } from '@/lib/chain';
 import { tokenInfo } from '@/lib/contracts';
 import { buildAquaOrder, buildTakerTraits, ix, program, type Order } from '@/lib/swapvm';
 import { buttonClass, Err, Field, inputClass, KV, Section, TxSteps } from './ui';
+import { ConnectWallet, shortAddress } from './wallet';
 
 const fmt = (v: bigint | undefined, decimals: number) => (v === undefined ? '—' : formatUnits(v, decimals));
 
