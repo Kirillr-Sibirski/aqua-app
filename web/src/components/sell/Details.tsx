@@ -36,6 +36,8 @@ export interface DetailsProps {
   onVolChange: (next: string) => void;
   /** What the feed's own round history measured, when it could be measured. */
   realised?: RealisedVol;
+  /** False when that measurement spans too little time to set a week's price. */
+  realisedUsable?: boolean;
   realisedUnavailable?: string;
   /** True while the field is still tracking the measurement rather than a typed number. */
   volIsMeasured: boolean;
@@ -53,10 +55,14 @@ export function Details({
   vol,
   onVolChange,
   realised,
+  realisedUsable,
   realisedUnavailable,
   volIsMeasured,
   onUseMeasured,
 }: DetailsProps) {
+  const measurement = realised
+    ? `${(realised.sigma * 100).toFixed(1)}% over ${describeSpan(realised.spanSeconds)} of the feed's own rounds`
+    : undefined;
   const panelId = useId();
 
   const bandParams =
@@ -102,10 +108,12 @@ export function Details({
           <NumberInput
             label="Implied volatility"
             description={
-              realised
-                ? `How much movement the offer is priced for, annualised. The feed's own round history measures ${(realised.sigma * 100).toFixed(1)}% over the last ${Math.round(realised.spanSeconds / 3_600)}h.`
-                : (realisedUnavailable ??
-                  'How much movement the offer is priced for, annualised. Sell below what the market actually does and an arbitrageur takes more than the decay pays.')
+              measurement && realisedUsable
+                ? `How much movement the offer is priced for, annualised. Measured: ${measurement}.`
+                : measurement
+                  ? `How much movement the offer is priced for, annualised. The feed measures ${measurement}, which is too short a window to price a week off, so the field opens at 60% instead.`
+                  : (realisedUnavailable ??
+                    'How much movement the offer is priced for, annualised. Sell below what the market actually does and an arbitrageur takes more than the decay pays.')
             }
             value={vol}
             onChange={(next) => onVolChange(String(next))}
@@ -118,7 +126,7 @@ export function Details({
             radius="lg"
             mb="xs"
           />
-          {realised && !volIsMeasured ? (
+          {realised && realisedUsable && !volIsMeasured ? (
             <Text size="xs" mb="sm">
               <Anchor component="button" type="button" onClick={onUseMeasured}>
                 Use the measured {(realised.sigma * 100).toFixed(1)}%
@@ -126,7 +134,7 @@ export function Details({
             </Text>
           ) : null}
 
-          <Row label="Strike, K" value={offer ? formatUnits(offer.rmm.strikeWad, 18, { significantDigits: 12, maxFractionDigits: 2 }) : '—'} />
+          <Row label="Strike, K" value={offer ? formatUnits(offer.rmm.strikeWad, 18, { significantDigits: 14, maxFractionDigits: 2, minFractionDigits: 2 }) : '—'} />
           <Row label="Expiry" value={maturity !== undefined ? formatExpiry(maturity) : '—'} />
           <Row
             label="Assignment window closes"
@@ -144,7 +152,7 @@ export function Details({
             label="Reserves shipped"
             value={
               offer && pair
-                ? `${formatUnits(offer.xWad, 18, { significantDigits: 10 })} ${pair.risky.symbol} · ${formatUnits(offer.yWad, 18, { significantDigits: 12, maxFractionDigits: 2 })} ${pair.stable.symbol}`
+                ? `${formatUnits(offer.xWad, 18, { significantDigits: 10 })} ${pair.risky.symbol} · ${formatUnits(offer.yWad, 18, { significantDigits: 14, maxFractionDigits: 2, minFractionDigits: 2 })} ${pair.stable.symbol}`
                 : '—'
             }
           />
@@ -152,7 +160,7 @@ export function Details({
             label="At expiry the curve holds"
             value={
               offer && pair
-                ? `${formatUnits(offer.settlementWad, 18, { significantDigits: 12, maxFractionDigits: 2 })} ${pair.stable.symbol}`
+                ? `${formatUnits(offer.settlementWad, 18, { significantDigits: 14, maxFractionDigits: 2, minFractionDigits: 2 })} ${pair.stable.symbol}`
                 : '—'
             }
           />
@@ -170,7 +178,7 @@ export function Details({
             label="Your wallet can deliver"
             value={
               pair && free[pair.risky.address.toLowerCase()] !== undefined
-                ? `${formatUnits(free[pair.risky.address.toLowerCase()], pair.risky.decimals, { significantDigits: 10 })} ${pair.risky.symbol} · ${formatUnits(free[pair.stable.address.toLowerCase()] ?? BigInt(0), pair.stable.decimals, { significantDigits: 12, maxFractionDigits: 2 })} ${pair.stable.symbol}`
+                ? `${formatUnits(free[pair.risky.address.toLowerCase()], pair.risky.decimals, { significantDigits: 10 })} ${pair.risky.symbol} · ${formatUnits(free[pair.stable.address.toLowerCase()] ?? BigInt(0), pair.stable.decimals, { significantDigits: 14, maxFractionDigits: 2, minFractionDigits: 2 })} ${pair.stable.symbol}`
                 : open
                   ? 'reading…'
                   : '—'
@@ -207,6 +215,13 @@ export function Details({
       </Collapse>
     </>
   );
+}
+
+/** `2h` / `3 days`, so a window's length reads as a length rather than as a number of seconds. */
+function describeSpan(seconds: number): string {
+  const hours = Math.round(seconds / 3_600);
+  if (hours < 48) return `${hours}h`;
+  return `${Math.round(hours / 24)} days`;
 }
 
 function Row({ label, value }: { label: string; value: string }) {

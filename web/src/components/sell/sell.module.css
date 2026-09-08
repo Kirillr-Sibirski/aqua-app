@@ -188,6 +188,12 @@
   margin-top: 0.5rem;
 }
 
+/* Clicks off while a run is in flight, without the grey of `disabled`: the button is still the
+   thing telling you what is happening, and a disabled control reads as "nothing is". */
+.action[data-busy] {
+  pointer-events: none;
+}
+
 .steps {
   display: flex;
   gap: 0.375rem;
@@ -390,6 +396,25 @@
   padding: 0 1rem;
 }
 
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  border-radius: var(--radius-control);
+  transition: opacity var(--duration-fast) var(--ease-out-quart);
+}
+
+.brand:hover {
+  opacity: 0.8;
+}
+
+.brandText {
+  font-size: var(--text-lead);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+
 .barEnd {
   margin-left: auto;
   display: flex;
@@ -426,6 +451,27 @@
   background: var(--surface);
   color: var(--ink);
   box-shadow: var(--shadow-card);
+}
+
+/*
+ * At 390px the bar carries a mark, two tabs and an address, and all four do not fit. The word goes
+ * first: the mark alone still identifies the page, and the tabs and the account are the two things
+ * a person actually operates.
+ */
+@media (max-width: 30rem) {
+  .barInner {
+    gap: 0.625rem;
+    padding: 0 0.75rem;
+  }
+
+  .brandText {
+    display: none;
+  }
+
+  .tab {
+    padding: 0.375rem 0.625rem;
+    font-size: var(--text-mini);
+  }
 }
 
 /*

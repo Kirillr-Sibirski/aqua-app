@@ -12,7 +12,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { Wordmark } from '@/components/shell/Wordmark';
+import { WordmarkMark } from '@/components/shell/Wordmark';
 import { useHasOffers } from '@/components/offers/useHasOffers';
 import classes from './sell.module.css';
 import { WalletButton } from './WalletButton';
@@ -30,7 +30,12 @@ export function SellChrome({ children }: { children: ReactNode }) {
     <div className={classes.shell}>
       <header className={classes.bar}>
         <div className={classes.barInner}>
-          <Wordmark />
+          {/* The mark and the word, composed here rather than taken whole, because at 390px the
+              bar has to drop the word to fit the tabs and the address beside it. */}
+          <Link href="/" className={classes.brand} aria-label="Strikeline, make an offer">
+            <WordmarkMark />
+            <span className={classes.brandText}>Strikeline</span>
+          </Link>
           {offers.has ? (
             <nav aria-label="Primary">
               <ul className={classes.tabs}>

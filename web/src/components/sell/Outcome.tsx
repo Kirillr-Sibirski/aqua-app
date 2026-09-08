@@ -75,13 +75,13 @@ export function Outcome({
         </span>
       </div>
       <p className={classes.outcomeNote}>
-        You sell {amount} {riskySymbol} for {total} {stableSymbol} — {each} each, against the {named} you
-        named.
+        You sell {amount} {riskySymbol} for {total} {stableSymbol}. That is {each} each, against the{' '}
+        {named} you named.
       </p>
 
       <div className={classes.outcomeRow}>
         <span className={classes.outcomeLabel}>What you give up</span>
-        <span className={`${classes.outcomeValue} ${classes.mono}`}>anything above {each}</span>
+        <span className={`${classes.outcomeValue} ${classes.mono}`}>above {each}</span>
       </div>
       <p className={classes.outcomeNote}>
         At that point the {riskySymbol} is sold, so none of the move past it is yours.

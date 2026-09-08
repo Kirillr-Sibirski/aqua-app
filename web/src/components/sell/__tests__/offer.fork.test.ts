@@ -55,8 +55,17 @@ import {
 import { nextFridayAfter } from '../expiry';
 import { liquidityForRisky, strikeFrom } from '../moneyness';
 
-/** What a person types into the amount field. Irregular: round numbers hide scaling bugs. */
-const AMOUNT_RAW = BigInt('10400000000000000000'); // 10.4 WETH, the demo maker's whole balance
+/**
+ * What a person types into the amount field, as a fraction of what the wallet actually holds.
+ *
+ * Read from the chain rather than hardcoded, and deliberately short of the whole balance. `Coverage`
+ * enforces `min(balanceOf, allowance)` at quote time, so an offer sized to the last wei is refused
+ * the moment anything else on the fork spends one -- which is the guard doing its job, not a test
+ * failure, and not something to make a suite flaky over. Nine tenths of an irregular balance is
+ * itself irregular, so round numbers still cannot hide a scaling bug.
+ */
+const AMOUNT_NUMERATOR = BigInt(9);
+const AMOUNT_DENOMINATOR = BigInt(10);
 const SIGMA_WAD = BigInt('600000000000000000');
 const ERC20_TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
@@ -128,12 +137,20 @@ describe.skipIf(!fork)('the card, sized and shipped against the local Base fork'
 
     const rateRisky = rateFor(18);
     const rateStable = rateFor(6);
-    const xWad = AMOUNT_RAW * rateRisky;
+    const balance = await publicClient.readContract({
+      address: d.weth,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [maker.address],
+    });
+    expect(balance).toBeGreaterThan(BigInt(1e17));
+    const amountRaw = (balance * AMOUNT_NUMERATOR) / AMOUNT_DENOMINATOR;
+    const xWad = amountRaw * rateRisky;
 
     // --- L is chosen here; x is what the person typed -----------------------------------------
     const liquidityWad = liquidityForRisky(xWad, { spot, strike, sigma: 0.6, tau });
     // The whole point of inverting the relation: the amount on offer is the amount, to the wei.
-    expect(xWad).toBe(AMOUNT_RAW * rateRisky);
+    expect(xWad).toBe(amountRaw * rateRisky);
     expect(liquidityWad).toBeGreaterThan(xWad);
 
     // --- y is read from the chain, and so are both numbers under the button --------------------
@@ -168,7 +185,8 @@ describe.skipIf(!fork)('the card, sized and shipped against the local Base fork'
     expect(effective).toBeGreaterThan(strikeWad);
 
     console.log(
-      `spot ${spot} · sell ${formatUnits(xWad, 18)} WETH at ${strike} by ${new Date(maturity * 1000).toISOString()}\n` +
+      `spot ${spot} · wallet ${formatUnits(balance, 18)} WETH\n` +
+        `  sell ${formatUnits(xWad, 18)} WETH at ${strike} by ${new Date(maturity * 1000).toISOString()}\n` +
         `  L chosen        ${formatUnits(liquidityWad, 18)} WETH\n` +
         `  y = stableFor   ${formatUnits(yWanted, 18)} -> shipped ${formatUnits(stableRaw, 6)} USDC\n` +
         `  at expiry       ${formatUnits(ySettlement, 18)} USDC\n` +
@@ -195,7 +213,7 @@ describe.skipIf(!fork)('the card, sized and shipped against the local Base fork'
     const tokenB: Address = wethIsA ? d.usdc : d.weth;
     const order = buildAquaOrder({ maker: maker.address, tokenA, tokenB, program });
     const strategyHash: Hex = orderHashAqua(order);
-    const amounts: [bigint, bigint] = wethIsA ? [AMOUNT_RAW, stableRaw] : [stableRaw, AMOUNT_RAW];
+    const amounts: [bigint, bigint] = wethIsA ? [amountRaw, stableRaw] : [stableRaw, amountRaw];
 
     for (const token of [tokenA, tokenB]) {
       const allowance = await publicClient.readContract({

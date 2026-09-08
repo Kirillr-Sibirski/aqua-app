@@ -21,7 +21,7 @@
  * therefore no render in which the field disagrees with where its number came from, no effect that
  * overwrites something typed a frame earlier, and no flash of an empty form.
  */
-import { Alert, Button, NumberInput, Skeleton, Text } from '@mantine/core';
+import { Alert, Button, Loader, NumberInput, Skeleton, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useCallback, useMemo, useState } from 'react';
 import { useBlock, useConnection } from 'wagmi';
@@ -55,11 +55,26 @@ const DEFAULT_OVER_SPOT = 0.05;
 /**
  * Where the volatility opens before the feed's history has been read.
  *
- * The one figure on the card that is not a chain read, so it does not get to pass for one: the
- * moment `useRealisedVol` returns a measurement this is replaced by it, and *Details* says which of
- * the two the field is showing. Someone who types their own number owns it from that keystroke on.
+ * The one figure on the card that is not a chain read, so it does not get to pass for one: when the
+ * feed has enough history the measurement replaces it, and *Details* always says which of the two
+ * the field is showing. Someone who types their own number owns it from that keystroke on. 60% is
+ * the level the project's own replay is written at, and the level its vol sweep brackets on both
+ * sides, so it is a disclosed starting point rather than a guess.
  */
 const FALLBACK_VOL = '60';
+
+/**
+ * How much history a measurement needs before it is allowed to set the default.
+ *
+ * `estimateRealisedVol` annualises `sum(r^2)/sum(dt)`, which is arithmetic that works on any span
+ * at all -- and that is the problem. Two hours of a feed annualises to whatever those two hours
+ * did; on the warped demo fork, where the price is moved deliberately, it reads 141%, and a week's
+ * offer priced off it would put a spread in front of itself that nobody ever crosses. A day is the
+ * shortest window that is a measurement of the asset rather than of the morning. Below it the field
+ * opens at the fallback and *Details* says the measurement was too short, with the number, so
+ * nothing is hidden -- only declined as a default.
+ */
+const MIN_VOL_SPAN_SECONDS = 86_400;
 
 export function OfferCard() {
   const hydrated = useIsHydrated();
@@ -87,6 +102,15 @@ export function OfferCard() {
 
   const oracle = useOraclePrice(pair?.feed, { chainId: aquaFork.id });
   const spot = oracle.price?.price;
+  // Grouped and two-placed from the feed's own integer answer, not from the float beside it: this
+  // is the number the person is comparing their price against and it should read like money.
+  const spotLabel = oracle.price
+    ? formatUnits(oracle.price.answer, oracle.price.decimals, {
+        significantDigits: 14,
+        maxFractionDigits: 2,
+        minFractionDigits: 2,
+      })
+    : undefined;
 
   const tokens = useMemo(
     () => (pair ? [pair.risky.address, pair.stable.address] : []),
@@ -115,7 +139,8 @@ export function OfferCard() {
   const dateValue = dateDraft ?? defaultDate;
   const maturity = maturityForDateString(dateValue);
 
-  const measuredVol = realised.vol ? (realised.vol.sigma * 100).toFixed(1) : undefined;
+  const volSpanIsEnough = !!realised.vol && realised.vol.spanSeconds >= MIN_VOL_SPAN_SECONDS;
+  const measuredVol = volSpanIsEnough ? (realised.vol!.sigma * 100).toFixed(1) : undefined;
   const vol = volDraft ?? measuredVol ?? FALLBACK_VOL;
 
   const amountRaw = pair ? (parseDecimalInput(amount, pair.risky.decimals) ?? BigInt(0)) : BigInt(0);
@@ -164,8 +189,8 @@ export function OfferCard() {
   const [connectOpen, setConnectOpen] = useState(false);
 
   const sentence = useMemo(
-    () => describeOffer({ offer, pair, price, maturity }),
-    [offer, pair, price, maturity],
+    () => describeOffer({ offer, pair, strikeWad, maturity }),
+    [offer, pair, strikeWad, maturity],
   );
 
   const onPublish = useCallback(async () => {
@@ -203,7 +228,7 @@ export function OfferCard() {
     if (overBalance && pair)
       return `You hold ${formatUnits(riskyBalance ?? BigInt(0), pair.risky.decimals, { significantDigits: 8 })} ${pair.risky.symbol}`;
     if (strikeWad === undefined || strikeWad <= BigInt(0)) return 'Enter a price';
-    if (belowSpot) return `Name a price above ${spot?.toFixed(2)}`;
+    if (belowSpot) return `Name a price above ${spotLabel}`;
     if (sigmaWad === undefined) return 'Set the movement under Details';
     if (!offer) return sizingLoading || !sizingError ? 'Pricing it on chain' : 'Could not price this';
     return undefined;
@@ -217,8 +242,8 @@ export function OfferCard() {
     if (wrongNetwork) return `Switch to ${deployment.name}`;
     if (running && active) {
       return active.status === 'signing'
-        ? `${active.label} — confirm in your wallet`
-        : `${active.label} — waiting for the chain`;
+        ? `${active.label} · confirm in your wallet`
+        : `${active.label} · waiting for the chain`;
     }
     if (blocked) return blocked;
     return 'Publish offer';
@@ -255,8 +280,7 @@ export function OfferCard() {
         hint={
           hydrated && riskyBalance !== undefined && pair ? (
             <>
-              You hold {formatUnits(riskyBalance, pair.risky.decimals, { significantDigits: 8 })}{' '}
-              {pair.risky.symbol}
+              You hold {roundedDown(riskyBalance, pair.risky.decimals)} {pair.risky.symbol}
             </>
           ) : hydrated && address ? (
             'Reading your balance'
@@ -287,7 +311,6 @@ export function OfferCard() {
           hideControls
           allowNegative={false}
           decimalScale={pair?.risky.decimals ?? 18}
-          thousandSeparator=","
           style={{ flex: '1 1 auto', minWidth: 0 }}
         />
       </Field>
@@ -306,10 +329,10 @@ export function OfferCard() {
               "Reading today's price"
             )
           ) : belowSpot ? (
-            `That is at or below today's ${spot.toFixed(2)}`
+            `That is at or below today's ${spotLabel}`
           ) : (
             <>
-              {(moneynessOf(priceNumber, spot) * 100).toFixed(1)}% above today&rsquo;s {spot.toFixed(2)}
+              {(moneynessOf(priceNumber, spot) * 100).toFixed(1)}% above today&rsquo;s {spotLabel}
             </>
           )
         }
@@ -325,7 +348,6 @@ export function OfferCard() {
           hideControls
           allowNegative={false}
           decimalScale={2}
-          thousandSeparator=","
           style={{ flex: '1 1 auto', minWidth: 0 }}
         />
       </Field>
@@ -377,14 +399,20 @@ export function OfferCard() {
         </Alert>
       ) : null}
 
+      {/* Not Mantine's `loading`, which swaps the label for a spinner: the label is the only place
+          that says which of the three transactions is live and whether it is waiting on the wallet
+          or on the chain, and that is exactly the moment it is worth reading. A leading loader and
+          a class that stops clicks give the same guarantee without taking the sentence away. */}
       <Button
         className={classes.action}
+        data-busy={running || undefined}
         fullWidth
         size="lg"
         radius="lg"
-        loading={running}
-        disabled={hydrated && !!address && !wrongNetwork && (!!blocked || running)}
+        leftSection={running ? <Loader size={18} color="var(--accent-ink)" /> : undefined}
+        disabled={!running && hydrated && !!address && !wrongNetwork && !!blocked}
         onClick={() => {
+          if (running) return;
           if (!address) {
             setConnectOpen(true);
             return;
@@ -414,6 +442,7 @@ export function OfferCard() {
         vol={vol}
         onVolChange={setVolDraft}
         realised={realised.vol}
+        realisedUsable={volSpanIsEnough}
         realisedUnavailable={realised.unavailable}
         volIsMeasured={volDraft === undefined && measuredVol !== undefined}
         onUseMeasured={() => setVolDraft(undefined)}
@@ -463,26 +492,36 @@ function stateOf(status: string): string {
 function describeOffer({
   offer,
   pair,
-  price,
+  strikeWad,
   maturity,
 }: {
   offer?: SizedOffer;
   pair?: OfferPair;
-  price: string;
+  strikeWad?: bigint;
   maturity?: number;
 }): string {
-  if (!offer || !pair || maturity === undefined) return 'Your offer is published.';
-  const amount = formatUnits(offer.xWad, 18, { significantDigits: 10 });
-  return `Sell ${amount} ${pair.risky.symbol} if it reaches ${price} ${pair.stable.symbol} by ${formatByWhen(maturity)}.`;
+  if (!offer || !pair || maturity === undefined || strikeWad === undefined) {
+    return 'Your offer is published.';
+  }
+  const amount = formatUnits(offer.xWad, 18, { significantDigits: 12 });
+  const at = formatUnits(strikeWad, 18, {
+    significantDigits: 14,
+    maxFractionDigits: 2,
+    minFractionDigits: 2,
+  });
+  return `Sell ${amount} ${pair.risky.symbol} if it reaches ${at} ${pair.stable.symbol} by ${formatByWhen(maturity)}.`;
 }
 
 /**
- * A balance as an amount someone would type: truncated, never rounded up.
+ * A balance as an amount someone would type: truncated at the eighth place, never rounded up.
  *
- * Rounding a balance up produces a default the wallet cannot cover, and the failure would land as a
- * refused quote weeks later rather than as a validation message now.
+ * Rounding up produces a default the wallet cannot cover, and the failure would land as a refused
+ * quote weeks later rather than as a message now. The hint beside the field is rendered through
+ * this same helper rather than through `formatUnits`, which rounds: the two numbers sit one line
+ * apart and disagreeing in the last digit reads as a bug, where a floor of one part in a hundred
+ * million reads as nothing at all.
  */
-function roundedDown(raw: bigint, decimals: number, places = 6): string {
+function roundedDown(raw: bigint, decimals: number, places = 8): string {
   const step = BigInt(10) ** BigInt(Math.max(0, decimals - places));
   return toDecimalString((raw / step) * step, decimals);
 }
