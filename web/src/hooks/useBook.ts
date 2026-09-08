@@ -38,6 +38,7 @@ import { useBookFills, type BookFill, type FillableLeg, type LegTheta } from './
 import {
   boundFromRevert,
   decodeLegProgram,
+  ceilFromWad,
   fromWad,
   minBig,
   quoteWithStrikelineErrorsAbi,
@@ -525,7 +526,13 @@ export function useBook(maker: Address | undefined, options: UseBookOptions = {}
       const lastFill = fillsQuery.fills.find((f) => f.orderHash.toLowerCase() === leg.strategy.strategyHash.toLowerCase());
 
       // A taker sweeping this leg pays the other token, so that is the side of the band they cross.
-      const bandNext = band ? (leg.deliversRisky ? fromWad(band[1], leg.rmm.rateStable) : fromWad(band[0], leg.rmm.rateRisky)) : undefined;
+      // Ceiled: this is a minimum, and flooring it publishes an amount one raw unit short of what
+      // `RmmSwap.exec` will clear. `SurfaceLens._quote` ceils too, so the two screens agree.
+      const bandNext = band
+        ? leg.deliversRisky
+          ? ceilFromWad(band[1], leg.rmm.rateStable)
+          : ceilFromWad(band[0], leg.rmm.rateRisky)
+        : undefined;
 
       return {
         key: `${leg.strategy.strategyHash}-${leg.strategy.logIndex}`,

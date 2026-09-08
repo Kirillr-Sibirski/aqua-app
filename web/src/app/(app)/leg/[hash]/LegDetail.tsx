@@ -60,6 +60,7 @@ import {
 import { formatExpiry } from '@/components/write';
 import { MATURED_MATURITY, useCurveSamples } from '@/hooks/useCurveSamples';
 import { useDeployments, useShippedStrategies } from '@/hooks';
+import { ceilFromWad } from '@/hooks/strikeline';
 import { aquaFork } from '@/lib/chain';
 import { tokenInfo, type ShippedStrategy } from '@/lib/contracts';
 import { formatChartNumber } from '@/components/charts/format';
@@ -508,19 +509,21 @@ function Leg({
                   label={`Smallest ${stable.symbol} trade`}
                   value={
                     <TokenAmount
-                      value={band.band.minStableIn / rmm.rateStable}
+                      value={ceilFromWad(band.band.minStableIn, rmm.rateStable)}
                       decimals={stable.decimals}
                       size="lg"
                     />
                   }
                   unit={stable.symbol}
+                  // Ceiled, not floored: `bandFor` publishes the smallest normalised input `exec`
+                  // will clear, and a minimum that rounds down is one raw unit short of clearing.
                   detail="Anything below this reverts RmmInsideSpread"
                 />
                 <StatTile
                   label={`Smallest ${risky.symbol} trade`}
                   value={
                     <TokenAmount
-                      value={band.band.minRiskyIn / rmm.rateRisky}
+                      value={ceilFromWad(band.band.minRiskyIn, rmm.rateRisky)}
                       decimals={risky.decimals}
                       size="lg"
                     />
@@ -548,13 +551,14 @@ function Leg({
                   <CardRow label={stable.symbol}>
                     <span className="flex items-center gap-2">
                       <TokenAmount
-                        value={scrubbedBand.band.minStableIn / rmm.rateStable}
+                        value={ceilFromWad(scrubbedBand.band.minStableIn, rmm.rateStable)}
                         decimals={stable.decimals}
                         size="sm"
                       />
                       <Delta
                         value={
-                          (scrubbedBand.band.minStableIn - band.band.minStableIn) / rmm.rateStable
+                          ceilFromWad(scrubbedBand.band.minStableIn, rmm.rateStable) -
+                          ceilFromWad(band.band.minStableIn, rmm.rateStable)
                         }
                         decimals={stable.decimals}
                         size="sm"
@@ -564,13 +568,14 @@ function Leg({
                   <CardRow label={risky.symbol}>
                     <span className="flex items-center gap-2">
                       <TokenAmount
-                        value={scrubbedBand.band.minRiskyIn / rmm.rateRisky}
+                        value={ceilFromWad(scrubbedBand.band.minRiskyIn, rmm.rateRisky)}
                         decimals={risky.decimals}
                         size="sm"
                       />
                       <Delta
                         value={
-                          (scrubbedBand.band.minRiskyIn - band.band.minRiskyIn) / rmm.rateRisky
+                          ceilFromWad(scrubbedBand.band.minRiskyIn, rmm.rateRisky) -
+                          ceilFromWad(band.band.minRiskyIn, rmm.rateRisky)
                         }
                         decimals={risky.decimals}
                         size="sm"

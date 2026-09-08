@@ -284,6 +284,18 @@ export function fromWad(wad: bigint, rate: bigint): bigint {
   return rate === ZERO ? ZERO : wad / rate;
 }
 
+/**
+ * The same conversion for a MINIMUM, rounded up.
+ *
+ * `fromWad`'s floor is the honest direction for a balance, where understating costs nobody
+ * anything. It is the wrong direction for a number the screen labels "anything below this reverts":
+ * flooring a minimum publishes an amount that does not clear. `SurfaceLens._quote` already ceils,
+ * so flooring here also made `/leg` and `/surface` disagree about the same leg.
+ */
+export function ceilFromWad(wad: bigint, rate: bigint): bigint {
+  return rate === ZERO ? ZERO : ceilDiv(wad, rate);
+}
+
 /** The normalisation multiplier a token's decimals imply, for cross-checking a leg's shipped rate. */
 export function rateForDecimals(decimals: number): bigint {
   return BigInt(10) ** BigInt(Math.max(0, 18 - decimals));
