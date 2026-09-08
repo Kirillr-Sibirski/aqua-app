@@ -74,7 +74,9 @@ export function OffersScreen() {
           screen and says its own name in its own heading. The h1 stays for the document outline. */}
       {hasOffers ? (
         <header className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
+          {/* Full width below `sm`, so the subtitle is not squeezed into a 170px column beside a
+              180px button and set six words to a line. */}
+          <div className="min-w-0 flex-1 basis-full sm:basis-auto">
             <Title order={1} fz="var(--text-title)" c="var(--ink)">
               Your offers
             </Title>

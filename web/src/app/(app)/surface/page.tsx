@@ -102,6 +102,19 @@ export default function SurfacePage() {
               riskySymbol={riskySymbol}
             />
 
+            <BestQuote
+              points={surface.points}
+              deployments={deployments}
+              nowSeconds={surface.nowSeconds}
+              selected={selected}
+              onSelect={setSelected}
+              priced={surface.priced}
+            />
+
+            {/* The three provenance notices sit under the answer, not over it. A read layer owes its
+                reader every one of them, but none is the reason to be on this page, and stacking
+                them between the explainer and the cross-maker query pushed the one thing that
+                exists nowhere else below the fold. */}
             {surface.subgraphError ? (
               <Alert
                 variant="light"
@@ -151,15 +164,6 @@ export default function SurfacePage() {
                 </p>
               </Alert>
             ) : null}
-
-            <BestQuote
-              points={surface.points}
-              deployments={deployments}
-              nowSeconds={surface.nowSeconds}
-              selected={selected}
-              onSelect={setSelected}
-              priced={surface.priced}
-            />
 
             <ReadLayer
               source={surface.source}
