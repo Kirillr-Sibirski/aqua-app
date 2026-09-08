@@ -34,6 +34,7 @@ import { aquaFork } from '@/lib/chain';
 import { addressLt } from '@/lib/swapvm';
 import { formatUnits, toDecimalString } from '@/lib/ui';
 import { MarginPreview, type MarginRow } from './MarginPreview';
+import { ShipCalldata } from './ShipCalldata';
 import { PayoffChart } from './PayoffChart';
 import { ShipPanel } from './ShipPanel';
 import { StrikePicker } from './StrikePicker';
@@ -368,6 +369,13 @@ export function WriteWizard() {
                         strategyHash={leg.strategyHash}
                         title={`Leg · K ${leg.draft.strike}`}
                         description="Deadline, then Coverage wrapping the curve, then RmmSwap, then the salt that makes the hash unique."
+                        className="mt-4"
+                      />
+                      <ShipCalldata
+                        aqua={deployments.aqua}
+                        router={deployments.router}
+                        leg={leg}
+                        pair={pair}
                         className="mt-4"
                       />
                     </TabPanel>

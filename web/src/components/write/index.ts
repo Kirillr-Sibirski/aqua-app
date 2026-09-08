@@ -20,6 +20,9 @@ export type { PayoffChartProps } from './PayoffChart';
 export { MarginPreview } from './MarginPreview';
 export type { MarginClaim, MarginPreviewProps, MarginRow } from './MarginPreview';
 
+export { ShipCalldata } from './ShipCalldata';
+export type { ShipCalldataProps } from './ShipCalldata';
+
 export { ShipPanel } from './ShipPanel';
 export type { ShipPanelProps } from './ShipPanel';
 
