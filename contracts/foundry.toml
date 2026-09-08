@@ -9,6 +9,13 @@ optimizer = true
 optimizer_runs = 700
 via_ir = true
 evm_version = "cancun"
+# The default per-test gas limit is 2^30. `test/markout/MarkoutReplay.t.sol` replays 1,185 real price
+# rounds through four legs and does it once per cell of a five-point vol sweep and an eight-window sweep,
+# which is a few billion gas of `Phi` evaluation in a single test. Nothing here is gas-metered for
+# correctness -- `test/invariants/GasReport.t.sol` measures gas with `gasleft()` deltas, which this does
+# not touch -- and no test reads `block.gaslimit`.
+gas_limit = 40_000_000_000
+block_gas_limit = 40_000_000_000
 # The last entry lets the Uniswap v4 tests deploy the canonical `PoolManager` from the bytecode the
 # npm package ships, instead of compiling it here. v4-core pins `PoolManager.sol` to
 # `pragma solidity 0.8.26;` exactly, which no file on our own `0.8.30` pin can import, and it does not
