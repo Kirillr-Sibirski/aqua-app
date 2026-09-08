@@ -4,25 +4,20 @@ out = "out"
 test = "test"
 script = "script"
 libs = ["node_modules"]
-# No global `solc_version` pin: every file we own declares `pragma solidity 0.8.30;` exactly, so the
-# resolver has no freedom there, while Uniswap v4-core pins `PoolManager.sol` to `pragma solidity 0.8.26;`.
-# A global pin makes that file unresolvable ("No solc version exists that matches the version requirement:
-# =0.8.26") even though 0.8.26 is downloadable. Two compilation units, two compilers, identical bytecode
-# for StrikelineRouter (23,633 B, verified before and after).
+solc_version = "0.8.30"
 optimizer = true
 optimizer_runs = 700
 via_ir = true
 evm_version = "cancun"
-fs_permissions = [{ access = "read-write", path = "./deployments" }, { access = "read-write", path = "./test/encoding" }]
-
-# Uniswap v4-core does not compile at our optimizer settings. `Pool.swap` hits a Yul stack-too-deep
-# ("Variable memPtr_1 is 1 too deep in the stack") at `optimizer_runs = 700`; upstream builds the
-# package at 44444444 runs, and that is effectively part of its source contract. Restricting the
-# Uniswap paths to their own profile keeps our router on 700 runs and byte-identical.
-additional_compiler_profiles = [{ name = "uniswap", via_ir = true, optimizer = true, optimizer_runs = 44444444 }]
-compilation_restrictions = [
-    { paths = "node_modules/@uniswap/v4-core/**", optimizer_runs = 44444444 },
-    { paths = "node_modules/@uniswap/v4-periphery/**", optimizer_runs = 44444444 },
+# The last entry lets the Uniswap v4 tests deploy the canonical `PoolManager` from the bytecode the
+# npm package ships, instead of compiling it here. v4-core pins `PoolManager.sol` to
+# `pragma solidity 0.8.26;` exactly, which no file on our own `0.8.30` pin can import, and it does not
+# survive our `optimizer_runs = 700` anyway. Reading their artifact keeps this router's build settings
+# untouched and runs the tests against Uniswap's own build.
+fs_permissions = [
+    { access = "read-write", path = "./deployments" },
+    { access = "read-write", path = "./test/encoding" },
+    { access = "read", path = "./node_modules/@uniswap/v4-core/out" },
 ]
 
 [fmt]
