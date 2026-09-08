@@ -5,6 +5,12 @@
  * Converts every `oklch(L C H)` token to sRGB (clipping out-of-gamut channels the way a display
  * does), then reports WCAG 2.1 contrast ratios for the pairs that carry text or meaning.
  *
+ * A pair may name an ALPHA VARIANT (`accent/70`), which is composited over its background before
+ * the ratio is taken. That is the gap this file used to have: it audited the raw tokens, while
+ * components render `text-accent/70`, and the one measured failure in the app was exactly there --
+ * `accent/70` on `surface` is 3.68:1, under the 4.5:1 floor, on the bytes that spell out the two
+ * custom opcodes. Backgrounds may be a stack (`bg/80 over surface`) for the same reason.
+ *
  * Run: node scripts/contrast.mjs
  * Exit code is 1 if any pair marked `min` fails its floor, so this can gate CI later.
  */
@@ -47,6 +53,21 @@ const PAIRS = [
   ['line', 'bg', 1.2, 'hairline on page (non-text)'],
   ['line-strong', 'surface', 1.2, 'table header rule (non-text)'],
   ['accent-dim', 'bg', 1.2, 'chart band edge (non-text)'],
+
+  // Composited, because this is what the components actually render.
+  ['ink-3', 'bg/80 over surface', 4.5, 'table scroll cue over a card'],
+  ['ink-3', 'bg/80 over bg', 4.5, 'table scroll cue over the page'],
+  ['ink', 'surface-2/60 over surface', 4.5, 'text over a translucent raised block'],
+  ['accent', 'accent/15 over surface', 4.5, 'accent text on its own tinted chip'],
+];
+
+/**
+ * Combinations that were measured and MUST NOT come back. Reported, never gated: they are here so
+ * the number that justified removing them is in the repo rather than in a review comment.
+ */
+const REJECTED = [
+  ['accent/70', 'surface', 4.5, 'dimmed opcode bytes in the raw-bytes disclosure (was 3.68:1)'],
+  ['accent/70', 'surface-2', 4.5, 'the same, on a raised block'],
 ];
 
 // --- OKLCH -> sRGB ---------------------------------------------------------
@@ -75,24 +96,40 @@ const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const encode = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
 const decode = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 
+const fromChannels = (clipped) => {
+  const [r, g, b] = clipped.map(decode);
+  return {
+    hex: '#' + clipped.map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join(''),
+    luminance: 0.2126 * r + 0.7152 * g + 0.0722 * b,
+    channels: clipped,
+  };
+};
+
+/**
+ * Resolve a pair entry: a token name, `token/alpha`, or `token/alpha over base` (recursively).
+ * Compositing is done on the encoded sRGB channels, which is where a browser blends an alpha
+ * colour over an opaque backdrop.
+ */
+function resolveSpec(spec) {
+  const [layerSpec, ...rest] = spec.split(' over ');
+  const base = rest.length > 0 ? resolveSpec(rest.join(' over ')) : undefined;
+  const [name, alphaText] = layerSpec.trim().split('/');
+  const layer = resolve(name.trim());
+  if (alphaText === undefined) return { ...layer, name: spec };
+
+  const a = Number(alphaText) / 100;
+  const under = base ?? resolve('bg');
+  const mixed = layer.channels.map((c, i) => c * a + under.channels[i] * (1 - a));
+  return { ...fromChannels(mixed), name: spec, css: `${layer.css} at ${alphaText}%`, outOfGamut: layer.outOfGamut };
+}
+
 /** Gamut-clip the way a display does: encode, clamp to [0,1], keep that as the shown color. */
 function resolve(name) {
   const [L, C, H] = TOKENS[name];
   const lin = oklchToLinearSrgb(L, C, H);
   const clipped = lin.map((c) => clamp01(encode(c)));
   const outOfGamut = lin.some((c) => encode(c) < -0.0005 || encode(c) > 1.0005);
-  const [r, g, b] = clipped.map(decode);
-  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  const hex =
-    '#' +
-    clipped
-      .map((c) =>
-        Math.round(c * 255)
-          .toString(16)
-          .padStart(2, '0'),
-      )
-      .join('');
-  return { name, hex, luminance, outOfGamut, css: `oklch(${L} ${C} ${H})` };
+  return { name, ...fromChannels(clipped), outOfGamut, css: `oklch(${L} ${C} ${H})` };
 }
 
 const ratio = (a, b) => {
@@ -118,12 +155,23 @@ console.log('\nPAIR                          RATIO   FLOOR  RESULT  NOTE');
 console.log('-'.repeat(96));
 let failures = 0;
 for (const [fg, bg, floor, note] of PAIRS) {
-  const r = ratio(resolved[fg], resolved[bg]);
+  const r = ratio(resolveSpec(fg), resolveSpec(bg));
   const ok = r >= floor;
   if (!ok) failures += 1;
   console.log(
     `${`${fg} on ${bg}`.padEnd(29)} ${r.toFixed(2).padStart(5)}   ${floor.toFixed(1).padStart(4)}  ${
       ok ? 'PASS  ' : 'FAIL  '
+    }  ${note}`,
+  );
+}
+
+console.log('\nREJECTED (reported, never gated)');
+console.log('-'.repeat(96));
+for (const [fg, bg, floor, note] of REJECTED) {
+  const r = ratio(resolveSpec(fg), resolveSpec(bg));
+  console.log(
+    `${`${fg} on ${bg}`.padEnd(29)} ${r.toFixed(2).padStart(5)}   ${floor.toFixed(1).padStart(4)}  ${
+      r >= floor ? 'would pass' : 'below floor'
     }  ${note}`,
   );
 }
