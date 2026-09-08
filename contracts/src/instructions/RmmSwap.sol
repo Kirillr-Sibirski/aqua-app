@@ -113,6 +113,16 @@ library RmmSwap {
         a.rateStable = args.at(54).asU64();
     }
 
+    /// @notice The guard band `exec` holds back, in the units of the reserve that leaves: risky when
+    ///         `riskyIn` is false, stable when it is true.
+    /// @dev One definition, deliberately. `exec` enforces `newOut + epsOut <= balanceOut`; both
+    ///      `StrikelineViews.bandFor` and `SurfaceLens` publish the smallest trade that satisfies it.
+    ///      A view that recomputed this would drift from the instruction it describes, and the drift
+    ///      would surface as a published minimum that reverts.
+    function epsOut(uint256 K, uint256 L, bool riskyIn) internal pure returns (uint256) {
+        return Math.ceilDiv((riskyIn ? L * K / WAD : L) * EPS, WAD);
+    }
+
     /// @notice Time to maturity in years (WAD), floored below and zero once matured.
     function tauOf(uint40 maturity, uint256 nowTs) internal pure returns (uint256) {
         if (nowTs >= maturity) {
@@ -152,17 +162,17 @@ library RmmSwap {
         uint256 L = a.liquidityWad;
 
         // Guard band in the units of whichever reserve `tokenOut` is.
-        uint256 epsOut = Math.ceilDiv((riskyIn ? L * K / WAD : L) * EPS, WAD);
+        uint256 eps = epsOut(K, L, riskyIn);
 
         if (ctx.query.isExactIn) {
             uint256 newIn = balanceIn + ctx.swap.amountIn * rateIn;
             uint256 newOut = riskyIn ? stableOf(newIn, K, s, L) : riskyOf(newIn, K, s, L);
-            if (newOut + epsOut > balanceOut) {
-                revert RmmInsideSpread(newOut + epsOut - balanceOut);
+            if (newOut + eps > balanceOut) {
+                revert RmmInsideSpread(newOut + eps - balanceOut);
             }
-            ctx.swap.amountOut = (balanceOut - newOut - epsOut) / rateOut;
+            ctx.swap.amountOut = (balanceOut - newOut - eps) / rateOut;
         } else {
-            uint256 need = ctx.swap.amountOut * rateOut + epsOut;
+            uint256 need = ctx.swap.amountOut * rateOut + eps;
             if (need > balanceOut) {
                 revert RmmExceedsReserve(need, balanceOut);
             }

@@ -1,36 +1,36 @@
 # Strikeline
 
-**A covered call is a price curve. Strikeline writes that curve as a 1inch SwapVM instruction, so
-the option lives in your own wallet: no vault, no option token, no oracle, no keeper.**
+**Name a price you'd be happy to sell your ETH at. Whoever takes it pays you for
+the wait. The ETH never leaves your wallet.**
 
-Built for ETHGlobal ETHOnline 2026, 1inch "Build an Aqua App" track. Every strategy settles through
-the official Aqua registry at `0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a`.
+You hold 10.4 WETH. You can leave it idle, or put it in a liquidity pool — where
+you are already agreeing to sell it at a price you never chose, for a fee that
+mostly goes to arbitrage bots.
 
----
+Strikeline lets you say *"I will sell my ETH at $2,800 if it gets there, and be
+paid to wait."*
 
-## What it does
+You set the price and the date. Your ETH stays in your wallet. There is no
+contract to sign: your offer is a quote inside 1inch's Aqua, and it costs a
+little more to fill each day nobody takes it.
 
-You hold 10.4 WETH. Today you can leave it idle, or put it in a pool where you are silently short an
-option: someone else picked the strike, someone else picked the implied vol, and arbitrageurs collect
-the premium instead of you.
+*If you already trade options:* this is a covered call written as a price curve —
+you pick the strike, the vol and the expiry, and the premium arrives as a
+two-sided spread that widens with theta rather than as an up-front credit.
 
-Strikeline lets you say *"I will sell my ETH at $2,800 if it gets there, and be paid to wait."* You
-write that as a ladder of quoting positions. The tokens never leave your wallet. Traders trade against
-your price, and time decay pays you.
+*Mechanically:* the curve is a 1inch SwapVM instruction — a small on-chain
+program that prices trades against your wallet — so there is no vault, no option
+token, no oracle and no keeper anywhere in the path.
 
-The mechanism is that the option **is** the curve:
+Built for ETHGlobal ETHOnline 2026. Every strategy settles through the official
+Aqua registry at `0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a`.
 
-- **The premium** arrives as a spread that widens as expiry approaches. Each day the curve moves away
-  from the stale reserve point, so a trade only clears once it is large enough to close the gap.
-  Whoever crosses it pays the accrued theta. Measured over one leg's life: **0.338 WETH**.
-- **Exercise** is an ordinary swap at the strike, performed by whoever wants the arbitrage.
-- **Settlement** needs nothing: at maturity the curve degenerates in closed form to a constant-sum
-  order at exactly `K`.
-- **Cancelling and rolling** move zero tokens: `dock` + `ship` are pure accounting in Aqua.
+## What you are actually agreeing to
 
-One wallet backs the whole ladder at once. Ship three calls and a put against the same 10.4 WETH and
-you have written 27.5 WETH of notional, because at any given price at most one or two legs can fill.
-A second instruction makes that safe rather than fictional.
+If ETH runs past your price, you sell at your price and keep what you were paid.
+That is the trade. If ETH moves more than the volatility you chose, you would
+have done better holding. You can withdraw the offer at any moment, and
+withdrawing moves no tokens.
 
 ## The two custom SwapVM instructions
 
@@ -94,6 +94,44 @@ does not have.
 ```bash
 make subgraph        # graph codegen && graph build
 make test-surface    # 20 Foundry tests on the lens, then the read path against the fork
+```
+
+## The same curve in a pool: a Uniswap v4 hook, and what it costs
+
+[`contracts/src/hooks/StrikelineHook.sol`](contracts/src/hooks/StrikelineHook.sol) runs the
+identical RMM-01 curve as a Uniswap v4 hook, importing
+[`RmmPricer.sol`](contracts/src/hooks/RmmPricer.sol) and the same `Gaussian.sol` / `WadMath.sol`
+the Aqua instruction uses. Not a reimplementation: the same code, priced by the same functions.
+
+That makes the comparison a controlled experiment rather than an argument, and we ran it.
+[`test/hook/VenueExperiment.t.sol`](contracts/test/hook/VenueExperiment.t.sol) stands the same
+four-leg ladder up in three venues — a v4 pool, a v4 hook paying from the wallet, and Aqua — and
+measures four questions. 26 hook tests pass, including a fuzzed parity suite
+([`CurveParity.t.sol`](contracts/test/hook/CurveParity.t.sol)) asserting the pool and the Aqua leg
+quote the same price in both directions and across the decay.
+
+| | v4 pooled | v4 wallet-backed | Aqua |
+|---|---|---|---|
+| Legs of the 4-leg ladder this wallet can fund | **1** | 4 | **4** |
+| Gas per fill | **167,618** | 173,866 | 186,995 |
+| Standing up 4 legs: on-chain steps / gas | | 8 / 951,363 | **4 / 651,086** |
+| Rolling to next expiry: ERC-20 transfers / gas | 14 / 1,141,329 | 0 / 774,083 | **0 / 662,579** |
+
+**Aqua loses on gas per fill and we are not going to pretend otherwise** — a pool holds its own
+reserves, so it does not pay for a `pull` and a `push`. It wins on the other three, and the first
+row is the whole thesis: the ladder needs **27.51 WETH** of advertised depth against a wallet
+holding **10.4 WETH**. A pool must own what it quotes, so the same capital funds one leg instead of
+four. The v4 hook can be made wallet-backed and then it writes all four, but it still needs a
+CREATE2-mined hook address, eight setup steps instead of four, and a separate pool per leg, because
+`PoolKey` has nowhere to put a strike and an expiry.
+
+[`FEEDBACK.md`](FEEDBACK.md) is our developer feedback on the v4 stack, written during the port.
+Two of its findings are backed by tests rather than opinion:
+`test_Feedback_ANoOpHookMakesThePriceLimitIrrelevant` and
+`test_Feedback_TakeSpendsThePoolManagersOwnBalance`.
+
+```bash
+make test-hook       # 26 tests: parity, the venue experiment, the two feedback findings
 ```
 
 ## Proven, not asserted
@@ -160,6 +198,16 @@ make smoke         # ship a strategy, quote it, swap it, print the receipt
 
 ## Honest limits
 
+- **You are not paid up front, and the income depends on flow.** A written covered
+  call credits you on day one and you keep it whether or not anyone shows up. Here
+  the premium accrues inside the spread and is only realised when somebody crosses
+  it. If no trader ever reaches your quote you keep your ETH and earn nothing. This
+  is the largest risk in the design and it is a property of the mechanism, not a
+  bug we intend to fix.
+- **`Coverage` reverts rather than partially filling**, which is honest to the maker
+  and a cost to the taker: someone who asks for more than the wallet can deliver
+  gets nothing instead of getting some, and may route elsewhere. A clamped partial
+  fill would need a second `runLoop` in exact-out mode.
 - This is **vol-selling market making, not a written contract**. `dock` is unconditional and instant,
   so a maker can withdraw quotes at any time. A buyer cannot rely on the option the way they can rely
   on a Deribit contract.

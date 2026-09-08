@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-
 import { WadMath } from "./math/WadMath.sol";
 import { RmmSwap } from "./instructions/RmmSwap.sol";
 import { Coverage } from "./instructions/Coverage.sol";
@@ -91,9 +89,9 @@ abstract contract StrikelineViews {
     {
         uint256 s = _sNow(sigmaWad, maturity);
 
-        // `exec`'s `epsOut`, both ways round: risky leaves when stable comes in, and vice versa.
-        uint256 epsRisky = Math.ceilDiv(uint256(liquidityWad) * RmmSwap.EPS, 1e18);
-        uint256 epsStable = Math.ceilDiv(uint256(liquidityWad) * uint256(strikeWad) / 1e18 * RmmSwap.EPS, 1e18);
+        // `exec`'s own `epsOut`, both ways round: risky leaves when stable comes in, and vice versa.
+        uint256 epsRisky = RmmSwap.epsOut(strikeWad, liquidityWad, false);
+        uint256 epsStable = RmmSwap.epsOut(strikeWad, liquidityWad, true);
 
         // Buying risky needs enough stable to reach the curve's requirement at the risky reserve the
         // guard leaves behind; selling risky needs enough input to pull the curve's stable requirement

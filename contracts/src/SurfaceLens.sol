@@ -337,8 +337,8 @@ contract SurfaceLens {
         // balanceOut`, so a band read at the bare curve is one eps short of clearing and the taker who
         // sends it gets `RmmInsideSpread`. Same arithmetic as `StrikelineViews.bandFor`; the two
         // published minimums have to agree or `/leg` and `/surface` disagree about the same leg.
-        uint256 epsRisky = Math.ceilDiv(L * RmmSwap.EPS, WAD);
-        uint256 epsStable = Math.ceilDiv(L * K / WAD * RmmSwap.EPS, WAD);
+        uint256 epsRisky = RmmSwap.epsOut(K, L, false);
+        uint256 epsStable = RmmSwap.epsOut(K, L, true);
         uint256 yOnCurve = RmmSwap.stableOf(x > epsRisky ? x - epsRisky : 0, K, s, L);
         uint256 xOnCurve = RmmSwap.riskyOf(y > epsStable ? y - epsStable : 0, K, s, L);
         leg.minStableIn = yOnCurve > y ? Math.ceilDiv(yOnCurve - y, leg.rateStable) : 0;
