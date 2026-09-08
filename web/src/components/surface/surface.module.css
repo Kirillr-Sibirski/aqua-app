@@ -1,15 +1,11 @@
 /*
- * The two things the read layer needs from CSS that Mantine props cannot give it.
- *
- * Unlayered, like every module in this app, so these beat `@layer mantine` without an `!important`.
- */
-
-/*
  * A status word, whole.
  *
  * Mantine's Badge clips its label and caps itself at 100% of a cramped table cell, so the Status
  * column rendered "WITHDRA…" — a status word cut in half, in a financial table, where the half that
- * survives ("WITHDRA") is not a word and the half that does not is the whole meaning.
+ * survives is not a word and the half that does not is the whole meaning.
+ *
+ * Unlayered, like every module in this app, so it beats `@layer mantine` without an `!important`.
  */
 .badge {
   max-width: none;
@@ -19,24 +15,4 @@
   overflow: visible;
   text-overflow: clip;
   white-space: nowrap;
-}
-
-/*
- * A 22px icon button with a 44px target.
- *
- * There are about twenty copy buttons on this screen and every one of them was 22x22 on a phone,
- * which is half of what a thumb needs. The pseudo-element extends the hit area without moving a
- * pixel of what is drawn, and only where the pointer is coarse: on a mouse, 22px is already fine
- * and a 44px invisible rectangle would swallow clicks meant for the text beside it.
- */
-.tap {
-  position: relative;
-}
-
-@media (pointer: coarse) {
-  .tap::after {
-    content: '';
-    position: absolute;
-    inset: -11px;
-  }
 }

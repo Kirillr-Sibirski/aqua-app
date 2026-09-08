@@ -288,6 +288,26 @@
   outline-offset: 2px;
 }
 
+/*
+ * A small icon button with a thumb-sized target.
+ *
+ * An icon-only control is drawn at 22 or 28px because that is the weight it should carry beside a
+ * line of text, and 22px is half of what a thumb can reliably hit. The pseudo-element extends the
+ * hit area without moving a drawn pixel, and only where the pointer is coarse: on a mouse, 22px is
+ * already fine and a 44px invisible rectangle would swallow clicks meant for the text beside it.
+ */
+@utility tap-44 {
+  position: relative;
+
+  @media (pointer: coarse) {
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -11px;
+    }
+  }
+}
+
 /* --- base ----------------------------------------------------------------- */
 
 @layer base {

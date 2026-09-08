@@ -25,7 +25,6 @@ import { ActionIcon, Badge, CopyButton, Group, Skeleton, Text, Tooltip } from '@
 import { Check, Copy } from 'lucide-react';
 import { formatUnits } from '@/lib/ui';
 import { Panel } from './kit';
-import classes from './surface.module.css';
 import { SUBGRAPH_URL } from './subgraph';
 import type { SurfacePoint, SurfaceSource } from './types';
 
@@ -219,7 +218,7 @@ export function ReadLayer({
                   onClick={copy}
                   variant="default"
                   size="md"
-                  className={classes.tap}
+                  className="tap-44"
                   aria-label={copied ? 'Query copied' : 'Copy the query'}
                 >
                   {copied ? (

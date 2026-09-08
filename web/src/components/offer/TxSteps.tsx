@@ -100,7 +100,7 @@ export function TxSteps({ steps, chainId, plan }: TxStepsProps) {
               <CopyButton value={step.hash} timeout={1200}>
                 {({ copied, copy }) => (
                   <Tooltip label={copied ? 'Copied' : 'Copy hash'} withArrow>
-                    <ActionIcon size="xs" variant="subtle" color="gray" onClick={copy}>
+                    <ActionIcon size="xs" variant="subtle" color="gray" className="tap-44" onClick={copy}>
                       <Copy size={12} strokeWidth={1.75} />
                     </ActionIcon>
                   </Tooltip>

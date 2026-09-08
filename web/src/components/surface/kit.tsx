@@ -199,7 +199,7 @@ export function MakerAddress({ value }: { value: string }) {
               variant="subtle"
               color={copied ? 'moss' : 'slate'}
               size="sm"
-              className={classes.tap}
+              className="tap-44"
               aria-label={copied ? 'Address copied' : `Copy address ${value}`}
             >
               {copied ? <Check size={13} strokeWidth={1.75} /> : <Copy size={13} strokeWidth={1.75} />}
