@@ -156,7 +156,15 @@ export function ChartFrame({
         ) : null}
       </figcaption>
 
-      <div ref={plotRef} className="relative w-full" style={{ height }}>
+      {/* Empty and error collapse to the height of their own message. Reserving the full plot box
+          for them left a ~370px hole with a sentence floating in it -- the widest dead region in
+          the app, on the screen a maker lands on first. Loading keeps the height, because a
+          skeleton that does not match the geometry makes the chart jump when data lands. */}
+      <div
+        ref={plotRef}
+        className="relative w-full"
+        style={{ height: state === 'empty' || state === 'error' ? undefined : height }}
+      >
         {state === 'ready' && geometry ? (
           <>
             <svg
@@ -192,14 +200,13 @@ export function ChartFrame({
         {state === 'loading' ? <ChartSkeleton title={title} margin={resolved} /> : null}
 
         {state === 'empty' ? (
-          <ChartMessage margin={resolved} heading="Nothing to plot" body={emptyMessage}>
+          <ChartMessage heading="Nothing to plot" body={emptyMessage}>
             {emptyAction}
           </ChartMessage>
         ) : null}
 
         {state === 'error' ? (
           <ChartMessage
-            margin={resolved}
             heading="Series unavailable"
             body={errorMessage}
             tone="error"
@@ -279,24 +286,19 @@ function ChartSkeleton({ title, margin }: { title: string; margin: ChartMargin }
  * control that resolves it. The tone token is never the only signal; the heading carries it too.
  */
 function ChartMessage({
-  margin,
   heading,
   body,
   tone = 'neutral',
   children,
 }: {
-  margin: ChartMargin;
   heading: string;
   body: string;
   tone?: 'neutral' | 'error';
   children?: ReactNode;
 }) {
   return (
-    <div
-      className="absolute inset-0 flex flex-col justify-center"
-      style={{ paddingLeft: margin.left, paddingRight: margin.right }}
-    >
-      <div className="flex max-w-md flex-col items-start gap-2 border-b border-line pb-4">
+    <div className="flex flex-col justify-center py-6">
+      <div className="flex max-w-md flex-col items-start gap-2">
         <p className="flex items-center gap-1.5 text-meta font-medium text-ink">
           {tone === 'error' ? <AlertGlyph /> : null}
           {heading}

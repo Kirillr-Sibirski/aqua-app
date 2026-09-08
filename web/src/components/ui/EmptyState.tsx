@@ -42,7 +42,10 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        bare ? 'py-10' : 'rounded-card border border-line bg-surface px-6 py-10',
+        // Constrained to the measure of its own copy. A full-width card whose content stops at
+        // ~600px leaves the widest dead region in the app, and these are the screens a judge lands
+        // on first.
+        bare ? 'py-10' : 'max-w-3xl rounded-card border border-line bg-surface px-6 py-10',
         className,
       )}
     >

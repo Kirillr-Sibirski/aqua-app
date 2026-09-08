@@ -77,13 +77,18 @@ export function BookScreen() {
           readChainName={wrongNetwork ? deploymentChain.name : undefined}
         />
 
-        <LegsTable
-          book={book}
-          connected={connected}
-          connectAction={<ConnectButton size="md" />}
-          highlight={highlight}
-          onHighlight={setHighlight}
-        />
+        {/* One empty state, not two. Disconnected, `SharedInventory` already says what a wallet
+            would unlock and offers the one control that does it; a second full-width card saying
+            the same thing under it gave the screen three identical primary buttons plus the one in
+            the header. The table appears when there is a wallet to read for. */}
+        {connected ? (
+          <LegsTable
+            book={book}
+            connected={connected}
+            highlight={highlight}
+            onHighlight={setHighlight}
+          />
+        ) : null}
       </div>
     </AppShell>
   );
