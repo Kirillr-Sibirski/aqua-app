@@ -49,6 +49,7 @@ import {
   FLAG_POST_EXPIRY_ONE_WAY,
   FLAG_POST_EXPIRY_OUT_IS_RISKY,
   FLAG_RISKY_IS_TOKEN_A,
+  TAU_FLOOR_SECONDS,
   useCoverage,
   useDebounced,
   useLegFills,
@@ -371,6 +372,7 @@ function Leg({
                 value={scrub}
                 onValueChange={setScrub}
                 remainingSeconds={remainingNow ?? 0}
+                floorSeconds={TAU_FLOOR_SECONDS}
                 disabled={expired || remainingNow === undefined}
                 disabledReason={
                   expired

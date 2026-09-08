@@ -26,6 +26,12 @@ export interface TimeScrubberProps {
   steps?: number;
   /** Seconds of time value left at position 0, used for the readout. */
   remainingSeconds: number;
+  /**
+   * `RmmSwap.TAU_FLOOR`. Inside it the instruction stops shortening tau, so the curve the router
+   * returns stops changing even though the clock has not stopped. Saying so is the difference
+   * between a scrubber that looks stuck and one that is showing the contract's own behaviour.
+   */
+  floorSeconds?: number;
   disabled?: boolean;
   disabledReason?: string;
   className?: string;
@@ -48,6 +54,7 @@ export function TimeScrubber({
   onValueChange,
   steps = 24,
   remainingSeconds,
+  floorSeconds,
   disabled = false,
   disabledReason,
   className,
@@ -56,6 +63,7 @@ export function TimeScrubber({
   const position = Math.round(value * steps);
   const left = Math.round(remainingSeconds * (1 - value));
   const atNow = position === 0;
+  const floored = floorSeconds !== undefined && left > 0 && left < floorSeconds;
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
@@ -66,6 +74,11 @@ export function TimeScrubber({
         <span className="font-mono text-meta tnum text-ink">
           {formatDuration(left)}
           {atNow ? <span className="ml-2 text-mini text-ink-3">live</span> : null}
+          {floored ? (
+            <span className="ml-2 text-mini text-warn">
+              tau floored at {formatDuration(floorSeconds)}
+            </span>
+          ) : null}
         </span>
       </div>
 
@@ -108,8 +121,19 @@ export function TimeScrubber({
       </div>
 
       <p className="text-mini leading-prose text-ink-3">
-        Every position is a fresh <span className="font-mono">stableFor</span> sample from the router, not
-        an interpolation. Nothing moves on chain.
+        {floored ? (
+          <>
+            Inside the last <span className="font-mono">{formatDuration(floorSeconds)}</span> the
+            instruction stops shortening tau, so the curve holds here until maturity actually passes
+            and then snaps to the settlement line. The floor is what keeps gamma finite in the final
+            hour, and the snap is the honest edge of it.
+          </>
+        ) : (
+          <>
+            Every position is a fresh <span className="font-mono">stableFor</span> sample from the
+            router, not an interpolation. Nothing moves on chain.
+          </>
+        )}
       </p>
     </div>
   );
