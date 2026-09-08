@@ -13,14 +13,15 @@
  *    the curve, so `dV/dS = X`: the delta in risky units is literally the leg's risky reserve. The
  *    tile is a sum of chain reads with no Gaussian anywhere near it.
  *
+ * Both methods are printed under the strip rather than hidden in a tooltip: a hint is invisible to
+ * touch, to a screenshot and to anyone watching a recording, and how these two are derived is the
+ * most interesting thing about them.
+ *
  * `Backed` floors rather than rounds. A book at 99.97% must not print "100%".
  */
-import { Tooltip } from '@/components/ui';
 import { StatTile, TokenAmount } from '@/components/ui';
 import { cn, formatPercent, formatRelativeTime, formatUnits } from '@/lib/ui';
 import type { BookKpis } from '@/hooks/useBook';
-
-const ZERO = BigInt(0);
 
 export interface KpiStripProps {
   kpis: BookKpis;
@@ -43,15 +44,21 @@ function backedText(value: number): string {
 }
 
 function Tile({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn('min-w-0 lg:border-l lg:border-line lg:pl-6 lg:first:border-l-0 lg:first:pl-0', className)}>{children}</div>;
+}
+
+/** A stack of amounts, for a figure that lands in more than one token. */
+function Amounts({ entries }: { entries: BookKpis['thetaByToken'] }) {
   return (
-    <div className={cn('min-w-0 lg:border-l lg:border-line lg:pl-6 lg:first:border-l-0 lg:first:pl-0', className)}>{children}</div>
+    <span className="flex flex-col items-start gap-0.5">
+      {entries.map((entry) => (
+        <TokenAmount key={entry.token.address} value={entry.amount} decimals={entry.token.decimals} symbol={entry.token.symbol} size="lg" />
+      ))}
+    </span>
   );
 }
 
 export function KpiStrip({ kpis, blockTimestamp, loading = false, className }: KpiStripProps) {
-  const theta = kpis.thetaByToken;
-  const delta = kpis.deltaByToken;
-
   const thetaDetail = kpis.thetaPending
     ? 'Replaying the band at each fill block'
     : kpis.thetaFills === 0
@@ -66,114 +73,83 @@ export function KpiStrip({ kpis, blockTimestamp, loading = false, className }: K
       : undefined;
 
   return (
-    <div className={cn('grid grid-cols-2 gap-x-6 gap-y-7 lg:grid-cols-5', className)}>
-      <Tile>
-        <StatTile
-          label="Notional written"
-          loading={loading}
-          value={kpis.writtenToken ? multiple(kpis.writtenMultiple) : undefined}
-          empty="0x"
-          detail={
-            kpis.writtenToken ? (
-              <>
-                {formatUnits(kpis.writtenToken.written, kpis.writtenToken.decimals, { significantDigits: 6 })} {kpis.writtenToken.symbol} written on{' '}
-                {formatUnits(kpis.writtenToken.coverage, kpis.writtenToken.decimals, { significantDigits: 6 })} held
-              </>
-            ) : (
-              'Nothing written yet'
-            )
-          }
-        />
-      </Tile>
-
-      <Tile>
-        <StatTile
-          label="Backed"
-          loading={loading}
-          value={kpis.backedToken ? backedText(kpis.backed) : undefined}
-          empty="100.0%"
-          detail={
-            kpis.backedToken ? (
-              kpis.backed >= 1 ? (
-                <>The deepest {kpis.backedToken.symbol} leg is still deliverable in full</>
-              ) : (
+    <section className={cn('flex flex-col gap-5', className)} aria-label="Book summary">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-7 lg:grid-cols-5">
+        <Tile>
+          <StatTile
+            label="Notional written"
+            loading={loading}
+            value={kpis.writtenToken ? multiple(kpis.writtenMultiple) : undefined}
+            empty="0x"
+            detail={
+              kpis.writtenToken ? (
                 <>
-                  The deepest {kpis.backedToken.symbol} leg is wallet-bound at{' '}
-                  {formatUnits(kpis.backedToken.coverage, kpis.backedToken.decimals, { significantDigits: 6 })}
+                  {formatUnits(kpis.writtenToken.written, kpis.writtenToken.decimals, { significantDigits: 6 })} {kpis.writtenToken.symbol} written on{' '}
+                  {formatUnits(kpis.writtenToken.coverage, kpis.writtenToken.decimals, { significantDigits: 6 })} held
                 </>
+              ) : (
+                'Nothing written yet'
               )
-            ) : (
-              'No obligation to back'
-            )
-          }
-        />
-      </Tile>
+            }
+          />
+        </Tile>
 
-      <Tile>
-        <StatTile
-          label="Theta captured"
-          loading={loading}
-          value={
-            theta.length === 0 ? undefined : (
-              <span className="flex flex-col items-start gap-0.5">
-                {theta.map((entry) => (
-                  <TokenAmount key={entry.token.address} value={entry.amount} decimals={entry.token.decimals} symbol={entry.token.symbol} size="lg" />
-                ))}
-              </span>
-            )
-          }
-          detail={
-            <Tooltip content="Each fill had to clear the decay band standing in front of it. The band is replayed from bandFor at that fill's own block, with the reserves folded out of Aqua's Pushed and Pulled logs, so this is the toll takers actually paid — never a model.">
-              <span className="cursor-help border-b border-dotted border-line">{thetaDetail}</span>
-            </Tooltip>
-          }
-        />
-      </Tile>
+        <Tile>
+          <StatTile
+            label="Backed"
+            loading={loading}
+            value={kpis.backedToken ? backedText(kpis.backed) : undefined}
+            empty="100.0%"
+            detail={
+              kpis.backedToken ? (
+                kpis.backed >= 1 ? (
+                  <>Deepest {kpis.backedToken.symbol} leg deliverable in full</>
+                ) : (
+                  <>
+                    Deepest {kpis.backedToken.symbol} leg wallet-bound at{' '}
+                    {formatUnits(kpis.backedToken.coverage, kpis.backedToken.decimals, { significantDigits: 6 })}
+                  </>
+                )
+              ) : (
+                'No obligation to back'
+              )
+            }
+          />
+        </Tile>
 
-      <Tile>
-        <StatTile
-          label="Book delta"
-          loading={loading}
-          value={
-            delta.length === 0 ? undefined : (
-              <span className="flex flex-col items-start gap-0.5">
-                {delta.map((entry) => (
-                  <TokenAmount key={entry.token.address} value={entry.amount} decimals={entry.token.decimals} symbol={entry.token.symbol} size="lg" />
-                ))}
-              </span>
-            )
-          }
-          detail={
-            <Tooltip content="Along the curve the position value is V = S*X + Y, so dV/dS = X. The book's delta in risky units is the sum of the legs' risky reserves, read from Aqua rather than computed.">
-              <span className="cursor-help border-b border-dotted border-line">Sum of the legs&rsquo; risky reserves</span>
-            </Tooltip>
-          }
-        />
-      </Tile>
+        <Tile>
+          <StatTile
+            label="Theta captured"
+            loading={loading}
+            value={kpis.thetaByToken.length === 0 ? undefined : <Amounts entries={kpis.thetaByToken} />}
+            detail={thetaDetail}
+          />
+        </Tile>
 
-      <Tile className="col-span-2 lg:col-span-1">
-        <StatTile
-          label="Fills, 24h"
-          loading={loading}
-          value={kpis.fills24h > 0 || kpis.lastFillAt !== undefined ? formatUnits(BigInt(kpis.fills24h), 0) : undefined}
-          empty="0"
-          detail={lastFill ? `Last ${lastFill} on the chain clock` : 'No fill on record'}
-        />
-      </Tile>
-    </div>
+        <Tile>
+          <StatTile
+            label="Book delta"
+            loading={loading}
+            value={kpis.deltaByToken.length === 0 ? undefined : <Amounts entries={kpis.deltaByToken} />}
+            detail={<>Sum of the legs&rsquo; risky reserves</>}
+          />
+        </Tile>
+
+        <Tile className="col-span-2 lg:col-span-1">
+          <StatTile
+            label="Fills, 24h"
+            loading={loading}
+            value={formatUnits(BigInt(kpis.fills24h), 0)}
+            detail={lastFill ? `Last ${lastFill} on the chain clock` : 'No fill on record'}
+          />
+        </Tile>
+      </div>
+
+      <p className="max-w-prose text-mini leading-prose text-ink-3">
+        Theta captured is realised, not modelled: it is the decay band each past fill had to clear, replayed from{' '}
+        <span className="font-mono">bandFor</span> at that fill&rsquo;s own block. Book delta is read rather than computed: along the curve{' '}
+        <span className="font-mono">dV/dS = X</span>, so the delta in risky units is the legs&rsquo; own reserves.
+      </p>
+    </section>
   );
 }
-
-/** Exported for the empty book: a strip of zeroes is still five real reads. */
-export const EMPTY_KPIS: BookKpis = {
-  writtenMultiple: 0,
-  backed: 1,
-  thetaByToken: [],
-  thetaFills: 0,
-  thetaPending: false,
-  thetaIncomplete: false,
-  deltaByToken: [],
-  fills24h: 0,
-};
-
-export { ZERO as KPI_ZERO };
