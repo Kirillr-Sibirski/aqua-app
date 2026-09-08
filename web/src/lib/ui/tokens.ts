@@ -3,11 +3,13 @@
  *
  * CSS owns the values (`src/app/globals.css`); this module is the typed handle on them for the
  * places a class name cannot reach: SVG `fill`/`stroke` props, chart scales, `<meta name="theme-color">`,
- * and motion configs. Every entry here has a counterpart custom property, and the two are kept in
- * step by `node scripts/contrast.mjs`, which reads the same numbers.
+ * the Mantine theme, and motion configs. Every entry here has a counterpart custom property, and the
+ * two are kept in step by `node scripts/contrast.mjs`, which reads the same numbers.
  *
- * Rule of thumb: reach for a Tailwind class first (`text-ink-2`, `bg-surface`, `rounded-card`).
- * Use `color()` only where a class cannot be applied.
+ * Rule of thumb: reach for a Mantine prop or a Tailwind class first. Use `color()` only where
+ * neither can be applied.
+ *
+ * The palette is LIGHT. See /DESIGN.md for why each value is where it is.
  */
 
 // ---------------------------------------------------------------------------
@@ -18,17 +20,24 @@ export const COLOR_TOKENS = [
   'bg',
   'surface',
   'surface-2',
+  'surface-3',
   'line',
   'line-strong',
   'ink',
   'ink-2',
   'ink-3',
+  'ink-inverse',
   'accent',
+  'accent-hover',
   'accent-ink',
+  'accent-soft',
   'accent-dim',
   'pos',
+  'pos-soft',
   'neg',
+  'neg-soft',
   'warn',
+  'warn-soft',
   'scrim',
 ] as const;
 
@@ -36,43 +45,61 @@ export type ColorToken = (typeof COLOR_TOKENS)[number];
 
 /** Authored OKLCH, for documentation and for the contrast audit. */
 export const COLOR_OKLCH: Record<ColorToken, string> = {
-  bg: 'oklch(0.17 0.008 240)',
-  surface: 'oklch(0.21 0.009 240)',
-  'surface-2': 'oklch(0.25 0.010 240)',
-  line: 'oklch(0.32 0.012 240)',
-  'line-strong': 'oklch(0.40 0.014 240)',
-  ink: 'oklch(0.97 0.004 240)',
-  'ink-2': 'oklch(0.78 0.008 240)',
-  'ink-3': 'oklch(0.64 0.010 240)',
-  accent: 'oklch(0.68 0.16 245)',
-  'accent-ink': 'oklch(0.16 0.02 245)',
-  'accent-dim': 'oklch(0.42 0.09 245)',
-  pos: 'oklch(0.74 0.15 155)',
-  neg: 'oklch(0.68 0.17 25)',
-  warn: 'oklch(0.80 0.14 85)',
-  scrim: 'oklch(0.10 0.008 240)',
+  bg: 'oklch(0.972 0.004 215)',
+  surface: 'oklch(1 0 215)',
+  'surface-2': 'oklch(0.962 0.006 215)',
+  'surface-3': 'oklch(0.935 0.008 215)',
+  line: 'oklch(0.905 0.008 215)',
+  'line-strong': 'oklch(0.820 0.010 215)',
+  ink: 'oklch(0.240 0.014 215)',
+  'ink-2': 'oklch(0.430 0.014 215)',
+  'ink-3': 'oklch(0.515 0.012 215)',
+  'ink-inverse': 'oklch(0.990 0.002 215)',
+  accent: 'oklch(0.480 0.083 212)',
+  'accent-hover': 'oklch(0.420 0.072 212)',
+  'accent-ink': 'oklch(0.990 0.002 212)',
+  'accent-soft': 'oklch(0.945 0.030 212)',
+  'accent-dim': 'oklch(0.760 0.070 212)',
+  pos: 'oklch(0.500 0.125 150)',
+  'pos-soft': 'oklch(0.945 0.038 150)',
+  neg: 'oklch(0.520 0.185 27)',
+  'neg-soft': 'oklch(0.950 0.024 27)',
+  warn: 'oklch(0.520 0.105 70)',
+  'warn-soft': 'oklch(0.950 0.045 85)',
+  scrim: 'oklch(0.240 0.014 215 / 0.40)',
 };
 
 /**
  * The same colors resolved to sRGB. Only for contexts that cannot evaluate `oklch()` or `var()`:
- * `theme-color` meta, OG image generation, `<canvas>`. In the DOM, use `color()`.
+ * `theme-color` meta, the Mantine theme's color tuples, OG image generation, `<canvas>`.
+ * In the DOM, use `color()`.
+ *
+ * Every value here is inside the sRGB gamut as authored -- no channel is clipped -- so what a
+ * browser paints is what `scripts/contrast.mjs` measured.
  */
 export const COLOR_SRGB: Record<ColorToken, `#${string}`> = {
-  bg: '#0c1013',
-  surface: '#15191c',
-  'surface-2': '#1d2226',
-  line: '#2d3438',
-  'line-strong': '#41494f',
-  ink: '#f3f5f7',
-  'ink-2': '#b3b8bc',
-  'ink-3': '#878d92',
-  accent: '#249ff3',
-  'accent-ink': '#060e15',
-  'accent-dim': '#19517b',
-  pos: '#4bc680',
-  neg: '#ef6661',
-  warn: '#e7b643',
-  scrim: '#020405',
+  bg: '#f3f6f7',
+  surface: '#ffffff',
+  'surface-2': '#eef3f5',
+  'surface-3': '#e4ebed',
+  line: '#dae1e3',
+  'line-strong': '#bdc6c8',
+  ink: '#182123',
+  'ink-2': '#475255',
+  'ink-3': '#60696c',
+  'ink-inverse': '#fafcfd',
+  accent: '#036a79',
+  'accent-hover': '#045764',
+  'accent-ink': '#fafcfc',
+  'accent-soft': '#d7f3f9',
+  'accent-dim': '#7bbdcb',
+  pos: '#1b763a',
+  'pos-soft': '#dcf5e0',
+  neg: '#bc2826',
+  'neg-soft': '#fee9e6',
+  warn: '#8f5d14',
+  'warn-soft': '#fcedcd',
+  scrim: '#182123',
 };
 
 /** `color('accent')` -> `'var(--accent)'`. */
@@ -92,6 +119,101 @@ export function colorMix(token: ColorToken, percent: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Ramps
+// ---------------------------------------------------------------------------
+
+/**
+ * Ten-step ramps, because that is the shape Mantine's `theme.colors` takes.
+ *
+ * These are not a second palette: shades 8 and 9 of `petrol` are `--accent` and `--accent-hover`,
+ * shade 1 is `--accent-soft`, shade 4 is `--accent-dim`; `slate` 1/2/3/4/6/7/9 are `--bg`,
+ * `--surface-3`, `--line`, `--line-strong`, `--ink-3`, `--ink-2` and `--ink`. The intermediate
+ * steps exist only so Mantine's `light`/`outline`/`filled` variants have somewhere to go.
+ *
+ * Generated by walking a fixed hue at descending OKLCH lightness with the chroma capped to the
+ * sRGB gamut at each step; the OKLCH that produced each hex is in the comment beside it.
+ */
+export type ColorRamp = readonly [
+  string, string, string, string, string, string, string, string, string, string,
+];
+
+export const RAMPS = {
+  /** The accent. Hue 212 — deliberately not the 245-250 every library ships as its default. */
+  petrol: [
+    '#f1fafc', // 0  oklch(0.980 0.010 212)
+    '#d7f3f9', // 1  oklch(0.945 0.030 212)   = --accent-soft
+    '#b9e6ef', // 2  oklch(0.895 0.048 212)
+    '#9cd4e0', // 3  oklch(0.835 0.060 212)
+    '#7bbdcb', // 4  oklch(0.760 0.070 212)   = --accent-dim
+    '#5aa5b4', // 5  oklch(0.680 0.078 212)
+    '#388d9d', // 6  oklch(0.600 0.084 212)
+    '#207b8b', // 7  oklch(0.540 0.085 212)
+    '#036a79', // 8  oklch(0.480 0.083 212)   = --accent          (primaryShade)
+    '#045764', // 9  oklch(0.420 0.072 212)   = --accent-hover
+  ],
+  /** The neutrals. Overrides Mantine's `gray`, which is otherwise a warm-blue default. */
+  slate: [
+    '#f9fafb', // 0  oklch(0.985 0.002 215)
+    '#f3f6f7', // 1  oklch(0.972 0.004 215)   = --bg
+    '#e4ebed', // 2  oklch(0.935 0.008 215)   = --surface-3
+    '#dae1e3', // 3  oklch(0.905 0.008 215)   = --line
+    '#bdc6c8', // 4  oklch(0.820 0.010 215)   = --line-strong
+    '#96a0a3', // 5  oklch(0.700 0.012 215)
+    '#60696c', // 6  oklch(0.515 0.012 215)   = --ink-3
+    '#475255', // 7  oklch(0.430 0.014 215)   = --ink-2
+    '#2d373a', // 8  oklch(0.330 0.014 215)
+    '#182123', // 9  oklch(0.240 0.014 215)   = --ink
+  ],
+  /** Positive. Gains, fills received, a coverage check that passed. */
+  moss: [
+    '#f3fbf4', // 0  oklch(0.980 0.012 150)
+    '#dcf5e0', // 1  oklch(0.945 0.038 150)   = --pos-soft
+    '#c0e9c7', // 2  oklch(0.895 0.062 150)
+    '#a0d7aa', // 3  oklch(0.830 0.085 150)
+    '#7fc48e', // 4  oklch(0.760 0.105 150)
+    '#59ae6e', // 5  oklch(0.680 0.125 150)
+    '#369653', // 6  oklch(0.600 0.135 150)
+    '#278645', // 7  oklch(0.550 0.132 150)
+    '#1b763a', // 8  oklch(0.500 0.125 150)   = --pos
+    '#15632f', // 9  oklch(0.440 0.110 150)
+  ],
+  /** Negative. Losses, a revert, a quote the wallet cannot deliver. */
+  ember: [
+    '#fff7f6', // 0  oklch(0.982 0.009 27)
+    '#fee9e6', // 1  oklch(0.950 0.024 27)    = --neg-soft
+    '#fed2cc', // 2  oklch(0.900 0.050 27)
+    '#fdb6ad', // 3  oklch(0.840 0.085 27)
+    '#fa9489', // 4  oklch(0.770 0.125 27)
+    '#f46f64', // 5  oklch(0.700 0.165 27)
+    '#e74a43', // 6  oklch(0.630 0.195 27)
+    '#d43632', // 7  oklch(0.575 0.195 27)
+    '#bc2826', // 8  oklch(0.520 0.185 27)    = --neg
+    '#a01f1e', // 9  oklch(0.460 0.165 27)
+  ],
+  /** Warning. A stale read, a thin wallet, a simulation label. */
+  amber: [
+    '#fff8f0', // 0  oklch(0.982 0.013 70)
+    '#ffebd5', // 1  oklch(0.950 0.037 70)
+    '#fdd7ac', // 2  oklch(0.900 0.070 70)
+    '#f4c287', // 3  oklch(0.845 0.095 70)
+    '#eaad64', // 4  oklch(0.790 0.115 70)
+    '#d8953d', // 5  oklch(0.720 0.130 70)
+    '#c17f21', // 6  oklch(0.650 0.130 70)
+    '#a86d19', // 7  oklch(0.585 0.118 70)
+    '#8f5d14', // 8  oklch(0.520 0.105 70)    = --warn
+    '#784e10', // 9  oklch(0.460 0.092 70)
+  ],
+} as const satisfies Record<string, ColorRamp>;
+
+export type RampName = keyof typeof RAMPS;
+
+/**
+ * The shade Mantine fills a primary surface with. 8, not the library default 6: a fill that also
+ * has to carry white text at 4.5:1 has to be dark, and shade 6 of this ramp measures 3.1:1.
+ */
+export const PRIMARY_SHADE = 8;
+
+// ---------------------------------------------------------------------------
 // Type
 // ---------------------------------------------------------------------------
 
@@ -108,7 +230,7 @@ export const TEXT_TOKENS = [
 
 export type TextToken = (typeof TEXT_TOKENS)[number];
 
-/** Font sizes in px, for SVG `font-size` on chart labels. */
+/** Font sizes in px, for SVG `font-size` on chart labels and for the Mantine type scale. */
 export const TEXT_PX: Record<TextToken, number> = {
   micro: 11,
   mini: 12,
@@ -136,11 +258,13 @@ export const FONT_STACK = {
 /** 8px base grid; 4px is allowed only inside dense controls. */
 export const GRID_PX = 8;
 export const CONTENT_MAX_PX = 1280;
+/** The one card on the landing screen. Uniswap's is 480; ours holds one more line of English. */
+export const CARD_MAX_PX = 480;
 export const GUTTER_PX = 24;
 /** Table row height, fixed so streaming values never shift the layout. */
 export const ROW_HEIGHT_PX = 44;
 
-export const RADIUS_PX = { card: 10, control: 8, pill: 999 } as const;
+export const RADIUS_PX = { card: 16, field: 12, control: 8, pill: 999 } as const;
 
 // ---------------------------------------------------------------------------
 // Stacking
@@ -153,6 +277,7 @@ export const RADIUS_PX = { card: 10, control: 8, pill: 999 } as const;
 export const Z = {
   dropdown: 10,
   sticky: 20,
+  appBar: 25,
   modalBackdrop: 30,
   modal: 40,
   toast: 50,

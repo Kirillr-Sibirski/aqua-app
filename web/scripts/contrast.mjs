@@ -5,60 +5,110 @@
  * Converts every `oklch(L C H)` token to sRGB (clipping out-of-gamut channels the way a display
  * does), then reports WCAG 2.1 contrast ratios for the pairs that carry text or meaning.
  *
+ * The palette is LIGHT. That inverts which pair is tightest: on a dark theme the risk is a dim
+ * tertiary grey, here it is a *saturated* colour, because a hue legible as a fill on white has to
+ * be dark, and a hue dark enough to read as text on white is nearly black by the time it is also
+ * usable as a button ground. Every semantic colour in this file is therefore a dark tint, and the
+ * light washes (`*-soft`) exist only as backgrounds behind dark text -- never as text themselves.
+ *
  * A pair may name an ALPHA VARIANT (`accent/70`), which is composited over its background before
- * the ratio is taken. That is the gap this file used to have: it audited the raw tokens, while
- * components render `text-accent/70`, and the one measured failure in the app was exactly there --
- * `accent/70` on `surface` is 3.68:1, under the 4.5:1 floor, on the bytes that spell out the two
- * custom opcodes. Backgrounds may be a stack (`bg/80 over surface`) for the same reason.
+ * the ratio is taken, because that is what a component actually renders. Backgrounds may be a
+ * stack (`surface/80 over bg`) for the same reason.
  *
  * Run: node scripts/contrast.mjs
- * Exit code is 1 if any pair marked `min` fails its floor, so this can gate CI later.
+ * Exit code is 1 if any pair marked `min` fails its floor, so this can gate CI.
  */
 
 // --- tokens (keep in sync with :root in src/app/globals.css) ---------------
 const TOKENS = {
-  bg: [0.17, 0.008, 240],
-  surface: [0.21, 0.009, 240],
-  'surface-2': [0.25, 0.01, 240],
-  line: [0.32, 0.012, 240],
-  'line-strong': [0.4, 0.014, 240],
-  ink: [0.97, 0.004, 240],
-  'ink-2': [0.78, 0.008, 240],
-  'ink-3': [0.64, 0.01, 240], // DESIGN.md ships 0.62; raised to clear 4.5:1 on surface-2
-  accent: [0.68, 0.16, 245],
-  'accent-ink': [0.16, 0.02, 245],
-  'accent-dim': [0.42, 0.09, 245],
-  pos: [0.74, 0.15, 155],
-  neg: [0.68, 0.17, 25],
-  warn: [0.8, 0.14, 85],
+  // Ground. The page is a faint cool paper; the card is the only pure white in
+  // the system, so the one card on the landing screen is the brightest thing on
+  // screen without needing a shadow to say so.
+  bg: [0.972, 0.004, 215],
+  surface: [1.0, 0.0, 215],
+  'surface-2': [0.962, 0.006, 215],
+  'surface-3': [0.935, 0.008, 215],
+  line: [0.905, 0.008, 215],
+  'line-strong': [0.82, 0.01, 215],
+
+  // Text. Cool near-black rather than pure black: #000 on white is a glare edge.
+  ink: [0.24, 0.014, 215],
+  'ink-2': [0.43, 0.014, 215],
+  'ink-3': [0.515, 0.012, 215],
+  'ink-inverse': [0.99, 0.002, 215],
+
+  // Accent: deep petrol. Dark enough to carry white text as a filled button and
+  // to read as link text on white, and far enough off 245 to not be a default blue.
+  accent: [0.48, 0.083, 212],
+  'accent-ink': [0.99, 0.002, 212],
+  'accent-hover': [0.42, 0.072, 212],
+  'accent-soft': [0.945, 0.03, 212],
+  'accent-dim': [0.76, 0.07, 212],
+
+  // Money. Earned saturation, never decoration. Dark tints, legible on white.
+  pos: [0.5, 0.125, 150],
+  'pos-soft': [0.945, 0.038, 150],
+  neg: [0.52, 0.185, 27],
+  'neg-soft': [0.95, 0.024, 27],
+  warn: [0.52, 0.105, 70],
+  'warn-soft': [0.95, 0.045, 85],
+
+  // Not shipped. Mantine's default primary (blue.6, #228be6), kept only so the
+  // REJECTED table below can measure what we declined rather than assert it.
+  'mantine-blue-6': [0.63, 0.147, 250],
 };
 
 /** Pairs to audit: [foreground, background, floor, note] */
 const PAIRS = [
+  // Text on each of the three grounds.
   ['ink', 'bg', 4.5, 'primary text on page'],
+  ['ink', 'surface', 4.5, 'primary text on the card'],
+  ['ink', 'surface-2', 4.5, 'primary text in an input well'],
   ['ink-2', 'bg', 4.5, 'secondary text on page'],
+  ['ink-2', 'surface', 4.5, 'secondary text on the card'],
+  ['ink-2', 'surface-2', 4.5, 'secondary text in an input well'],
   ['ink-3', 'bg', 4.5, 'tertiary text / axis labels on page'],
-  ['ink-3', 'surface', 4.5, 'tertiary text on cards and rows'],
-  ['ink-2', 'surface-2', 4.5, 'secondary text in inputs / hover rows'],
-  ['ink-3', 'surface-2', 4.5, 'tertiary text in inputs / hover rows'],
+  ['ink-3', 'surface', 4.5, 'tertiary text on the card'],
+  ['ink-3', 'surface-2', 4.5, 'tertiary text in an input well'],
+  ['ink-3', 'surface-3', 4.5, 'tertiary text on a hovered row'],
+  ['ink-3', 'accent-soft', 4.5, 'tertiary text on a tinted chip'],
+
+  // The accent, as text and as a fill.
   ['accent', 'bg', 4.5, 'accent as link text on page'],
-  ['accent', 'surface', 4.5, 'accent as link text on cards'],
-  ['accent-ink', 'accent', 4.5, 'label on a primary button'],
-  ['pos', 'surface', 4.5, 'gain figure on a card'],
-  ['neg', 'surface', 4.5, 'loss figure on a card'],
-  ['warn', 'surface', 4.5, 'warning figure on a card'],
+  ['accent', 'surface', 4.5, 'accent as link text on the card'],
+  ['accent', 'accent-soft', 4.5, 'accent text on its own tinted chip'],
+  ['accent-ink', 'accent', 4.5, 'label on the primary button'],
+  // Mantine's `filled` variant paints its label with `--mantine-color-white`, which
+  // theme.ts sets to --surface (pure white), not --accent-ink. Both are audited
+  // because both actually render: accent-ink on our own controls, white on Mantine's.
+  ['surface', 'accent', 4.5, "white label on the primary button (Mantine's filled variant)"],
+  ['surface', 'neg', 4.5, 'white label on a destructive Mantine button'],
+  ['accent-ink', 'accent-hover', 4.5, 'label on the primary button, hovered'],
+
+  // Money figures, on every ground they land on.
+  ['pos', 'surface', 4.5, 'gain figure on the card'],
   ['pos', 'bg', 4.5, 'gain figure on page'],
+  ['pos', 'pos-soft', 4.5, 'gain figure on its own tinted chip'],
+  ['neg', 'surface', 4.5, 'loss figure on the card'],
   ['neg', 'bg', 4.5, 'loss figure on page'],
+  ['neg', 'neg-soft', 4.5, 'loss figure on its own tinted chip'],
+  ['warn', 'surface', 4.5, 'warning figure on the card'],
   ['warn', 'bg', 4.5, 'warning figure on page'],
+  ['warn', 'warn-soft', 4.5, 'warning text on its own tinted chip'],
+  ['ink-inverse', 'neg', 4.5, 'label on a destructive button'],
+
+  // Non-text: hairlines and chart furniture. WCAG has no floor for these; the
+  // 1.2 is a house rule that catches a border going invisible.
   ['line', 'bg', 1.2, 'hairline on page (non-text)'],
+  ['line', 'surface', 1.2, 'card border against the card (non-text)'],
   ['line-strong', 'surface', 1.2, 'table header rule (non-text)'],
-  ['accent-dim', 'bg', 1.2, 'chart band edge (non-text)'],
+  ['accent-dim', 'surface', 1.2, 'chart band edge (non-text)'],
+  ['bg', 'surface', 1.05, 'page ground against the card it holds (non-text)'],
 
   // Composited, because this is what the components actually render.
-  ['ink-3', 'bg/80 over surface', 4.5, 'table scroll cue over a card'],
-  ['ink-3', 'bg/80 over bg', 4.5, 'table scroll cue over the page'],
-  ['ink', 'surface-2/60 over surface', 4.5, 'text over a translucent raised block'],
-  ['accent', 'accent/15 over surface', 4.5, 'accent text on its own tinted chip'],
+  ['ink-3', 'surface/80 over bg', 4.5, 'table scroll cue over a card'],
+  ['ink', 'surface-2/60 over surface', 4.5, 'text over a translucent input well'],
+  ['ink-2', 'accent/8 over surface', 4.5, 'secondary text on a selected row'],
 ];
 
 /**
@@ -66,8 +116,11 @@ const PAIRS = [
  * the number that justified removing them is in the repo rather than in a review comment.
  */
 const REJECTED = [
-  ['accent/70', 'surface', 4.5, 'dimmed opcode bytes in the raw-bytes disclosure (was 3.68:1)'],
-  ['accent/70', 'surface-2', 4.5, 'the same, on a raised block'],
+  ['mantine-blue-6', 'surface', 4.5, "Mantine's default primary as link text on white"],
+  ['mantine-blue-6', 'bg', 4.5, "the same, on the page ground"],
+  ['ink-inverse', 'mantine-blue-6', 4.5, "white label on Mantine's default primary button"],
+  ['accent-dim', 'surface', 4.5, 'accent-dim is chart furniture, never text'],
+  ['accent/70', 'surface', 4.5, 'a dimmed accent; alpha on text always loses the floor'],
 ];
 
 // --- OKLCH -> sRGB ---------------------------------------------------------
@@ -151,26 +204,26 @@ for (const t of Object.values(resolved)) {
   );
 }
 
-console.log('\nPAIR                          RATIO   FLOOR  RESULT  NOTE');
-console.log('-'.repeat(96));
+console.log('\nPAIR                                    RATIO   FLOOR  RESULT  NOTE');
+console.log('-'.repeat(104));
 let failures = 0;
 for (const [fg, bg, floor, note] of PAIRS) {
   const r = ratio(resolveSpec(fg), resolveSpec(bg));
   const ok = r >= floor;
   if (!ok) failures += 1;
   console.log(
-    `${`${fg} on ${bg}`.padEnd(29)} ${r.toFixed(2).padStart(5)}   ${floor.toFixed(1).padStart(4)}  ${
+    `${`${fg} on ${bg}`.padEnd(39)} ${r.toFixed(2).padStart(5)}   ${floor.toFixed(2).padStart(4)}  ${
       ok ? 'PASS  ' : 'FAIL  '
     }  ${note}`,
   );
 }
 
 console.log('\nREJECTED (reported, never gated)');
-console.log('-'.repeat(96));
+console.log('-'.repeat(104));
 for (const [fg, bg, floor, note] of REJECTED) {
   const r = ratio(resolveSpec(fg), resolveSpec(bg));
   console.log(
-    `${`${fg} on ${bg}`.padEnd(29)} ${r.toFixed(2).padStart(5)}   ${floor.toFixed(1).padStart(4)}  ${
+    `${`${fg} on ${bg}`.padEnd(39)} ${r.toFixed(2).padStart(5)}   ${floor.toFixed(2).padStart(4)}  ${
       r >= floor ? 'would pass' : 'below floor'
     }  ${note}`,
   );
