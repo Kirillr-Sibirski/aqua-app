@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import { console2 } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import { ISwapVM } from "@1inch/swap-vm/src/interfaces/ISwapVM.sol";
 import { Salt, Deadline } from "@1inch/swap-vm/src/instructions/Controls.sol";
@@ -143,21 +144,28 @@ contract StrikelineBookTest is AquaSwapVMTestBase {
         uint256 x = 8.41e18;
         (ISwapVM.Order memory order,, uint256 y) = _shipLeg(K, L, x, 3);
 
+        // `_shipLeg` ships `y / RATE_STABLE` raw USDC, so the reserve Aqua actually holds is that
+        // number normalised back — not `stableFor`'s sub-wei-of-USDC answer. The band has to be read
+        // at the reserve that is on chain or it is a band for a leg that does not exist.
+        uint256 reserveY = (y / RATE_STABLE) * RATE_STABLE;
+
         vm.warp(block.timestamp + 2 days);
-        (, uint256 minStableIn) = sl.bandFor(K, SIGMA, maturity, L, x, y);
+        (, uint256 minStableIn) = sl.bandFor(K, SIGMA, maturity, L, x, reserveY);
         assertGt(minStableIn, 0, "decay should have opened a band");
 
+        // The strict property the UI prints under "Anything below this reverts": the published number
+        // is the FIRST amount that clears, not merely a number in the right neighbourhood. Rounded up
+        // into raw USDC, because a minimum that rounds down is not a minimum.
         bytes memory td = takerDataFor(order, address(usdc), true);
-        uint256 justUnder = (minStableIn / RATE_STABLE) / 2;
-        if (justUnder > 0) {
-            vm.expectRevert();
-            this.quote(order, justUnder, td);
-        }
+        uint256 band = Math.ceilDiv(minStableIn, RATE_STABLE);
 
-        uint256 comfortablyOver = (minStableIn / RATE_STABLE) * 3 + 1;
-        (, uint256 out,) = quote(order, comfortablyOver, td);
-        assertGt(out, 0, "a trade above the band must clear");
-        console2.log("band (USDC):", minStableIn / RATE_STABLE);
+        (, uint256 out,) = quote(order, band, td);
+        assertGt(out, 0, "the published band must clear");
+
+        vm.expectRevert(); // one wei less must not
+        this.quote(order, band - 1, td);
+
+        console2.log("band (USDC wei):", band);
     }
 
     /// @notice The thesis: three legs on one wallet, deliberately over-allocated, and a fill on leg 1

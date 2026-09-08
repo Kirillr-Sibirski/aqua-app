@@ -66,10 +66,15 @@ contract ScaleVectorsTest is StrikelineLeg {
     uint256 internal constant GOLD_P3_IN_6 = 1_025_989_445;
     /// @dev P4: 980 stable out -> WETH in. Identical on the 6- and 18-decimal legs.
     uint256 internal constant GOLD_P4_IN = 396_768_828_946_486_052;
-    /// @dev P6: the decay band two days in, normalised and as USDC. 133.49 USDC, the published figure.
-    uint256 internal constant GOLD_BAND_RISKY_2D = 53_431_834_517_850_644;
-    uint256 internal constant GOLD_BAND_STABLE_2D_WAD = 133_487_323_328_896_399_200;
-    uint256 internal constant GOLD_BAND_STABLE_2D_USDC = 133_487_323;
+    /// @dev P6: the band at issue, when the reserves are still exactly on the curve, so nothing but `exec`'s
+    ///      own guard band is left to clear. Each side is that guard walked back through the curve, which is
+    ///      why neither equals `epsOut` itself (2.4e13 risky / 6.24e16 stable) - the curve is not linear.
+    uint256 internal constant GOLD_BAND_RISKY_0 = 25_160_821_760_768;
+    uint256 internal constant GOLD_BAND_STABLE_0_WAD = 59_522_294_513_941_600;
+    /// @dev P6: the decay band two days in, normalised and as USDC. 133.55 USDC, the published figure.
+    uint256 internal constant GOLD_BAND_RISKY_2D = 53_456_823_332_982_836;
+    uint256 internal constant GOLD_BAND_STABLE_2D_WAD = 133_547_309_566_610_716_000;
+    uint256 internal constant GOLD_BAND_STABLE_2D_USDC = 133_547_310;
 
     // ------------------------------------------------------------------ fixture
 
@@ -179,28 +184,37 @@ contract ScaleVectorsTest is StrikelineLeg {
     }
 
     /// @notice P6. `bandFor` is what a UI publishes as the minimum fillable size. Its stable side is normalised,
-    ///         so it must be divided by 1e12 before it is shown - and the number it produces must actually be
-    ///         the edge.
+    ///         so it must be divided by 1e12 before it is shown - and the number it produces must be the exact
+    ///         edge, not a number near it: one raw wei less has to revert.
+    ///
+    /// @dev Two scale traps are pinned here at once. The band is read at the reserve the chain actually holds,
+    ///      `GOLD_Y_USDC * 1e12`, not at `stableFor`'s sub-wei answer — the ship floored it, and a band read at
+    ///      the unfloored number is a band for a leg that does not exist. And the conversion out of normalised
+    ///      space is `ceilDiv`, not a floor: a minimum that rounds down is not a minimum.
     function test_Golden_P6_View_BandForMinimumSize() public {
-        (uint256 mr0, uint256 ms0) = sl.bandFor(K, SIGMA, maturity, L, X0, yWad);
-        assertEq(mr0, 0, "P6 at issue the reserves sit on the curve, so the band is zero");
-        assertEq(ms0, 0, "P6 at issue the reserves sit on the curve, so the band is zero");
+        uint256 reserveY = GOLD_Y_USDC * RATE_STABLE;
+
+        // At issue the reserves sit exactly on the curve, so the only thing left to clear is the instruction's
+        // own guard band — `exec` requires `newOut + epsOut <= balanceOut`, and `bandFor` publishes that too.
+        (uint256 mr0, uint256 ms0) = sl.bandFor(K, SIGMA, maturity, L, X0, reserveY);
+        assertEq(mr0, GOLD_BAND_RISKY_0, "P6 golden: risky band at issue is exec's guard band");
+        assertEq(ms0, GOLD_BAND_STABLE_0_WAD, "P6 golden: stable band at issue is exec's guard band");
 
         vm.warp(block.timestamp + 2 days);
-        (uint256 mr, uint256 ms) = sl.bandFor(K, SIGMA, maturity, L, X0, yWad);
+        (uint256 mr, uint256 ms) = sl.bandFor(K, SIGMA, maturity, L, X0, reserveY);
         assertEq(mr, GOLD_BAND_RISKY_2D, "P6 golden: risky band after 2 days");
         assertEq(ms, GOLD_BAND_STABLE_2D_WAD, "P6 golden: stable band after 2 days (normalised)");
-        assertEq(ms / RATE_STABLE, GOLD_BAND_STABLE_2D_USDC, "P6 golden: stable band after 2 days (USDC)");
+        assertEq(Math.ceilDiv(ms, RATE_STABLE), GOLD_BAND_STABLE_2D_USDC, "P6 golden: stable band after 2 days (USDC)");
 
-        // The published number is the edge: comfortably under it reverts, comfortably over it fills.
+        // The published number is the edge, to the wei: it clears, and one raw wei less does not.
         bytes memory buy = takerDataFor(usdcLeg, address(usdc), true);
-        uint256 band = ms / RATE_STABLE;
-        (bool under,) = address(sl).staticcall(abi.encodeCall(ISwapVM.quote, (usdcLeg, band / 2, buy)));
-        assertFalse(under, "P6 half the published band must not clear");
-        (, uint256 out,) = quote(usdcLeg, band * 2, buy);
-        assertGt(out, 0, "P6 twice the published band must clear");
+        uint256 band = Math.ceilDiv(ms, RATE_STABLE);
+        (, uint256 out,) = quote(usdcLeg, band, buy);
+        assertGt(out, 0, "P6 the published band must clear");
+        (bool under,) = address(sl).staticcall(abi.encodeCall(ISwapVM.quote, (usdcLeg, band - 1, buy)));
+        assertFalse(under, "P6 one wei under the published band must not clear");
 
-        console2.log("P6 band after 2 days (USDC)", band);
+        console2.log("P6 band after 2 days (USDC wei)", band);
     }
 
     // ------------------------------------------------------------------ maker-favouring rounding, per path

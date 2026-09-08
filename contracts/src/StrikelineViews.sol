@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+
 import { WadMath } from "./math/WadMath.sol";
 import { RmmSwap } from "./instructions/RmmSwap.sol";
 import { Coverage } from "./instructions/Coverage.sol";
@@ -67,6 +69,14 @@ abstract contract StrikelineViews {
     /// @dev With reserves pinned to the curve, time decay moves the curve away from them in both
     ///      directions, so small trades revert. This publishes that gap so a UI can shade it and an
     ///      arbitrageur can size analytically instead of probing with reverting calls.
+    ///
+    ///      The published number has to include `RmmSwap.EPS`, not just the curve gap. `exec` does not
+    ///      clear a trade *at* the curve: it requires the new output reserve to sit a guard band inside
+    ///      what the leg holds, `newOut + epsOut <= balanceOut`, with `epsOut` in the units of whichever
+    ///      reserve leaves. So the band is read off the curve at the guarded reserve, not the real one —
+    ///      which is the same arithmetic `exec` performs, one step earlier. Reading it at the real
+    ///      reserve understates the minimum by one eps (449 ppm on the demo leg), and a taker who sends
+    ///      the understated figure gets `RmmInsideSpread`.
     function bandFor(
         uint128 strikeWad,
         uint64 sigmaWad,
@@ -81,14 +91,20 @@ abstract contract StrikelineViews {
     {
         uint256 s = _sNow(sigmaWad, maturity);
 
-        // Where the curve says each reserve should be, given where the other one actually is.
-        uint256 yOnCurve = RmmSwap.stableOf(xWad, strikeWad, s, liquidityWad);
-        uint256 xOnCurve = RmmSwap.riskyOf(yWad, strikeWad, s, liquidityWad);
+        // `exec`'s `epsOut`, both ways round: risky leaves when stable comes in, and vice versa.
+        uint256 epsRisky = Math.ceilDiv(uint256(liquidityWad) * RmmSwap.EPS, 1e18);
+        uint256 epsStable = Math.ceilDiv(uint256(liquidityWad) * uint256(strikeWad) / 1e18 * RmmSwap.EPS, 1e18);
 
-        // Buying risky needs enough stable to reach the curve's requirement at our risky reserve;
-        // selling risky needs enough input that the curve's stable requirement falls to what we hold.
-        minStableIn = yOnCurve > yWad ? yOnCurve - yWad : 0;
-        minRiskyIn = xOnCurve > xWad ? xOnCurve - xWad : 0;
+        // Buying risky needs enough stable to reach the curve's requirement at the risky reserve the
+        // guard leaves behind; selling risky needs enough input to pull the curve's stable requirement
+        // down to the stable reserve the guard leaves behind.
+        uint256 yTarget =
+            RmmSwap.stableOf(xWad > epsRisky ? xWad - epsRisky : 0, strikeWad, s, liquidityWad);
+        uint256 xTarget =
+            RmmSwap.riskyOf(yWad > epsStable ? yWad - epsStable : 0, strikeWad, s, liquidityWad);
+
+        minStableIn = yTarget > yWad ? yTarget - yWad : 0;
+        minRiskyIn = xTarget > xWad ? xTarget - xWad : 0;
     }
 
     /// @dev The Aqua registry this router settles through.
