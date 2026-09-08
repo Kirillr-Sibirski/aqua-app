@@ -1,6 +1,6 @@
 # Oracle mocking on the fork — moving Chainlink ETH/USD from scripts / UI (verified 2026-09-06)
 
-Fills the gap left by `fork-stack.md §9` ("UNCERTAIN which storage slot") and `position-catalog.md §5.1` (`vm.mockCall` only exists inside forge tests). Everything below was executed on anvil forks of Base (block 50926000, Tenderly gateway) and Ethereum (block 25914163) with `anvil 1.1.0-nightly (a63dbe2, 2025-04-30)`, `cast/forge 1.0.0-dev (7461390)`, Node v22.22.0. Scripts and outputs are in `/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/work/oracle/` (`base_exp.sh`, `base_exp2.sh`, `eth_exp.sh`, `verify_slots.sh`, `ts/oracle-mock.mts`, `ts/chainlink-storage.mts`, `probe_proj/`). Anything not measured is marked UNCERTAIN.
+Fills the gap left by `fork-stack.md §9` ("UNCERTAIN which storage slot") and `position-catalog.md §5.1` (`vm.mockCall` only exists inside forge tests). Everything below was executed on anvil forks of Base (block 50926000, Tenderly gateway) and Ethereum (block 25914163) with `anvil 1.1.0-nightly (a63dbe2, 2025-04-30)`, `cast/forge 1.0.0-dev (7461390)`, Node v22.22.0. Scripts and outputs are in `work/oracle/` (`base_exp.sh`, `base_exp2.sh`, `eth_exp.sh`, `verify_slots.sh`, `ts/oracle-mock.mts`, `ts/chainlink-storage.mts`, `probe_proj/`). Anything not measured is marked UNCERTAIN.
 
 ## 0. TL;DR / decisions
 
@@ -127,7 +127,7 @@ Limits: `updatedAt` is frozen at `T`. After `evm_increaseTime(7200); anvil_mine`
 ## 3. Method B (recommended) — `MockAggregatorV3` at the proxy address
 
 ### 3.1 Contract
-Source: `/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/work/oracle/probe_proj/src/MockAggregatorV3.sol` (copy it into the project). Build settings used: solc 0.8.30, `via_ir = true`, `optimizer_runs = 700`, `evm_version = cancun` (same profile as the router); runtime **1,562 bytes**, no constructor, no immutables (required for `anvil_setCode`). Runtime hex: `…/work/oracle/MockAggregatorV3.runtime.hex`; regenerate with `forge build && jq -r .deployedBytecode.object out/MockAggregatorV3.sol/MockAggregatorV3.json`.
+Source: `work/oracle/probe_proj/src/MockAggregatorV3.sol` (copy it into the project). Build settings used: solc 0.8.30, `via_ir = true`, `optimizer_runs = 700`, `evm_version = cancun` (same profile as the router); runtime **1,562 bytes**, no constructor, no immutables (required for `anvil_setCode`). Runtime hex: `…/work/oracle/MockAggregatorV3.runtime.hex`; regenerate with `forge build && jq -r .deployedBytecode.object out/MockAggregatorV3.sol/MockAggregatorV3.json`.
 
 ```solidity
 contract MockAggregatorV3 {                 // fixed layout, one full slot per field, nothing packs

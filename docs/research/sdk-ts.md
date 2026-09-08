@@ -1,7 +1,7 @@
 # KB: 1inch TypeScript SDKs for Aqua + SwapVM (what exists, what matches the deployed contracts, what we must write)
 
 Researched 2026-09-05 from local clones + npm registry + live mainnet probes.
-Paths below are under `/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/refs/`:
+Paths below are under ``:
 - `sdks/` = clone of https://github.com/1inch/sdks (HEAD `cf377ec`, 2026-09-04). Sparse checkout was expanded; `typescript/{aqua,swap-vm,sdk-core}` and `contracts/` are now present.
 - `swap-vm/` = clone of https://github.com/1inch/swap-vm (HEAD `f09a41e`, 2026-09-03, "remove-progressive-fees").
 - `swap-vm-be0a9cc/` = raw files of swap-vm at commit `be0a9cc840bb63b9f1abf864a39f4393e1a7312e` (the commit the sdks repo pins as `@1inch/swap-vm`), downloaded from raw.githubusercontent.com.

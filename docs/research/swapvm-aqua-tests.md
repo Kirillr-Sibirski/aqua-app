@@ -2,7 +2,7 @@
 
 Knowledge base distilled from `1inch/swap-vm` tests (`test/*Aqua*.t.sol`, `test/base/*`, `test/mocks/*`, `test/helpers/*`) and the source they exercise. Written for engineers who have NOT read the repo.
 
-Sources (local clone): `/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/refs/swap-vm` (abbreviated `swap-vm/` below).
+Sources (local clone): `swap-vm` (abbreviated `swap-vm/` below).
 
 - swap-vm commit: `f09a41e689240adc645934f965c8061749397cd2` (2026-09-03, "Merge pull request #180 from 1inch/feature/remove-progressive-fees"), package `@1inch/swap-vm@0.0.6`
 - Aqua dependency: `@1inch/aqua` resolved from `github:1inch/aqua#v1.0.0` (`package.json` says `"version": "0.1.0"` inside node_modules — the tag is v1.0.0)
@@ -371,7 +371,7 @@ Notation: `balA/balB` = `aqua.safeBalances(maker, router, hash, A, B)`; `p` = pr
 
 ## 8. Copy-pasteable minimal Foundry test (verified: 4/4 pass)
 
-File: `swap-vm/test/MinimalAquaXYC.t.sol` (written and run in this session; placed at `/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/refs/swap-vm/test/MinimalAquaXYC.t.sol`). Run: `forge test --match-contract MinimalAquaXYC -vv`.
+File: `swap-vm/test/MinimalAquaXYC.t.sol` (written and run in this session; placed at `swap-vm/test/MinimalAquaXYC.t.sol`). Run: `forge test --match-contract MinimalAquaXYC -vv`.
 
 ```solidity
 // SPDX-License-Identifier: MIT

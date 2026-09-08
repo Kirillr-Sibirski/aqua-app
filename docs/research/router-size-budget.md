@@ -2,7 +2,7 @@
 
 Measured 2026-09-06 against `1inch/swap-vm` HEAD `f09a41e689240adc645934f965c8061749397cd2` (2026-09-03, "Merge pull request #180 … remove-progressive-fees"), solc 0.8.30 (`0.8.30+commit.73712a01`), `optimizer=true, optimizer_runs=700, via_ir=true, evm_version=cancun` (the swap-vm repo's own `foundry.toml` settings plus an explicit `evm_version`; artifacts' metadata confirms all four). Tooling: forge/cast `1.0.0-dev` (7461390b, 2025-04-30), anvil `1.1.0-nightly` (a63dbe2936, 2025-04-30). All byte counts are **runtime** bytes from `forge build --sizes` and were re-checked from `out/<C>.sol/<C>.json` `deployedBytecode.object` lengths. Every variant's initcode is exactly runtime + 1,488 B (constructor + EIP-712 strings), far under the 49,152 B EIP-3860 initcode limit, so only the runtime limit matters.
 
-Working tree: `/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/mywork` (generated sources `src/menu/*.sol`, `src/menu2/*.sol`; generators, logs and manifests in `tools/`). This file complements `kb/swapvm-custom-opcodes.md` §0.6/§8.3 (which only had the three official routers) and answers `_critic.md` gap G2.
+Working tree: `mywork` (generated sources `src/menu/*.sol`, `src/menu2/*.sol`; generators, logs and manifests in `tools/`). This file complements `docs/research/swapvm-custom-opcodes.md` §0.6/§8.3 (which only had the three official routers) and answers `completeness-review.md` gap G2.
 
 ## 0. TL;DR
 

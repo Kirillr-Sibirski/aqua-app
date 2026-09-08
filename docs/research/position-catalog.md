@@ -2,7 +2,7 @@
 
 Knowledge base for ETHGlobal ETHOnline 2026, 1inch track "Build an Aqua app" (written 2026-09-05).
 Everything below is grounded in the local clones under
-`/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/refs/`
+``
 (`aqua/`, `swap-vm/` = HEAD f09a41e "remove-progressive-fees", `swap-vm-v1.0.2/`, `swap-vm-template/`, `sdks/typescript/aqua/`) plus the papers cited in §7.
 Anything not verified is marked **UNCERTAIN**.
 

@@ -1,7 +1,7 @@
 # Aqua core — knowledge base (1inch/aqua)
 
 Sources read (local clone, commit `9c5c42e`, 2026-08-21): `src/*`, `examples/*`, `test/*`, `DEPLOY.md`, `README.md`, `LICENSES/Aqua-Source-1.1.txt`, `docs/whitepaper-aqua-1.0.pdf` (8 pages), `Makefile`, `foundry.toml`, `script/*`, `.gas-snapshot`, plus the `@1inch/solidity-utils` sources Aqua depends on (`TransientLock.sol`, `Transient.sol`, `Simulator.sol`, `Multicall.sol`, `Rescuable.sol`, from `refs/swap-vm/node_modules/@1inch/solidity-utils`, v6.9.10).
-Repo root: `/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/refs/aqua` (all `file:line` refs below are relative to it).
+Repo root: `aqua` (all `file:line` refs below are relative to it).
 Everything in §12 (Foundry recipe) was **executed and passed** both locally and on a Base mainnet fork against the canonical registry.
 
 ---
@@ -352,7 +352,7 @@ modifier nonReentrantStrategy(strategy.maker, keccak256(abi.encode(strategy)))  
 
 ## 12. Minimal Foundry recipe (VERIFIED: passes locally and on a Base fork against the canonical registry)
 
-Scratch project used: `/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/aqua-recipe/` (`foundry.toml`, `remappings.txt`, `test/AquaRecipe.t.sol`).
+Scratch project used: `aqua-recipe/` (`foundry.toml`, `remappings.txt`, `test/AquaRecipe.t.sol`).
 
 `foundry.toml`
 ```toml

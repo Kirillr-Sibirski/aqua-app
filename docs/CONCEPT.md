@@ -7,7 +7,7 @@ priced. The deciding facts are in our own tree, not in the pitch:
 - `contracts/src/instructions/CurveProbeSolady.sol` already implements RMM-01 in **all four
   direction/exactness cases**, driven end-to-end through the **official Aqua** by
   `contracts/test/probe/CurveProbeAqua.t.sol`, error **≈5e-12 vs mpmath**, **657–667k gas** measured.
-- `kb/router-size-budget.md §12`: `AquaOpcodes + RMM-01 + weighted + prims` = **23,966 B, +610 B under
+- `docs/research/router-size-budget.md §12`: `AquaOpcodes + RMM-01 + weighted + prims` = **23,966 B, +610 B under
   EIP-170**. Dropping the weighted/prims probe functions frees ~1–1.5 KB for the second opcode.
   **Mainnet-deployable router. No `--disable-code-size-limit`.**
 - `contracts/test/fork/live/AquaBaseLiveFork.t.sol` already fills **real, live, ungated Base maker
@@ -422,7 +422,7 @@ surface removes the largest class of authorization bugs and keeps `quote() == sw
    Symmetry tolerance = `2·EPS_OUT + 1 wei` per leg, from §5.3. **Never silently widen a knob** — an
    honest numerical-analysis table is a strength (Lisbon gave 3rd place to a project whose entire
    contribution was proving these bounds); a loosened knob discovered by a judge is not.
-9. **Gas, published, measured, not estimated:** **657–667k per RMM fill** (`kb/router-size-budget.md §12`),
+9. **Gas, published, measured, not estimated:** **657–667k per RMM fill** (`docs/research/router-size-budget.md §12`),
    ~**$0.01 on Base** at 0.005 gwei. A judge runs `--gas-report` in ten seconds; a number that is 5–20×
    off invites distrust of everything else.
 
@@ -673,7 +673,7 @@ it on stage *and* named the exact taker flag (`isFirstTransferFromTaker`) that m
 encoded new position **economics** — Bebecita shipped a structurally identical 0x92 clamp-plus-hooks at
 Lisbon and did **not** place; (b) EulerSwap is a live Uniswap v4 hook doing precisely JIT-borrow-for-depth,
 so "impossible without Aqua" is refutable on stage; (c) a vault holding aTokens with borrow authority
-re-introduces the custody Aqua exists to remove; (d) `_critic.md §4` prices the Aave leg at 10–14h on the
+re-introduces the custody Aqua exists to remove; (d) `completeness-review.md §4` prices the Aave leg at 10–14h on the
 critical path against a one-night build, and its stated fallback (withdraw-only) *is* competitor
 `barker`; (e) six of twenty candidate ideas were this, which tells you every other team reading the same
 public sources lands here too.

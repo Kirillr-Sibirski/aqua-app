@@ -2,7 +2,7 @@
 
 Reviewed 2026-09-05 (ETHOnline 2026, day 2 of 9; submission due **Sun 2026-09-13 12:00 EDT = 18:00 CEST**; Project Check-in #1 due **Mon 2026-09-07 23:59 EDT**). Files read in full: `aqua-core.md`, `swapvm-core.md`, `swapvm-instructions.md`, `swapvm-custom-opcodes.md`, `swapvm-aqua-tests.md`, `sdk-ts.md`, `fork-stack.md`, `hackathon-rules.md`, `prior-winners.md`, `position-catalog.md`, `market-lp-pain.md`, `market-competitors.md`, `aqua-positioning.md`, `ux-benchmarks.md`, `wp-aqua.txt`, `wp-swapvm.txt` (`ethonline2026_main.html` is raw Next.js HTML, `readmes/` are per-repo notes already summarised in `prior-winners.md`). Every "verified" claim below was re-checked this session against `scratchpad/refs/*` or a live RPC; anything else is marked UNCERTAIN.
 
-Repo roots used: `REFS=/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/refs` (`swap-vm` = HEAD `f09a41e`, `swap-vm-v1.0.2` = deployed tag, `aqua` = `9c5c42e`).
+Repo roots used: `REFS=refs` (`swap-vm` = HEAD `f09a41e`, `swap-vm-v1.0.2` = deployed tag, `aqua` = `9c5c42e`).
 
 ---
 
@@ -32,47 +32,47 @@ The KB is unusually strong on protocol internals (fork tests that pass against t
 ### G1. Extruction ABI split: which `IExtruction` do we target? (HIGH — affects the "official router unmodified" strategy)
 - **Why it matters.** `swapvm-instructions.md §0/§6` and `position-catalog.md §1.4` sell Extruction as "custom logic without redeploying the router"; `sdk-ts.md` and `swapvm-core.md` place it at deployed index `0x20`. None notes that the deployed router calls selector `0xb77cc3e2` (5-field registers) while every HEAD example/test (`test/mocks/BestRouteSelector.sol`) implements `0xccd435ec`. A team that copies HEAD's target and points a live strategy at it gets an empty revert in `quote()`. The deployed Extruction has also never been live-probed (probes covered 0x00, 0x0b, 0x0d, 0x0e, 0x10, 0x21, 0x22, 0x50, 0xff only).
 - **Task.** On an Ethereum or Base mainnet fork (`anvil --fork-url https://gateway.tenderly.co/public/base --chain-id 31337`): (1) write `V102Extruction.sol` implementing both `extruction(bool,uint256,SwapQuery,SwapRegisters5,bytes,bytes)` (non-view) and the `view` twin, returning `(nextPC, 0, swap)` with `amountOut = amountIn` (identity) and, in a second variant, `amountNetPulled` untouched; (2) build a World-A program with `@1inch/swap-vm-sdk` `AquaProgramBuilder().extruction({target, args})` + `salt`, ship it to **the official router** via the official Aqua from a funded maker; (3) `quote` and `swap` from an EOA with `useTransferFromAndAquaPush`; (4) record gas, receipts, and confirm `Swapped` + `Pulled/Pushed`. Also try a HEAD-style 4-field target to document the exact revert. Record whether `amountNetPulled` returned by the target influences settlement (`swap-vm-v1.0.2/src/SwapVM.sol:240`).
-- **KB file to write:** `kb/extruction-live.md`.
+- **KB file to write:** `docs/research/extruction-live.md`.
 
 ### G2. EIP-170 budget for a custom router (HIGH — several catalog ideas assume the full opcode set)
 - **Why.** `swapvm-custom-opcodes.md §0.6/§8.3` measured `SwapVMRouter` (full `Opcodes`) at **28,486 B runtime = 3,910 B over EIP-170**; `AquaSwapVMRouter` 20,376 B (4,200 B headroom); `MyRouter` (+1 opcode, +1 getter) 21,176 B. Yet `position-catalog.md` (c), (h), (l/#4 "Liquidity OS") and `swapvm-instructions.md §5` recommend programs needing `LimitSwap`, `TWAPSwap`, `DutchAuction*`, `PiecewiseLinearScale*`, `OraclePriceAdjuster`, `RequireMinRate`, `Whitelist*`, `Invalidate*` *and* the Aqua curves in one router. Nobody has measured how many of those fit next to `AquaOpcodes`, nor what a PRBMath-based curve costs in bytes.
 - **Task.** In `scratchpad/mywork` (or `customrouter-example`): create `MenuOpcodes is AquaOpcodes` adding, one at a time, `StaticBalances, LimitSwap, LimitSwapFullAmount, DutchAuctionBalanceIn/Out, PiecewiseLinearScaleBalanceIn/Out, OraclePriceAdjuster, RequireMinRate, AdjustMinRate, InvalidateTokenIn/Out (+External), Whitelist*, TWAPSwap (+External), JumpIfDirection, Stop, Revert, FeeFlatOut`; run `forge build --sizes` after each addition (repo settings: solc 0.8.30, via_ir, 700 runs, `evm_version=cancun`); produce a per-opcode marginal-bytes table and the largest subset that stays ≤ 24,576 B. Verify `anvil --disable-code-size-limit` lets an over-limit router deploy on the fork, and state plainly that such a router could not be deployed to Base/Ethereum mainnet (UNCERTAIN whether Fusaka's EIP-7907 raised the limit on the chain we fork — check `cast rpc eth_getCode` of any >24 KB contract or the chain's fork config).
-- **KB file:** `kb/router-size-budget.md`.
+- **KB file:** `docs/research/router-size-budget.md`.
 
 ### G3. Demo against LIVE maker liquidity through the official router (HIGH — best possible proof for qualification rules 1 and 2)
 - **Why.** 159 ungated live strategies exist on Base (verified above), WETH/USDC dominant (`fork-stack.md §2.3`). A demo that (a) swaps against a real maker's wallet via the **official** router and (b) then ships our own strategy to our modified router against the same registry, is the strongest "official contracts used" story. `aqua-positioning.md §13.7` and `market-competitors.md §1` describe the KycNFT gate as if it were global; it is per-strategy. No file has decoded a live payload with the SDK or executed a fill against one.
 - **Task.** On a Base fork pinned at 50926000: (1) load `base_full3.raw.shipped.json`, filter payloads without `26ffc7…`, decode each with `Order.decode(new HexString(data))` and `AquaProgramBuilder.decode(...)` (`@1inch/swap-vm-sdk@0.4.1`, CJS require), and query `safeBalances(maker, 0x111111338c…, strategyHash, tokenA, tokenB)` to keep only active ones; (2) for the 3 deepest WETH/USDC strategies, `quote` then `swap` 0.1 WETH from anvil account #0 with `TakerTraits.default()` (5-arg ABI, selectors `0x44aa5f14/0xf4d2d412`), assert `Swapped`/`Pulled`/`Pushed` logs; (3) for gated strategies, find a RES holder: scan KycNFT `Transfer` logs on Base (`cast logs --address 0x26FF… 'Transfer(address,address,uint256)'`), verify `balanceOf`, impersonate it (`--auto-impersonate`) and repeat; (4) tabulate real fee tiers/curve params used by makers (for realistic defaults in our UI). Note `eth_call` for `quote` on gated strategies must set `from` = RES holder because the gate reads `tx.origin`.
-- **KB file:** `kb/live-strategies-fork.md`.
+- **KB file:** `docs/research/live-strategies-fork.md`.
 
 ### G4. Oracle price manipulation on the fork from scripts/UI (MEDIUM-HIGH — catalog #1 and every oracle-anchored idea)
 - **Why.** `position-catalog.md §5.1` says "move the price with `vm.mockCall`" — that only exists inside Foundry tests. `fork-stack.md §9` says the Chainlink storage slot is UNCERTAIN. The prize requires the demo (video/UI/script) to show fills; an oracle-anchored curve whose price cannot be moved from a script cannot be demoed convincingly.
 - **Task.** For Base ETH/USD `0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70` (and ETH mainnet `0x5f4eC3Df…`): (1) `cast call <proxy> "aggregator()(address)"`, pull verified source from Basescan, identify the transmission struct slot (`s_transmissions[roundId]` / `s_hotVars`) with `forge inspect`; (2) alternative that always works: `anvil_setCode` the **proxy** address with a compiled `MockAggregatorV3` whose `latestRoundData()` returns values stored in slots we control via `anvil_setStorageAt`; (3) publish the exact `cast rpc anvil_setCode`/`anvil_setStorageAt` commands and a 20-line TS helper `setOraclePrice(price8dec)`; (4) confirm `updatedAt` handling so `maxStaleness` checks (`OraclePriceAdjuster.sol:70-117`) do not revert after `evm_increaseTime`.
-- **KB file:** `kb/oracle-mocking-fork.md`.
+- **KB file:** `docs/research/oracle-mocking-fork.md`.
 
 ### G5. Golden vectors for the HEAD (World-B) TypeScript encoder (MEDIUM — only if the workshop picks HEAD + a UI)
 - **Why.** `sdk-ts.md §8` validated its TS skeleton byte-for-byte **only against World A** (`@1inch/swap-vm-sdk` vectors). HEAD specifics — `tokenA‖tokenB` prefix with offsets from 40 (`MakerTraits.sol:129`), `isAToB 0x80`/`allowPartialFill 0x100`, `uint24` fees at 1e7, banked opcodes — were never diffed against Solidity output. A one-byte mismatch yields a different `keccak256(abi.encode(order))`, so `ship` succeeds but every `quote` reverts `SafeBalancesForTokenNotInActiveStrategy`.
 - **Task.** Add `test/GoldenVectors.t.sol` to the swap-vm clone that `console.logBytes` `abi.encode(order)`, `router.hash(order)` and `TakerTraitsLib.build(args)` for 4 fixtures (XYC+Salt; FeeFlatIn+XYCConcentrateSwap; order with a targeted `preTransferOut` hook; taker data with threshold+deadline+instructionsArgs); run `forge test -vv --match-contract GoldenVectors`; paste outputs into a vitest that asserts the TS skeleton reproduces them. Include the HEAD `quote/swap` 3-arg selectors `0xb7ebf0c5/0xa69f95bd`.
-- **KB file:** `kb/head-encoder-vectors.md`.
+- **KB file:** `docs/research/head-encoder-vectors.md`.
 
 ### G6. Fixed-point math for non-constant-product curves (MEDIUM — decides whether RMM-01 / weighted-LBP / surge-fee ideas are buildable in 10 h)
 - **Why.** `position-catalog.md` estimates 150-250k gas for a 40-step bisection with `exp`, and recommends PRBMath, but no such library is in the dependency tree and no gas/size numbers exist. The catalog's top-scored ideas (a) 24 pts and (d) 25 pts hinge on this.
 - **Task.** In the custom-router project: `npm i @prb/math@4` (or vendor `solady`'s `FixedPointMathLib`); write a throwaway `library CurveProbe` opcode in slot `0xd1` calling `UD60x18.pow`, `exp`, `ln`, `sqrt`, plus a 40-iteration bisection of Φ (A&S 7.1.26 erfc); wire into `MyRouter`; run `forge test --gas-report` for `quote` and `swap` exactIn/exactOut; re-run `forge build --sizes` to record the bytes added; check license headers (PRBMath MIT, solady MIT). Report gas per call and whether `via_ir` compile time stays < 2 min.
-- **KB file:** `kb/fixed-point-math.md`.
+- **KB file:** `docs/research/fixed-point-math.md`.
 
 ### G7. Which SwapVM revision to build on, and how to justify it to 1inch judges (MEDIUM)
 - **Why.** HEAD `f09a41e` is unreleased ("1.2.0" Ignition params, `_dispatch`/enum redesign, progressive fees removed); the 8 audits cover "Aqua and SwapVM v1"; the prize page links the whitepaper on branch `release/1.1`; `swap-vm-template` and every prior winner pinned the old `_opcodes()` API. The KB never states whether `release/1.1` matches the deployed 1.0.2, whether HEAD has any audit, or what changed between v1.0.2 and HEAD. The clone is a single squashed commit (`swapvm-custom-opcodes.md §10`), so this needs the upstream repo.
 - **Task.** `gh api repos/1inch/swap-vm/branches`, `gh api repos/1inch/swap-vm/compare/v1.0.2...main` (file list + commit messages), `gh api repos/1inch/swap-vm/compare/v1.0.2...release/1.1`; check `1inch/1inch-audits` for any report dated after 2026-07-29; write a one-page "why we pin `f09a41e` (or v1.0.2)" rationale with the concrete API deltas already in `swapvm-core.md §14`.
-- **KB file:** `kb/swapvm-version-choice.md`.
+- **KB file:** `docs/research/swapvm-version-choice.md`.
 
 ### G8. Competitor watch for ETHOnline 2026 (MEDIUM — the field is forming now)
 - **Why.** `prior-winners.md §2.5` lists 6 in-progress repos as of 2026-09-05 (Keel, overdraft, Slope, barker, aqua0-ethglobal, Iqia). Two of them (Keel: inventory-skew MM with tests on Base Sepolia; overdraft: phantom-depth guard) overlap catalog ideas (f)/(l). New entrants will appear daily until Sep 13.
 - **Task.** Daily until submission: `gh search repos --created ">=2026-09-01" "aqua swapvm"`, `gh search code "useAquaInsteadOfSignature" --sort indexed`, `gh search code "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a"`; for each hit record idea, custom opcodes, chain, test count, commits; flag overlaps with our chosen position.
-- **KB file:** update `kb/prior-winners.md §2.5` (dated rows).
+- **KB file:** update `docs/research/prior-winners.md §2.5` (dated rows).
 
 ### G9. Human logistics that expire within 48 h (LOW research effort, HIGH consequence)
 - **Why.** `hackathon-rules.md §10` leaves open: which track the team registered (Classic vs Continuity → $2k eligibility), whether every member is accepted + staked, the 1inch Discord channel, and whether a 1inch office-hours slot appears. **Project Check-in #1 is due Mon Sep 7 23:59 EDT** — missing it does not disqualify per the rules text, but partners "may reach out" after check-ins, i.e. it is the cheapest way to get 1inch eyes early.
 - **Task (human, 10 min).** Open https://ethglobal.com/events/ethonline2026/home → confirm status/stake/track for all members; join https://ethglobal.com/discord and locate the 1inch partner channel; calendar Check-in #1 (Sep 7), Feedback Session #1 (Tue Sep 8 20:00 CEST), Check-in #2 (Sep 10), submission (Sep 13 18:00 CEST, leave ≥2 h for video-upload validation).
-- **KB file:** `kb/hackathon-rules.md §0` (add a "Team status" row).
+- **KB file:** `docs/research/hackathon-rules.md §0` (add a "Team status" row).
 
 ---
 

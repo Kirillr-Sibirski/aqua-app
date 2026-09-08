@@ -2,7 +2,7 @@
 
 Source: local clone of `1inch/swap-vm` at commit `f09a41e` ("Merge pull request #180 from 1inch/feature/remove-progressive-fees"), package `@1inch/swap-vm` 0.0.6, `solc 0.8.30`, `via_ir = true`, `optimizer_runs = 700` (`foundry.toml`).
 Repo root used for all `file:line` references below:
-`/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/refs/swap-vm/`
+`swap-vm/`
 Upstream: https://github.com/1inch/swap-vm (docs: `README.md`, `docs/PROGRAMS.md`, `docs/whitepaper-swap-vm-1.0.pdf`).
 
 Everything below is read from source unless marked **UNCERTAIN**. Numeric claims about time-based opcodes were verified with a throwaway forge test (section 12).

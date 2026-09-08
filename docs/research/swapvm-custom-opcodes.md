@@ -476,7 +476,7 @@ evm_version    = "cancun"          # transient storage in SwapVM's reentrancy lo
 optimizer      = true
 optimizer_runs = 700
 via_ir         = true
-allow_paths    = ["/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/refs/swap-vm"]
+allow_paths    = ["swap-vm"]
 ```
 ### 5.2 `remappings.txt` (point at the clone's `node_modules`)
 ```

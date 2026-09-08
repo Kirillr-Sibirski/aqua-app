@@ -32,7 +32,7 @@ of `docs/research/`. That output was not taken on trust:
 - **Every factual claim in the research was re-derived from source.** Protocol behaviour is
   cited to file and line in the vendored `@1inch/aqua` and `@1inch/swap-vm` packages, or
   verified on-chain with `cast` against the live deployments. Contradictions between agents
-  were resolved by a critic pass reading the source ([`docs/research/_critic.md`](research/_critic.md)).
+  were resolved by a critic pass reading the source ([`docs/research/completeness-review.md`](research/completeness-review.md)).
 - **Every design claim was attacked before it was accepted.** Three independent critics per
   concept, instructed to refute rather than improve. Several concepts were killed by critics
   who read our own contracts and reproduced the numbers; one caught a 10-15x gas error, one

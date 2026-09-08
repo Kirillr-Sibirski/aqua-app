@@ -1,6 +1,6 @@
 # Fork stack KB — Aqua / SwapVM local-fork demo (verified 2026-09-05)
 
-All numbers below were measured on 2026-09-05 (~19:00–23:20 UTC) with `cast 1.0.0-dev (7461390, 2025-04-30)` and `anvil 1.1.0-nightly (a63dbe2, 2025-04-30)` on macOS. Anything not measured is marked UNCERTAIN. Scripts used are in `/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/work/` (`probe.sh`, `cfg.sh`, `hash_and_deploy.sh`, `deploy2.sh`, `logs.sh`, `fullscan.sh`, `basescan.sh`, `oracles.sh`, `whales2.sh`, `forktest.sh`, `forgetest.sh`, `ethfork.sh`, `domaintest.sh`).
+All numbers below were measured on 2026-09-05 (~19:00–23:20 UTC) with `cast 1.0.0-dev (7461390, 2025-04-30)` and `anvil 1.1.0-nightly (a63dbe2, 2025-04-30)` on macOS. Anything not measured is marked UNCERTAIN. Scripts used are in `work/` (`probe.sh`, `cfg.sh`, `hash_and_deploy.sh`, `deploy2.sh`, `logs.sh`, `fullscan.sh`, `basescan.sh`, `oracles.sh`, `whales2.sh`, `forktest.sh`, `forgetest.sh`, `ethfork.sh`, `domaintest.sh`).
 
 ## 0. TL;DR / decisions
 
@@ -84,7 +84,7 @@ Decode: `maker = data[12:32]`, `app = data[44:64]`, `strategyHash = data[64:96]`
 - **Tokens pulled/pushed** (event count): WETH `0x4200…0006` 1,982; USDC `0x8335…2913` 1,971; cbBTC `0xcbB7…33Bf` 533; ZRO `0x6985…71cd` 500; `0xfde4c96c8593536e31f229ea8f37b2ada2699bb2` 231 (USDT on Base — label UNCERTAIN); `0xa53887f7e7c1bf5010b8627f1c1ba94fe7a5d6e0` 201; `0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42` 127 (EURC, UNCERTAIN); `0x50c5725949a6f0c72e6c4a641f24049a917db0cb` 123 (DAI, UNCERTAIN); `0xbaa5cc21fd487b8fcc2f632f3f4e8d37262a0842` 111; `0x22af33fe49fd1fa80c7149773dde5890d3c76f3b` 88; 5 more with <65.
 - First ship on the official router: block 49191927 (2026-07-27), tx `0x31212f3857435faef429f9361eaba105cb6613d9bc3fcc4aff1006785a7d61e7`. Last ships before probe: blocks 50876034–50879602 (2026-09-04), makers `0x1a09f7d9…` and `0x76b0340e…`.
 - Shipped payload length: 962 hex chars (same shape as Ethereum) → makers on Base use the same SwapVM `Order` encoding; **WETH/USDC is the dominant pair**, which is exactly what the fork demo will use.
-- All 436 Base `Shipped` events (block, tx, maker, app, strategyHash, raw `data`) are saved at `/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/work/base_full3.raw.shipped.json` (520 KB) — use them to decode real SwapVM programs with the SDK / to pick a live strategy to swap against on the fork.
+- All 436 Base `Shipped` events (block, tx, maker, app, strategyHash, raw `data`) are saved at `work/base_full3.raw.shipped.json` (520 KB) — use them to decode real SwapVM programs with the SDK / to pick a live strategy to swap against on the fork.
 
 ### 2.4 Second app on Ethereum: `0x1111113db0e0ef9d0e3a50d5f094a3a57a26c0de`
 Verified `AquaSwapVMRouter` (Blockscout, verified 2026-07-19T13:47Z, i.e. same day as Aqua), `AQUA()` = official Aqua, `eip712Domain` = `"1inch SwapVM v1.0" / "1.0.2"`, creator factory `0x4C249c4A33Da39afF18C7c92c53e957Aa0f05E38`. Code also exists on Base. It is the **first** router deployment; the SDK-listed `0x111111338c…` (deployed 2026-07-26) superseded it. Not "another app" in any meaningful sense.

@@ -331,4 +331,4 @@ Full list is in `raw/root_prizes.html`; the ones plausibly compatible with an Aq
 - Prior events: https://ethglobal.com/events/newyork2026/prizes , /lisbon2026/prizes , /buenosaires/prizes → `raw/prizes_*.txt`; Tokyo 2026 1inch page via https://hackathon.1inch.community redirect → `raw/guide_1inch.html`
 - Showcase: https://ethglobal.com/showcase?events=<slug>&partners=1inch and per-project pages → `raw/win_*.html`, `raw/winners/*.html`, `raw/proj_*.html`
 - Workshops: https://www.youtube.com/watch?v=bdhba23BEzg , https://www.youtube.com/watch?v=VrtWeUR3Vq4 → `raw/transcript_*.txt`, `raw/yt_*.vtt`, `raw/slides.txt`
-- Base dir for all raw files: `/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/raw/`
+- Base dir for all raw files: `raw/`

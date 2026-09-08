@@ -1,8 +1,8 @@
 # KB: Golden vectors for the swap-vm HEAD (World-B) TypeScript encoder
 
-Written 2026-09-06. Closes `_critic.md` G5: the `sdk-ts.md §8` TS skeleton had only been diffed against `@1inch/swap-vm-sdk` (deployed 1.0.2 = "World A"). This file records a Solidity-generated, byte-exact vector set for HEAD (`swap-vm` `f09a41e`, 2026-09-03) and a vitest that proves a TS encoder reproduces every vector — order bytes, `keccak256(abi.encode(order))`, EIP-712 hash, taker data, and the 3-arg `quote/swap` selectors.
+Written 2026-09-06. Closes `completeness-review.md` G5: the `sdk-ts.md §8` TS skeleton had only been diffed against `@1inch/swap-vm-sdk` (deployed 1.0.2 = "World A"). This file records a Solidity-generated, byte-exact vector set for HEAD (`swap-vm` `f09a41e`, 2026-09-03) and a vitest that proves a TS encoder reproduces every vector — order bytes, `keccak256(abi.encode(order))`, EIP-712 hash, taker data, and the 3-arg `quote/swap` selectors.
 
-Paths (all under `/private/tmp/claude-501/-Users-kirillrybkov-Desktop-project/9e63dac7-1e5d-4fe3-9634-61767d65c76a/scratchpad/`):
+Paths (all under ``):
 | What | Path |
 |---|---|
 | Solidity vector generator + e2e (11 tests, all PASS) | `refs/swap-vm/test/GoldenVectors.t.sol` (426 lines, untracked in the clone) |
