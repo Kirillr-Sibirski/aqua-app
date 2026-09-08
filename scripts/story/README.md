@@ -87,18 +87,26 @@ at 10.4 WETH / 24,850 USDC, clock rewound to the frozen second.
 | | Machine time | Assertions | Suggested narration |
 |---|---|---|---|
 | `make story-0` | 4.6 s | 26 | 0:20 → 0:45 |
-| `make story-1` | 0.61 s | 14 | 0:45 → 1:10 |
+| `make story-1` | 0.6 s | 14 | 0:45 → 1:10 |
 | `make story-2` | 4.7 s | 15 | 1:10 → 1:45 |
-| `make story-3` | 0.49 s | 12 | 1:45 → 2:05 |
-| `make story-4` | 0.68 s | 18 | 2:05 → 2:25 |
-| `make story-5` | 0.51 s | 18 | 2:25 → 2:45 |
-| `make story-6` | 0.66 s | 19 | 2:45 → 3:00 |
+| `make story-3` | 0.5 s | 12 | 1:45 → 2:05 |
+| `make story-4` | 0.6 s | 18 | 2:05 → 2:25 |
+| `make story-5` | 0.5 s | 18 | 2:25 → 2:45 |
+| `make story-6` | 0.6 s | 19 | 2:45 → 3:00 |
 | `make story-all` | 5.0 s | 96 | (1 through 6, one process) |
 
-122 assertions across the seven scenes. Roughly **12 seconds of machine time in a three-minute video**:
-scenes 0 and 2 are the only ones that take long enough to talk over, and both are doing real work
-(three live fills; 14 tape steps of bot planning). The other five print faster than they can be read,
-which is the point: pause, talk, run the next one.
+122 assertions across the seven scenes, and roughly **12 seconds of machine time in a three-minute
+video**. Scenes 0 and 2 are the only two that take long enough to talk over, and both are doing real
+work: three live third-party fills, and fourteen tape steps of bot planning. The other five print
+faster than they can be read, which is the point. Pause, talk, run the next one.
+
+Times are for a warm fork. The **first** run of a given scene after an anvil restart can add about
+four seconds while anvil lazily fetches the Base state that scene touches; every run after that is the
+figure above, which is why the dress rehearsal below is worth doing before the camera is on:
+
+```bash
+make story-load && for n in 0 1 2 3 4 5 6; do make story-$n; done
+```
 
 `make story-status` prints where the show currently is (fork block, coverage, tape time, live legs,
 and the history of scenes already run in this take).
