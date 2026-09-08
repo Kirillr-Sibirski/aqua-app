@@ -321,8 +321,28 @@ function Detail({
 
   const sigma = Number(viemFormatUnits(rmm.sigmaWad, 18));
   const strikeLabel = `${formatUnits(rmm.strikeWad, 18, { significantDigits: 18, maxFractionDigits: 2 })} ${stable.symbol}`;
-  const sizeLabel = `${formatUnits(rmm.liquidityWad, 18, { significantDigits: 6 })} ${risky.symbol}`;
-  const verb = offer.kind === 'put' ? 'Buy' : 'Sell';
+
+  /*
+   * How much is on offer: the reserve on the side that LEAVES the wallet, never `L`.
+   *
+   * This used to print `rmm.liquidityWad`, which is the notional the curve is drawn against and is
+   * always larger than the amount being sold — the same offer read 14.3969 WETH here, 10.40 on
+   * /offers, and 10.4 in this page's own take panel three sections down. A 38% overstatement in the
+   * two most prominent numbers on the screen, and it broke the card's promise that you sell exactly
+   * what you typed. On a put it was worse: the headline said "Buy <L> WETH" while the token the
+   * offer actually hands over is USDC.
+   *
+   * `advertisedOut` is that reserve, already resolved above for the quote ladder, and it is
+   * formatted through the same rule `offers/copy.ts` uses so the table and this h1 print the same
+   * characters for the same offer. `L` is named where it belongs, in the terms panel at the foot of
+   * the page.
+   */
+  const sizeLabel = `${formatUnits(advertisedOut, outMeta.decimals, { significantDigits: 6, minFractionDigits: 2 })} ${outMeta.symbol}`;
+  const notionalLabel = `${formatUnits(rmm.liquidityWad, 18, { significantDigits: 6 })} ${risky.symbol}`;
+  // One verb, applied to the token the maker hands over, is correct on both sides: a cash-secured
+  // put IS selling dollars for ETH. The trigger clause is what says which — the same sentence the
+  // landing card and the offers table make.
+  const trigger = offer.kind === 'put' ? 'if it falls to' : 'if it reaches';
 
   return (
     <Shell>
@@ -339,7 +359,7 @@ function Detail({
           </Anchor>
 
           <Text component="h1" fw={600} className="text-section leading-num" c="var(--ink)">
-            {verb} <Num>{sizeLabel}</Num> at <Num>{strikeLabel}</Num> by{' '}
+            Sell <Num>{sizeLabel}</Num> {trigger} <Num>{strikeLabel}</Num> by{' '}
             <Num>{formatByWhen(rmm.maturity)}</Num>
           </Text>
 
@@ -381,9 +401,18 @@ function Detail({
             <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="lg">
               <Figure
                 label="How much"
-                value={formatUnits(rmm.liquidityWad, 18, { significantDigits: 6 })}
-                unit={risky.symbol}
-                detail={<Term precise="Liquidity, L. Fixed for the life of the offer.">the size it covers</Term>}
+                value={formatUnits(advertisedOut, outMeta.decimals, {
+                  significantDigits: 6,
+                  minFractionDigits: 2,
+                })}
+                unit={outMeta.symbol}
+                detail={
+                  <Term
+                    precise={`The virtual reserve Aqua holds on the ${outMeta.symbol} side. The curve underneath is drawn against a liquidity L of ${notionalLabel}, which is always the larger number and is not what is on offer.`}
+                  >
+                    on offer right now
+                  </Term>
+                }
               />
               <Figure
                 label="At what price"
@@ -406,9 +435,13 @@ function Detail({
                 value={
                   liveIn === undefined
                     ? '—'
-                    : formatUnits(smallest.fill?.clears ?? liveIn, inMeta.decimals, {
-                        significantDigits: 6,
-                        maxFractionDigits: 2,
+                    : // No `maxFractionDigits` cap: at two places a bound of 0.006308 USDC printed
+                      // as "0.01" here while `GapReadout` printed the exact figure from the same
+                      // read a section below, which is two different numbers for one quantity on
+                      // one screen. Nine significant digits is what the readout uses.
+                      formatUnits(smallest.fill?.clears ?? liveIn, inMeta.decimals, {
+                        significantDigits: 9,
+                        maxFractionDigits: 6,
                       })
                 }
                 unit={inMeta.symbol}
@@ -428,8 +461,8 @@ function Detail({
                     {liveIn === undefined
                       ? '—'
                       : formatUnits(smallest.fill?.clears ?? liveIn, inMeta.decimals, {
-                          significantDigits: 6,
-                          maxFractionDigits: 2,
+                          significantDigits: 9,
+                          maxFractionDigits: 6,
                         })}
                   </Num>{' '}
                   {inMeta.symbol}, and every hour that passes it grows.
@@ -487,7 +520,7 @@ function Detail({
             subtitle={
               scrubbedSeconds === undefined
                 ? 'Sampling…'
-                : `${formatDuration(scrubbedSeconds)} left · ${formatPercent(sigma, { fractionDigits: 0 })} movement priced in · ${sizeLabel} covered`
+                : `${formatDuration(scrubbedSeconds)} left · ${formatPercent(sigma, { fractionDigits: 0 })} movement priced in · drawn against ${notionalLabel}`
             }
             state={live.error ? 'error' : live.isLoading ? 'loading' : 'ready'}
             errorMessage={
