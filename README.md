@@ -122,7 +122,7 @@ FORK_RPC_URL=https://ethereum-rpc.publicnode.com make test-fork   # 11 fork test
 
 | | |
 |---|---|
-| Router runtime size | **23,633 B** — 943 B under EIP-170, mainnet-deployable, no size override |
+| Router runtime size | **23,664 B** — 912 B under EIP-170, mainnet-deployable, no size override |
 | Gas per RMM fill | 657-667k (~$0.01 on Base at 0.005 gwei) |
 | Curve accuracy | ~5e-12 relative error vs a 50-digit mpmath reference |
 | Φ approximation error | 6.95e-8; Φ⁻¹ round-trip 1.18e-6, which sets the maker-favouring epsilon |
