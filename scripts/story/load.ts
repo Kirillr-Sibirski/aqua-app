@@ -78,19 +78,28 @@ async function main(): Promise<void> {
     check(loadState().legs.length === 0, 'story state restored: no legs shipped');
   }
 
-  // `anvil_setBlockTimestampInterval` is node configuration, not chain state, so neither `evm_revert` nor
-  // `anvil_loadState` brings it back -- and after a restart anvil is timestamping blocks from the WALL
-  // CLOCK again. Measured: three seconds of thinking time became three seconds of theta. Re-pin it here
-  // and prove it with two blocks, because a demo whose numbers depend on how long the presenter talked is
-  // not reproducible. The two blocks are then rewound, so this check costs the demo nothing.
+  // Anvil keeps its own clock counter, separate from the chain head, and neither the interval nor that
+  // counter is chain state, so neither undo mechanism restores them.
+  //
+  // On a fresh node `anvil_loadState` moves the head WITHOUT moving the counter, and the next block is
+  // stamped from the counter. Measured on this fork: head restored to 1788681376, first block mined
+  // after it stamped 1788681348 -- one second past the FORK block, twenty-eight seconds BACKWARDS. Every
+  // tau in the demo would have been read off that. So re-anchor the counter to the head we just restored.
+  //
+  // Then re-pin the interval, because without it anvil stamps blocks from the wall clock and the
+  // presenter's thinking time becomes theta: three seconds of talking, three seconds of decay, and the
+  // second take prints different numbers from the first.
+  //
+  // Both are proved with a block that is then rewound, so the check costs the demo nothing.
+  const head = await forkNow();
+  await rpc('anvil_setTime', [Number(head.timestamp)]);
   await rpc('anvil_setBlockTimestampInterval', [1]);
   const probe = await rpc<string>('evm_snapshot', []);
-  const t0 = (await forkNow()).timestamp;
   await rpc('evm_mine', []);
   const t1 = (await forkNow()).timestamp;
-  const pinned = t1 - t0 === 1n;
+  const pinned = t1 - head.timestamp === 1n;
   await rpc('evm_revert', [probe]);
-  check(pinned, 'one block is one second again, so the clock cannot drift with the wall clock');
+  check(pinned, `one block is one second again (${head.timestamp} -> ${t1}), so the clock cannot drift or run backwards`);
 
   // `evm_revert` consumes the id it was given, so re-arm the retake snapshot at the state we just proved.
   writeFileSync(
