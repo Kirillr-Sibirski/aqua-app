@@ -257,7 +257,7 @@ Conclusion: as of 2026-09-06 the limit on every target chain is 24,576 B and not
 
 ## 12. MEASURED (2026-09-06, this repo): fixed-point curve opcodes — closes critic gap G6
 
-Measured with `forge build --sizes` in `/Users/kirillrybkov/Desktop/project/contracts` (solc 0.8.30, via_ir, 700 runs) and `forge test --match-path 'test/probe/*'`:
+Measured with `forge build --sizes` in `contracts/` (solc 0.8.30, via_ir, 700 runs) and `forge test --match-path 'test/probe/*'`:
 
 | Router | Runtime B | EIP-170 margin | Verdict |
 |---|---|---|---|
