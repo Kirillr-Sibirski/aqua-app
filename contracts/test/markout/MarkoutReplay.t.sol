@@ -169,6 +169,8 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         uint256 takerProfitWad;
         uint256 startSpotWad;
         uint256 endSpotWad;
+        uint256 peakSpotWad;
+        uint256 troughSpotWad;
         uint256 endWethWad;
         uint256 endUsdcWad;
         uint256[] legFills;
@@ -252,11 +254,26 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         console2.log("  -------   -----   -------   ----------   ---------   --------   --------   --------");
 
         uint256 realisedVol;
+        uint256[] memory impliedBps = new uint256[](sigmas.length);
+        uint256[] memory fills = new uint256[](sigmas.length);
+        int256[] memory netEth6 = new int256[](sigmas.length);
+        uint256[] memory timeValue6 = new uint256[](sigmas.length);
+        int256[] memory vsHold6 = new int256[](sigmas.length);
+        int256[] memory vsLow6 = new int256[](sigmas.length);
+        int256[] memory vsHigh6 = new int256[](sigmas.length);
+
         for (uint256 i = 0; i < sigmas.length; i++) {
             uint256 snap = vm.snapshotState();
             Run memory r = _replay(sigmas[i], 0);
             realisedVol = r.realisedVolWad;
             int256 versusHold = int256(r.endWad) - int256(r.hodlEndWad);
+            impliedBps[i] = _bps(uint256(sigmas[i]));
+            fills[i] = r.fills;
+            netEth6[i] = (int256(r.endWethWad) - int256(WALLET_WETH)) / 1e12;
+            timeValue6[i] = r.timeValueAtStartWad / 1e12;
+            vsHold6[i] = versusHold / 1e12;
+            vsLow6[i] = (int256(r.endWad) - int256(r.cpLowEndWad)) / 1e12;
+            vsHigh6[i] = (int256(r.endWad) - int256(r.cpHighEndWad)) / 1e12;
             console2.log(
                 string.concat(
                     "  ",
@@ -288,6 +305,18 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         console2.log("  Two effects run in opposite directions across the sweep and both are visible: a");
         console2.log("  higher implied vol puts more time value on offer but a wider spread in front of");
         console2.log("  it, so the arbitrageur crosses less often and less of that value is captured.");
+
+        string memory obj = "markout.sigmaSweep";
+        vm.serializeUint(obj, "realisedVolBps", _bps(realisedVol));
+        vm.serializeUint(obj, "impliedVolBps", impliedBps);
+        vm.serializeUint(obj, "fills", fills);
+        vm.serializeInt(obj, "netEth6", netEth6);
+        vm.serializeUint(obj, "timeValue6", timeValue6);
+        vm.serializeInt(obj, "vsHold6", vsHold6);
+        vm.serializeInt(obj, "vsCpLow6", vsLow6);
+        string memory out = vm.serializeInt(obj, "vsCpHigh6", vsHigh6);
+        vm.writeJson(out, "test/markout/sweep-sigma.json");
+        console2.log("  wrote contracts/test/markout/sweep-sigma.json");
     }
 
     /// @notice One seven-day path is an anecdote. The same book is written on eight different days of the
@@ -299,11 +328,28 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         console2.log("  ------   ---------------   -----   ------------   ----------   -----------");
 
         uint256 wins;
+        uint256[] memory offsetHours = new uint256[](tapeWindows);
+        uint256[] memory startSpot6 = new uint256[](tapeWindows);
+        uint256[] memory endSpot6 = new uint256[](tapeWindows);
+        uint256[] memory fills = new uint256[](tapeWindows);
+        uint256[] memory realisedBps = new uint256[](tapeWindows);
+        int256[] memory vsHold6 = new int256[](tapeWindows);
+        int256[] memory vsLow6 = new int256[](tapeWindows);
+        int256[] memory vsHigh6 = new int256[](tapeWindows);
+
         for (uint256 w = 0; w < tapeWindows; w++) {
             uint256 snap = vm.snapshotState();
             Run memory r = _replay(SIGMA, _windowStart(w));
             int256 versusHold = int256(r.endWad) - int256(r.hodlEndWad);
             if (versusHold > 0) wins++;
+            offsetHours[w] = w * tapeWindowOffset / 1 hours;
+            startSpot6[w] = r.startSpotWad / 1e12;
+            endSpot6[w] = r.endSpotWad / 1e12;
+            fills[w] = r.fills;
+            realisedBps[w] = _bps(r.realisedVolWad);
+            vsHold6[w] = versusHold / 1e12;
+            vsLow6[w] = (int256(r.endWad) - int256(r.cpLowEndWad)) / 1e12;
+            vsHigh6[w] = (int256(r.endWad) - int256(r.cpHighEndWad)) / 1e12;
             console2.log(
                 string.concat(
                     "  ",
@@ -336,6 +382,20 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
                 " windows. They overlap, so they are not eight independent samples."
             )
         );
+
+        string memory obj = "markout.windowSweep";
+        vm.serializeUint(obj, "impliedVolBps", _bps(uint256(SIGMA)));
+        vm.serializeUint(obj, "wins", wins);
+        vm.serializeUint(obj, "offsetHours", offsetHours);
+        vm.serializeUint(obj, "startSpot6", startSpot6);
+        vm.serializeUint(obj, "endSpot6", endSpot6);
+        vm.serializeUint(obj, "fills", fills);
+        vm.serializeUint(obj, "realisedVolBps", realisedBps);
+        vm.serializeInt(obj, "vsHold6", vsHold6);
+        vm.serializeInt(obj, "vsCpLow6", vsLow6);
+        string memory out = vm.serializeInt(obj, "vsCpHigh6", vsHigh6);
+        vm.writeJson(out, "test/markout/sweep-window.json");
+        console2.log("  wrote contracts/test/markout/sweep-window.json");
     }
 
     // ------------------------------------------------------------------ the replay
@@ -363,6 +423,14 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         r.legMarkoutWad = new int256[](4);
         r.startSpotWad = tapePriceWad[startIndex];
         r.endSpotWad = tapePriceWad[lastIndex];
+        // Over every round in the window, not over the hourly record: the screen says "it peaked at",
+        // and a peak measured on a thinned series is a different and smaller claim.
+        r.peakSpotWad = tapePriceWad[startIndex];
+        r.troughSpotWad = tapePriceWad[startIndex];
+        for (uint256 i = startIndex; i <= lastIndex; i++) {
+            if (tapePriceWad[i] > r.peakSpotWad) r.peakSpotWad = tapePriceWad[i];
+            if (tapePriceWad[i] < r.troughSpotWad) r.troughSpotWad = tapePriceWad[i];
+        }
 
         vm.warp(tapeT[startIndex]);
         _shipBook(sigmaWad, r.startSpotWad);
@@ -891,15 +959,30 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         return string.concat(Fmt.fixedPoint(part * int256(WAD) / int256(whole) * 100, 18, 1), "%");
     }
 
+    /// @dev A ratio in basis points, rounded rather than truncated, so 46.565% publishes as 46.57% on
+    ///      the screen and in the terminal instead of disagreeing with itself in the last digit.
+    function _bps(uint256 ratioWad) private pure returns (uint256) {
+        return (ratioWad + 0.5e14) / 1e14;
+    }
+
     /// @dev A daily thinning of the path, so the terminal shows the shape without hundreds of rows.
+    ///      Rows are chosen by elapsed time, not by an index stride: the feed publishes unevenly, so
+    ///      every 24th recorded point drifts off the day boundary and skips one.
     function _printPath(Run memory r) private pure {
         console2.log("");
         console2.log("  Path, one row per day (USD)");
         console2.log("  day    spot        Strikeline    hold          5bp pool      fills");
         console2.log("  -----  ----------  ------------  ------------  ------------  -----");
         uint256 n = r.series.t.length;
-        for (uint256 i = 0; i + 24 < n; i += 24) {
-            _pathRow(r, i, false);
+        uint256 t0 = r.series.t[0];
+        uint256 lastDay = (r.series.t[n - 1] - t0) / 1 days;
+        uint256 cursor;
+        for (uint256 d = 0; d < lastDay; d++) {
+            uint256 want = t0 + d * 1 days;
+            while (cursor + 1 < n && r.series.t[cursor] < want) {
+                cursor++;
+            }
+            _pathRow(r, cursor, false);
         }
         _pathRow(r, n - 1, true);
     }
@@ -963,8 +1046,10 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         vm.serializeUint(totals, "endWeth6", r.endWethWad / 1e12);
         vm.serializeUint(totals, "endUsdc6", r.endUsdcWad / 1e12);
         vm.serializeUint(totals, "advertisedRisky6", r.advertisedRiskyWad / 1e12);
-        vm.serializeUint(totals, "impliedVolBps", uint256(r.sigmaWad) / 1e14);
-        string memory totalsJson = vm.serializeUint(totals, "realisedVolBps", r.realisedVolWad / 1e14);
+        vm.serializeUint(totals, "peakSpot6", r.peakSpotWad / 1e12);
+        vm.serializeUint(totals, "troughSpot6", r.troughSpotWad / 1e12);
+        vm.serializeUint(totals, "impliedVolBps", _bps(uint256(r.sigmaWad)));
+        string memory totalsJson = vm.serializeUint(totals, "realisedVolBps", _bps(r.realisedVolWad));
 
         string memory legsJson = _legsJson(r);
 
@@ -996,12 +1081,14 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
 
     function _legsJson(Run memory r) private returns (string memory) {
         string[] memory labels = new string[](legs.length);
+        string[] memory kinds = new string[](legs.length);
         uint256[] memory strikes = new uint256[](legs.length);
         uint256[] memory liquidity = new uint256[](legs.length);
         uint256[] memory fills = new uint256[](legs.length);
         int256[] memory markout = new int256[](legs.length);
         for (uint256 k = 0; k < legs.length; k++) {
             labels[k] = legs[k].spec.label;
+            kinds[k] = legs[k].spec.isCall ? "call" : "put";
             strikes[k] = uint256(legs[k].spec.strikeWad) / 1e12;
             liquidity[k] = uint256(legs[k].spec.liquidityWad) / 1e12;
             fills[k] = r.legFills[k];
@@ -1009,6 +1096,7 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         }
         string memory obj = "markout.legs";
         vm.serializeString(obj, "label", labels);
+        vm.serializeString(obj, "kind", kinds);
         vm.serializeUint(obj, "strike6", strikes);
         vm.serializeUint(obj, "liquidity6", liquidity);
         vm.serializeUint(obj, "fills", fills);

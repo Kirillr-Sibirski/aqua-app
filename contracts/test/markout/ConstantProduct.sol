@@ -54,9 +54,12 @@ library ConstantProduct {
     /// @dev A constant-product position quotes `stable / risky` as its price, so the only way to open at
     ///      the market is to hold half the value in each. That is not a thumb on the scale for either
     ///      side: it starts every strategy in this study at the identical mark.
+    ///      The remainder of both integer divisions goes to the stable side rather than being dropped, so
+    ///      `value(open(v, s), s) == v` exactly. Dropped, it started the control one micro-dollar behind
+    ///      every other strategy in the study, which is nothing in dollars and a handicap in principle.
     function open(uint256 usdWad, uint256 spotWad, uint256 feeBps) internal pure returns (Pool memory) {
-        uint256 half = usdWad / 2;
-        return Pool({ risky: half * WAD / spotWad, stable: half, feeBps: feeBps });
+        uint256 risky = (usdWad / 2) * WAD / spotWad;
+        return Pool({ risky: risky, stable: usdWad - risky * spotWad / WAD, feeBps: feeBps });
     }
 
     /// @notice Mark the position at `spotWad`, in WAD USD.

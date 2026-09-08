@@ -14,5 +14,5 @@
     "baseUrl": ".",
     "paths": { "@/*": ["../web/src/*"] }
   },
-  "include": ["fork/**/*.ts", "story/**/*.ts", "arb/**/*.ts", "../web/src/lib/swapvm/**/*.ts"]
+  "include": ["fork/**/*.ts", "story/**/*.ts", "arb/**/*.ts", "markout/**/*.ts", "../web/src/lib/swapvm/**/*.ts"]
 }
