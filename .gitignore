@@ -14,3 +14,5 @@ scripts/fork/.state/
 scripts/fork/.snapshot.json
 scripts/node_modules/
 __pycache__/
+scripts/story/.story-state.json
+scripts/story/state/
