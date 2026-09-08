@@ -1,0 +1,450 @@
+/*
+ * The one card.
+ *
+ * A CSS module rather than utilities, for one reason that is structural rather than stylistic: a
+ * module's rules are unlayered, and unlayered CSS outranks every `@layer` — so these are the rules
+ * that can reshape a Mantine input without a specificity war or an `!important`. Everything below
+ * reads its colour, radius and type from the tokens in `globals.css`; there is no literal here that
+ * is not a length.
+ */
+
+/* --- the card ------------------------------------------------------------ */
+
+.card {
+  width: 100%;
+  max-width: var(--card-w);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 0.75rem;
+}
+
+/* --- a field, which is one clause of the sentence -------------------------- */
+
+.field {
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-field);
+  padding: 0.75rem 0.875rem 0.625rem;
+  transition: border-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.field:focus-within {
+  border-color: var(--line-strong);
+}
+
+.field[data-invalid='true'] {
+  border-color: var(--neg);
+}
+
+.fieldLabel {
+  display: block;
+  font-size: var(--text-meta);
+  line-height: var(--text-meta--line-height);
+  color: var(--ink-2);
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+}
+
+.fieldFoot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 1.125rem;
+  font-size: var(--text-mini);
+  line-height: 1.125rem;
+  color: var(--ink-3);
+}
+
+/* The unit the field is denominated in. Static: this is not a token picker. */
+.unit {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  color: var(--ink-2);
+}
+
+/* --- the numbers people type --------------------------------------------- */
+
+/*
+ * Mantine's own input styling is replaced wholesale here rather than tuned: inside a well the
+ * control is the number, and a border, a background and a 36px height would draw a second box
+ * around something that already has one.
+ */
+.bigInput {
+  width: 100%;
+  min-height: 2.25rem;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--text-display);
+  line-height: var(--text-display--line-height);
+  letter-spacing: var(--text-display--letter-spacing);
+  color: var(--ink);
+}
+
+.bigInput::placeholder {
+  color: var(--ink-3);
+}
+
+.bigInput:disabled {
+  color: var(--ink-3);
+  opacity: 1;
+  cursor: default;
+}
+
+/* The date is words, not digits, so it sits a step down the scale and in the prose family. */
+.dateInput {
+  composes: bigInput;
+  font-family: var(--font-sans);
+  font-size: var(--text-section);
+  line-height: var(--text-section--line-height);
+  letter-spacing: var(--text-section--letter-spacing);
+  text-align: left;
+  cursor: pointer;
+}
+
+.dateWrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.maxButton {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.maxButton:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+/* --- what you earn, what you give up -------------------------------------- */
+
+.outcome {
+  padding: 0.75rem 0.875rem 0.25rem;
+}
+
+.outcomeRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3125rem 0;
+}
+
+.outcomeLabel {
+  flex: none;
+  font-size: var(--text-body);
+  color: var(--ink-2);
+}
+
+.outcomeValue {
+  min-width: 0;
+  text-align: right;
+  font-size: var(--text-body);
+  color: var(--ink);
+}
+
+.outcomeNote {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-mini);
+  line-height: 1.05rem;
+  color: var(--ink-3);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.earned {
+  color: var(--pos);
+}
+
+/* --- the one button, and what it is doing --------------------------------- */
+
+.action {
+  margin-top: 0.5rem;
+}
+
+.steps {
+  display: flex;
+  gap: 0.375rem;
+  margin: 0.625rem 0.25rem 0;
+  list-style: none;
+  padding: 0;
+}
+
+.step {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+  font-size: var(--text-mini);
+  color: var(--ink-3);
+}
+
+.stepBar {
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+}
+
+.step[data-state='running'] .stepBar {
+  background: var(--accent-dim);
+}
+
+.step[data-state='done'] .stepBar {
+  background: var(--accent);
+}
+
+.step[data-state='failed'] .stepBar {
+  background: var(--neg);
+}
+
+.step[data-state='running'],
+.step[data-state='done'] {
+  color: var(--ink-2);
+}
+
+/* --- the result ----------------------------------------------------------- */
+
+.result {
+  padding: 0.25rem 0.125rem;
+}
+
+.resultRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.375rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-meta);
+}
+
+.resultRow:last-of-type {
+  border-bottom: 0;
+}
+
+/* --- details -------------------------------------------------------------- */
+
+.detailsToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.4375rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  font-size: var(--text-mini);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.detailsToggle:hover {
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+
+.chevron {
+  transition: transform var(--duration-fast) var(--ease-out-quart);
+}
+
+.detailsToggle[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
+.detailsBody {
+  padding: 0.25rem 0.125rem 0.125rem;
+}
+
+.detailRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3125rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-mini);
+}
+
+.detailRow:last-child {
+  border-bottom: 0;
+}
+
+.detailKey {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.detailValue {
+  min-width: 0;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.bytes {
+  display: block;
+  max-height: 7rem;
+  overflow: auto;
+  margin-top: 0.375rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-mini);
+  line-height: 1.1rem;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* --- the wallet picker ----------------------------------------------------- */
+
+.connector {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-control);
+  text-align: left;
+}
+
+.connector:hover {
+  background: var(--surface-2);
+}
+
+.connector[data-pending] {
+  pointer-events: none;
+}
+
+.connectorIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  color: var(--ink-3);
+}
+
+.connectorText {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* --- the frame the card sits in ------------------------------------------- */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.bar {
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.barInner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  height: var(--header-h);
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.barEnd {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+}
+
+.tab {
+  display: block;
+  padding: 0.375rem 0.875rem;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-meta);
+  white-space: nowrap;
+  color: var(--ink-2);
+  transition: color var(--duration-fast) var(--ease-out-quart);
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tab[aria-current='page'] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-card);
+}
+
+/*
+ * The card sits slightly above centre, which is where the eye already is. `dvh` rather than `vh`
+ * because a mobile browser's toolbar makes `vh` taller than the visible page and would push the
+ * button under the chrome on exactly the device where it matters most.
+ */
+.stage {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1.5rem 1rem 3rem;
+}
+
+@media (min-height: 46rem) {
+  .stage {
+    align-items: center;
+    min-height: calc(100dvh - var(--header-h));
+    padding-bottom: 5rem;
+  }
+}
