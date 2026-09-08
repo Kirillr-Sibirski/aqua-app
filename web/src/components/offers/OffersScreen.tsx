@@ -60,38 +60,42 @@ export function OffersScreen() {
   // Only tokens something is actually promised against get a bar. A balance nothing draws on is a
   // wallet screenshot, not the picture this page is for.
   const bars = book.tokens.filter((token) => token.written > ZERO);
-  const hasOffers = connected && !book.error && !book.isLoading && book.legs.length > 0;
+  // Optimistic while the first read is in flight: this tab is only reachable from a nav item that
+  // already knows there are offers, so assuming them costs no correctness and saves the header
+  // appearing a beat after the skeletons.
+  const hasOffers = connected && !book.error && (book.isLoading || book.legs.length > 0);
 
   return (
     <OffersChrome
       blockNumber={book.blockNumber}
       readChainName={wrongNetwork ? deploymentChain.name : undefined}
     >
-      {/* The subtitle and the second action are claims about offers, so they appear only once
-          there are offers to make them about. Empty and disconnected states carry their own single
-          action and must not compete with a button in the header. */}
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <Title order={1} fz="var(--text-title)" c="var(--ink)">
-            Your offers
-          </Title>
-          {hasOffers ? (
+      {/* The title, the subtitle and the second action are all claims about offers, so they appear
+          only once there are offers to make them about. With nothing to show, a left-aligned page
+          title stranded beside a centred 480px card is two layouts at once — the card is the whole
+          screen and says its own name in its own heading. The h1 stays for the document outline. */}
+      {hasOffers ? (
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <Title order={1} fz="var(--text-title)" c="var(--ink)">
+              Your offers
+            </Title>
             <Text mt={6} size="sm" c="var(--ink-2)" className="max-w-[70ch]">
               One wallet stands behind all of them, and it never moves. The moment somebody takes
               one offer, what the others can hand over shrinks — in the same block, with nothing to
               settle.
             </Text>
-          ) : null}
-        </div>
-        {hasOffers ? (
+          </div>
           <Button component={Link} href="/" variant="default" size="sm">
             Make another offer
           </Button>
-        ) : null}
-      </header>
+        </header>
+      ) : (
+        <h1 className="sr-only">Your offers</h1>
+      )}
 
       {!connected ? (
-        <div className="mt-10">
+        <div className="mt-12 sm:mt-20">
           <OffersDisconnected />
         </div>
       ) : book.error ? (
@@ -99,7 +103,7 @@ export function OffersScreen() {
       ) : book.isLoading ? (
         <LoadingPanel />
       ) : book.legs.length === 0 ? (
-        <div className="mt-10">
+        <div className="mt-12 sm:mt-20">
           <OffersNone />
         </div>
       ) : (
@@ -238,9 +242,9 @@ function Footnotes({
         {book.foreignStrategies.length > 0 ? (
           <>
             {' '}
-            {book.foreignStrategies.length} other{' '}
-            {book.foreignStrategies.length === 1 ? 'strategy' : 'strategies'} from this wallet sit on
-            the same router without a price curve, so they are not offers and are not listed.
+            {book.foreignStrategies.length === 1
+              ? '1 other strategy from this wallet sits on the same router without a price curve, so it is not an offer and is not listed.'
+              : `${book.foreignStrategies.length} other strategies from this wallet sit on the same router without a price curve, so they are not offers and are not listed.`}
           </>
         ) : null}
       </p>

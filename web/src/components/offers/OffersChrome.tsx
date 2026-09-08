@@ -54,10 +54,15 @@ export function OffersChrome({ children, blockNumber, readChainName }: OffersChr
       </a>
 
       <header className="sticky top-0 z-app-bar border-b border-line bg-bg">
-        {/* Two rows on a phone, one on everything else. At 390px the mark, two tabs and a wallet
+        {/* 64rem and a 1rem gutter, which is `sell.module.css`'s `.barInner` to the pixel. The two
+            tabs are one control a person clicks back and forth, and a bar that re-centres itself
+            between them moves the wordmark 120px sideways on every switch. Measured before and
+            after: mark at 224px on both, rather than 224 and 104.
+
+            Two rows on a phone, one on everything else. At 390px the mark, two tabs and a wallet
             pill do not fit on one line: the tabs were the thing that lost, and a clipped "Yo…"
             where the current tab should be is worse than a second row. */}
-        <div className="mx-auto flex w-full max-w-page flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:h-header sm:flex-nowrap sm:gap-6 sm:px-6 sm:py-0">
+        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:h-header sm:flex-nowrap sm:gap-6 sm:py-0">
           <Wordmark />
 
           <nav aria-label="Primary" className="order-last w-full min-w-0 sm:order-none sm:w-auto">
@@ -103,12 +108,16 @@ export function OffersChrome({ children, blockNumber, readChainName }: OffersChr
         </div>
       </header>
 
-      <NetworkGuard className="mx-auto w-full max-w-page px-4 pt-4 sm:px-6" />
+      <NetworkGuard className="mx-auto w-full max-w-5xl px-4 pt-4" />
 
+      {/* The content column matches the bar rather than DESIGN.md's 80rem dashboard maximum: the
+          bar is shared with the card page, and a page wider than the bar above it reads as two
+          layouts stacked. 64rem still leaves the backing bar about 950px, which is what has to stay
+          legible in a 1280x800 recording. */}
       <main
         id="content"
         tabIndex={-1}
-        className="mx-auto w-full max-w-page flex-1 px-4 py-6 focus-visible:outline-none sm:px-6 sm:py-8"
+        className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 focus-visible:outline-none sm:py-8"
       >
         {children}
       </main>
