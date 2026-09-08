@@ -36,6 +36,7 @@ import { useDeployments } from './useDeployments';
 import { useShippedStrategies } from './useShippedStrategies';
 import { useBookFills, type BookFill, type FillableLeg, type LegTheta } from './useBookFills';
 import {
+  COVERAGE_BPS,
   boundFromRevert,
   decodeLegProgram,
   ceilFromWad,
@@ -236,6 +237,24 @@ function ok<T>(entry: CallResult | undefined): T | undefined {
 }
 
 /** Coverage for one token, defaulting to zero for a token no bar was drawn for. */
+/**
+ * The wallet figure a leg's own guard would use.
+ *
+ * `StrikelineViews.coverage(maker, token)` reads `min(balanceOf, allowance)` at haircut 0, but the
+ * `Coverage` instruction that actually runs takes its haircut from the leg's own program bytes:
+ * `f - f*haircutBps/BPS`. Every leg on this screen decodes its `haircutBps` already; using the
+ * haircut-0 number for its depth would overstate any leg shipped with one. Latent today because the
+ * demo and `buildLegProgram`'s default both ship 0, but the number would be wrong the moment a
+ * maker chose otherwise -- and `useLegChain` states in writing that the screen and the guard are on
+ * one definition, haircut included.
+ */
+function withHaircut(coverage: bigint, haircutBps: number): bigint {
+  if (haircutBps <= 0) return coverage;
+  return coverage - (coverage * BigInt(haircutBps)) / COVERAGE_BPS_BIG;
+}
+
+const COVERAGE_BPS_BIG = BigInt(COVERAGE_BPS);
+
 function coverageOf(map: ReadonlyMap<string, bigint>, token: Address): bigint {
   return map.get(token.toLowerCase()) ?? ZERO;
 }
@@ -435,7 +454,8 @@ export function useBook(maker: Address | undefined, options: UseBookOptions = {}
       // `min(coverage, reserve)` the two cases separate cleanly: when the wallet binds the quote
       // clears at exactly the deliverable size and returns its cost, and when the curve binds it
       // refuses with the reserve, which is the honest answer to "can this leg deliver all it wrote".
-      const probeAmount = coverageOf(tokenCoverage, deliveryToken) < written ? coverageOf(tokenCoverage, deliveryToken) : written;
+      const deliverable = withHaircut(coverageOf(tokenCoverage, deliveryToken), leg.haircutBps);
+      const probeAmount = deliverable < written ? deliverable : written;
 
       calls.push({
         address: deployments.router,
@@ -492,7 +512,9 @@ export function useBook(maker: Address | undefined, options: UseBookOptions = {}
       const payToken = leg.deliversRisky ? stableToken : riskyToken;
 
       const written = leg.deliversRisky ? state.reserveRisky : state.reserveStable;
-      const coverage = deliveryToken?.coverage ?? ZERO;
+      // The wallet as THIS leg's guard sees it, haircut included. The per-token line in
+      // `InventoryBar` keeps the raw figure: that is the wallet, not one leg's view of it.
+      const coverage = withHaircut(deliveryToken?.coverage ?? ZERO, leg.haircutBps);
       const depthAmount = minBig(coverage, written);
 
       const band = ok<readonly [bigint, bigint]>(twoData?.[i * 2]);

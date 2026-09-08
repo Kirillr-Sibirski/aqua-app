@@ -124,7 +124,13 @@ export function useThetaBand(
  * This is the number `Coverage` enforces inside the same call that prices a trade, which is why a
  * fill on one leg shrinks what its siblings can deliver in the same block. Reading the published
  * figure rather than recomputing `balanceOf ^ allowance` here keeps the screen and the guard on one
- * definition, haircut included.
+ * definition.
+ *
+ * NOT haircut included: `StrikelineViews.coverage` hardcodes `Coverage.free(..., 0)`, while the
+ * instruction takes its haircut from the leg's own program bytes. This is therefore the WALLET, and
+ * any per-leg deliverable derived from it has to apply that leg's own `haircutBps` -- which is what
+ * `useBook.withHaircut` does. Latent while every leg the app writes ships a haircut of 0, wrong the
+ * moment one does not.
  */
 export function useCoverage(
   router: Address | undefined,
@@ -290,46 +296,57 @@ export async function readLegLedger(
     a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber < b.blockNumber ? -1 : 1,
   );
 
+  // Grouped by transaction before anything is interpreted.
+  //
+  // The obvious reading -- a `Pulled` opens a fill and a later `Pushed` in the same transaction
+  // attaches the taker's input -- assumes the pull is emitted first, and that is a TAKER's choice,
+  // not a protocol invariant: `SwapVM` branches on `takerTraits.isFirstTransferFromTaker()`, and
+  // this app happens never to set it. A resolver that does set it produces the push first, and the
+  // arrival-order reading dropped it and then wrote a fill with `inAmount: 0` and no `inToken`.
+  // This screen claims to replay any maker's ledger from the public log, so it cannot depend on
+  // which order one particular client emits two events in.
+  const groups: Entry[][] = [];
+  for (const entry of entries) {
+    const last = groups.at(-1);
+    if (last && last[0].transactionHash === entry.transactionHash) last.push(entry);
+    else groups.push([entry]);
+  }
+
   const reserves: Record<string, bigint> = {};
   const opening: Record<string, bigint> = {};
   const fills: LegFill[] = [];
   let openingTaken = false;
-  let openingTx: Hex | undefined;
 
-  for (const entry of entries) {
-    const key = entry.token.toLowerCase();
-    reserves[key] = (reserves[key] ?? BigInt(0)) + (entry.kind === 'push' ? entry.amount : -entry.amount);
-
-    // The `ship` transaction is the one that emits pushes before any pull has been seen.
-    if (!openingTaken) {
-      if (entry.kind === 'push' && (openingTx === undefined || openingTx === entry.transactionHash)) {
-        openingTx = entry.transactionHash;
-        opening[key] = reserves[key];
-        continue;
-      }
-      openingTaken = true;
+  for (const group of groups) {
+    for (const entry of group) {
+      const key = entry.token.toLowerCase();
+      reserves[key] = (reserves[key] ?? BigInt(0)) + (entry.kind === 'push' ? entry.amount : -entry.amount);
     }
 
-    if (entry.kind === 'pull') {
-      fills.push({
-        transactionHash: entry.transactionHash,
-        blockNumber: entry.blockNumber,
-        logIndex: entry.logIndex,
-        outToken: entry.token,
-        outAmount: entry.amount,
-        inAmount: BigInt(0),
-        reservesAfter: { ...reserves },
-      });
+    // The `ship` transaction is the first one that moves reserves in without taking any out.
+    if (!openingTaken && group.every((e) => e.kind === 'push')) {
+      openingTaken = true;
+      for (const entry of group) opening[entry.token.toLowerCase()] = reserves[entry.token.toLowerCase()];
       continue;
     }
+    openingTaken = true;
 
-    // A push after the opening is the taker's side of the fill immediately before it.
-    const last = fills.at(-1);
-    if (last && last.transactionHash === entry.transactionHash) {
-      last.inToken = entry.token;
-      last.inAmount = entry.amount;
-      last.reservesAfter = { ...reserves };
-    }
+    // One swap emits one `Pulled` and one `Pushed`; a transaction that somehow carried more is read
+    // as a single fill on its first of each, which is still better than reading it as none.
+    const out = group.find((e) => e.kind === 'pull');
+    const inn = group.find((e) => e.kind === 'push');
+    if (!out) continue;
+
+    fills.push({
+      transactionHash: out.transactionHash,
+      blockNumber: out.blockNumber,
+      logIndex: out.logIndex,
+      outToken: out.token,
+      outAmount: out.amount,
+      ...(inn ? { inToken: inn.token } : {}),
+      inAmount: inn?.amount ?? BigInt(0),
+      reservesAfter: { ...reserves },
+    });
   }
 
   return { opening, fills };
