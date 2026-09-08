@@ -183,6 +183,28 @@ export function fail(message: string): never {
 }
 
 // ---------------------------------------------------------------------------
+// Receipts
+// ---------------------------------------------------------------------------
+
+/**
+ * Four seconds of dead air, on camera, for nothing.
+ *
+ * viem's `waitForTransactionReceipt` asks once, and if the receipt is not there yet it waits a whole
+ * `pollingInterval` before asking again. That default is 4,000 ms, which is right for a public RPC and
+ * absurd for an automining anvil on localhost: the receipt is always there within a millisecond or two,
+ * but `eth_sendRawTransaction` occasionally returns just before the block is readable, and then the
+ * scene stalls for exactly four seconds.
+ *
+ * Measured over three passes of all seven scenes: scene 0 hit it every time (4.58 s against 0.58 s of
+ * work) and scenes 2, 4 and 5 hit it intermittently. Every wait in the demo goes through here.
+ */
+export const RECEIPT_POLL_MS = 25;
+
+export function awaitReceipt(hash: Hex) {
+  return publicClient.waitForTransactionReceipt({ hash, pollingInterval: RECEIPT_POLL_MS });
+}
+
+// ---------------------------------------------------------------------------
 // Amount formatting
 // ---------------------------------------------------------------------------
 
@@ -261,7 +283,7 @@ export interface ReceiptSummary {
 
 /** Fetch, decode and print one transaction's receipt. */
 export async function printReceipt(hash: Hex, title: string): Promise<ReceiptSummary> {
-  const r = await publicClient.waitForTransactionReceipt({ hash });
+  const r = await awaitReceipt(hash);
   if (r.status !== 'success') throw new Error(`${title}: transaction ${hash} reverted`);
   return printReceiptOf(r, title);
 }

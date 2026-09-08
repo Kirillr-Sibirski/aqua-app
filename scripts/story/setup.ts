@@ -24,6 +24,7 @@ import { LIVE, OFFICIAL_ROUTER } from './live.ts';
 import {
   PATHS,
   amount,
+  awaitReceipt,
   balanceOf,
   check,
   deployments,
@@ -58,7 +59,7 @@ async function approve(account: DemoAccount | { address: Address; privateKey: He
     functionName: 'approve',
     args: [spender, maxUint256],
   });
-  const r = await publicClient.waitForTransactionReceipt({ hash });
+  const r = await awaitReceipt(hash);
   if (r.status !== 'success') throw new Error(`approve ${token} -> ${spender} reverted`);
 }
 
@@ -80,7 +81,7 @@ async function setExactBalance(
     functionName: 'transfer',
     args: [to.address, value],
   });
-  const r = await publicClient.waitForTransactionReceipt({ hash });
+  const r = await awaitReceipt(hash);
   if (r.status !== 'success') throw new Error(`balance trim transfer of ${token} reverted`);
   const now = await balanceOf(token, who.address);
   if (now !== target) throw new Error(`could not set ${symbol} to ${target}: wallet holds ${now}`);
@@ -172,7 +173,7 @@ async function main(): Promise<void> {
       functionName: 'transfer',
       args: [LIVE.resHolder, LIVE_TAKER_WETH - resWeth],
     });
-    await publicClient.waitForTransactionReceipt({ hash });
+    await awaitReceipt(hash);
   }
   // Impersonated, so no key: send the approval as an unsigned transaction from the holder itself.
   const resAllowance = await allowance(LIVE.resHolder, OFFICIAL_ROUTER, d.weth);
@@ -184,7 +185,7 @@ async function main(): Promise<void> {
         data: `0x095ea7b3${OFFICIAL_ROUTER.slice(2).toLowerCase().padStart(64, '0')}${'f'.repeat(64)}`,
       },
     ]);
-    await publicClient.waitForTransactionReceipt({ hash });
+    await awaitReceipt(hash);
   }
   check((await balanceOf(d.weth, LIVE.resHolder)) >= LIVE_TAKER_WETH, `RES holder funded with ${weth(LIVE_TAKER_WETH, 2)}`);
   check((await allowance(LIVE.resHolder, OFFICIAL_ROUTER, d.weth)) >= LIVE_TAKER_WETH, 'RES holder approved the official router');

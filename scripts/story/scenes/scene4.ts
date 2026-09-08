@@ -26,6 +26,7 @@ import { publicClient, walletFor } from '../../fork/lib.ts';
 import { coverageOf, encodeStrategy, orderHash, quoteAt, readReserves, restoreOrder, takerDataFor } from '../book.ts';
 import type { Ctx } from '../context.ts';
 import {
+  awaitReceipt,
   balanceOf,
   check,
   expectRevert,
@@ -219,7 +220,7 @@ async function control(ctx: Ctx, subject: Advertised, free: bigint): Promise<voi
     args: [controlOrder, want, takerData],
     gas: 2_000_000n,
   });
-  const swapReceipt = await publicClient.waitForTransactionReceipt({ hash: swapHash });
+  const swapReceipt = await awaitReceipt(swapHash);
   out(`  and sent: block ${swapReceipt.blockNumber}  status ${swapReceipt.status}  gas burnt ${swapReceipt.gasUsed}  tx ${swapHash}`);
   check(swapReceipt.status === 'reverted', 'the transaction reverted on chain, from inside Aqua.pull\'s transferFrom');
   check(swapReceipt.logs.length === 0, 'and it emitted nothing at all: no Pulled, no Pushed, no Swapped');

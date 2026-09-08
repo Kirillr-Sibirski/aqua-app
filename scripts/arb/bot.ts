@@ -34,7 +34,7 @@ import { decodeEventLog, formatUnits, type Address, type Hex } from 'viem';
 import { buildTakerTraits, swapVmAbi } from '../../web/src/lib/swapvm/index.ts';
 import { strikelineViewsAbi } from '../../web/src/components/curve/rmm.ts';
 import { assertFork, die, loadDeployments, publicClient, walletFor, type Deployments } from '../fork/lib.ts';
-import { PATHS as STORY_PATHS } from '../story/lib.ts';
+import { awaitReceipt, PATHS as STORY_PATHS } from '../story/lib.ts';
 import { warpBy } from './clock.ts';
 import { discoverLegs, legMatches, legName, type DiscoveredLeg } from './discover.ts';
 import { referencePriceWad, syncFeed } from './feed.ts';
@@ -350,7 +350,7 @@ export async function execute(p: Plan, ctx: { router: Address; taker: Address; t
 
   const wallet = walletFor(ctx.takerKey);
   const txHash = await wallet.writeContract({ address: ctx.router, abi: swapVmAbi, functionName: 'swap', args: [p.leg.order, p.amountIn, takerData] });
-  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+  const receipt = await awaitReceipt(txHash);
   if (receipt.status !== 'success') throw new Error(`swap ${txHash} reverted`);
 
   let executedOut = 0n;
