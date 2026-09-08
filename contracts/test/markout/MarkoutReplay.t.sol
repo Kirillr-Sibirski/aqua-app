@@ -103,6 +103,7 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
     StrikelineRouter internal sl;
     Leg[] internal legs;
     uint40 internal maturity;
+    uint256 internal _why;
 
     // ------------------------------------------------------------------ the tape
 
@@ -133,6 +134,9 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         uint64 sigmaWad;
         uint256 attempts;
         uint256 fills;
+        uint256 skippedNoRoom;
+        uint256 skippedRefused;
+        uint256 skippedUnprofitable;
         int256 markoutWad;
         int256 upsideGivenUpWad;
         uint256 startWad;
@@ -200,6 +204,7 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         Run memory r = _replay(SIGMA);
         _printHeader();
         _printRun(r);
+        _printWhy(r);
         _printPath(r);
         _writeJson(r);
     }
@@ -282,6 +287,9 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
             for (uint256 k = 0; k < legs.length; k++) {
                 (bool filled, int256 markout, uint256 takerProfit) = _arbLeg(k, sigmaWad, spot, gasFloor);
                 r.attempts++;
+                if (_why == 1) r.skippedNoRoom++;
+                if (_why == 2) r.skippedRefused++;
+                if (_why == 3) r.skippedUnprofitable++;
                 if (filled) {
                     r.fills++;
                     r.legFills[k]++;
@@ -316,6 +324,7 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         internal
         returns (bool filled, int256 markoutWad, uint256 takerProfitWad)
     {
+        _why = 0;
         Leg storage leg = legs[k];
         uint128 strikeWad = leg.spec.strikeWad;
         uint128 liquidityWad = leg.spec.liquidityWad;
@@ -341,7 +350,7 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
             tokenIn = weth;
             amountIn = _sizeRiskyIn(sigmaWad, strikeWad, liquidityWad, xWad, yWad, targetWad);
         }
-        if (amountIn == 0) return (false, 0, 0);
+        if (amountIn == 0) { _why = 1; return (false, 0, 0); }
 
         bytes memory td = takerDataFor(leg.order, tokenIn, true);
         uint256 amountOut;
@@ -350,14 +359,15 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         } catch {
             // Inside the spread, or beyond what the wallet can deliver. A real arbitrageur reads the
             // same refusal and moves on; it is not an error.
+            _why = 2;
             return (false, 0, 0);
         }
-        if (amountOut == 0) return (false, 0, 0);
+        if (amountOut == 0) { _why = 2; return (false, 0, 0); }
 
         // Would a rational taker actually do this trade at the reference price?
         uint256 proceedsWad = tokenIn == weth ? amountOut * RATE_STABLE : amountOut * spotWad / WAD;
         uint256 costWad = tokenIn == weth ? amountIn * spotWad / WAD : amountIn * RATE_STABLE;
-        if (proceedsWad <= costWad || proceedsWad - costWad <= gasFloorWad) return (false, 0, 0);
+        if (proceedsWad <= costWad || proceedsWad - costWad <= gasFloorWad) { _why = 3; return (false, 0, 0); }
         takerProfitWad = proceedsWad - costWad;
 
         uint256 wethBefore = IERC20(weth).balanceOf(maker);
@@ -690,6 +700,10 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
     }
 
     /// @dev A daily thinning of the path, so the terminal output shows the shape without 169 rows.
+    function _printWhy(Run memory r) private pure {
+        console2.log(string.concat("  DIAG no-room ", vm.toString(r.skippedNoRoom), "  refused ", vm.toString(r.skippedRefused), "  unprofitable ", vm.toString(r.skippedUnprofitable)));
+    }
+
     function _printPath(Run memory r) private pure {
         console2.log("");
         console2.log("  Path, one row per day (USD)");

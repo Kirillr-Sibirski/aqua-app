@@ -399,7 +399,7 @@ like. Of `RmmSwap`'s 100,631, the Gaussian is **99,062**: at `τ = 0` the curve 
 
 ## Size
 
-`StrikelineRouter` runtime code is **23,664 bytes**, **912 under** the EIP-170 limit of 24,576, with no size
+`StrikelineRouter` runtime code is **23,851 bytes**, **725 under** the EIP-170 limit of 24,576, with no size
 override anywhere in `foundry.toml`.
 
 `test_Size_RouterIsUnderEip170` asserts the **compiled artifact**, read with `vm.getDeployedCode`, not the

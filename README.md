@@ -83,7 +83,7 @@ surface read off-chain state alone.** Three pieces build it, and each degrades t
 
 | | | |
 |---|---|---|
-| [`contracts/src/SurfaceLens.sol`](contracts/src/SurfaceLens.sol) | A view contract that prices a whole book in one call: terms, live Aqua reserves, mark, delta, premium and theta band per leg. | 8,904 B runtime, a **separate** contract so it spends none of the router's EIP-170 headroom. Prices the four-leg demo ladder in one `eth_call` for 1,427,664 gas. Every batch entry is fault-isolated in `try/catch`, so a strategy that is not a leg comes back `isLeg == false` instead of taking the book down. |
+| [`contracts/src/SurfaceLens.sol`](contracts/src/SurfaceLens.sol) | A view contract that prices a whole book in one call: terms, live Aqua reserves, mark, delta, premium and theta band per leg. | 9,179 B runtime, a **separate** contract so it spends none of the router's EIP-170 headroom. Prices the four-leg demo ladder in one `eth_call` for 1,376,728 gas. Every batch entry is fault-isolated in `try/catch`, so a strategy that is not a leg comes back `isLeg == false` instead of taking the book down. |
 | [`subgraph/`](subgraph/README.md) | **The Graph.** Indexes the official Aqua's `Shipped`/`Docked`/`Pushed`/`Pulled` and our router's `Swapped`, decoding the strategy bytes inside the AssemblyScript mapping into `Leg`, `Maker`, `Fill` and `SurfacePoint`. | Aqua's events carry no indexed parameters, so the `app` filter lives in the mapping. `SurfacePoint` is the aggregation the registry has no notion of: a strategy is opaque bytes keyed by its own hash, and nothing relates two makers who wrote the same option. |
 | [`web/src/app/(app)/surface`](web/src/app/(app)/surface/page.tsx) | Strike on x, expiry on y, implied vol as the surface, every live leg plotted and yours marked. Plus **"best bid for a 7-day 2,800 call, across all makers"** — the quote Aqua structurally lacks. | Needs no wallet: it reads a public log. If the subgraph is not running it pulls the same `Shipped` events straight through viem and decodes them with the same byte offsets; if the lens is not deployed it runs the contract's own init code inside one `eth_call`. The demo never waits on external infrastructure. |
 
@@ -141,7 +141,7 @@ make test-hook       # 26 tests: parity, the venue experiment, the two feedback 
 | Claim | Test | Measured |
 |---|---|---|
 | Decay opens a two-sided spread with no transaction | `test_Theta_DecayOpensASpread` | 40 USDC reverts after 3 days; 4,000 USDC clears |
-| The band is publishable and matches observation | `test_Band_MatchesObservedMinimum` | 133.49 USDC after 2 days |
+| The band is publishable and matches observation | `test_Band_MatchesObservedMinimum` | 133.547310 USDC after 2 days |
 | **A fill on one leg shrinks its siblings' depth** | `test_Book_FillOnOneLegShrinksSiblingDepth` | shared wallet 10.4 → 5.4 WETH; both siblings refuse 6 WETH, still fill 2.7 |
 | Without `Coverage` the depth is phantom | `test_Book_WithoutCoverageTheDepthIsPhantom` | unguarded leg quotes 6 WETH against a 1 WETH wallet |
 | Expiry settles constant-sum at the strike | `test_Expiry_SettlesAtStrikeOneWay` | 0.338 WETH of theta paid on first assignment |

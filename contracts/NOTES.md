@@ -93,7 +93,7 @@ through fails the suite rather than quietly making dust fills lossy for the make
 **The one skip, and what replaces it.** The framework's monotonicity check compares *average* prices, and its
 own comment says the flag exists for "flat rate orders". Any instrument charging a fixed premium has average
 price rising with size until the premium is amortised. At issue our band is `EPS`-sized and the check passes at
-0 bps. Two days in, the band is 133.49 USDC and average price keeps improving up to about 6,800 USDC — 50
+0 bps. Two days in, the band is 133.5473 USDC and average price keeps improving up to about 6,800 USDC — 50
 bands. That is the option premium, not a pricing defect, and the amortisation point is published by
 `test_Monotonicity_AmortisationPointIsPublished` rather than hidden behind the flag.
 

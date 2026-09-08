@@ -44,7 +44,7 @@ export default function KitchenSinkPage() {
           the components rather than a position. The values are shaped like real ones &mdash; a
           checksummed 42-character address, a 66-character hash, amounts at irregular magnitudes
           &mdash; and the token figures are the ones the contract suite measured: 0.338 WETH of theta
-          over a leg&rsquo;s life, a 133.49 USDC decay band after two days, the demo book&rsquo;s
+          over a leg&rsquo;s life, a 133.5473 USDC decay band after two days, the demo book&rsquo;s
           10.4 WETH of backing. Every other screen renders only what the chain returned.
         </Callout>
       </div>

@@ -4,14 +4,15 @@
  * `scripts/arb/series/base-ethusd.json` is the real thing: Chainlink ETH/USD rounds published on Base,
  * captured at a pinned block by `scripts/arb/capture.ts`. It stores `[updatedAt, answer]` pairs, and
  * `vm.parseJson` cannot hand a Solidity test an array of mixed-type pairs -- it encodes each pair as a
- * length-prefixed heterogeneous tuple that `abi.decode` refuses. So this script resamples the same rounds
- * onto a fixed grid and writes two parallel integer arrays that `vm.parseJsonUintArray` reads directly.
+ * length-prefixed heterogeneous tuple that `abi.decode` refuses. So this script rewrites the same rounds
+ * as two parallel integer arrays that `vm.parseJsonUintArray` reads directly.
  *
- * NOTHING IS INVENTED HERE. A sample is the last round the feed had actually published at or before the
- * sample time, which is exactly what a contract reading `latestRoundData()` at that second would have
- * seen. The output carries `keccak256` of the source file's bytes, and `MarkoutReplay.t.sol` re-reads the
- * source and asserts that hash before it uses a single price -- so a regenerated tape that no longer
- * matches its source fails the test rather than quietly changing the result.
+ * NOTHING IS RESAMPLED AND NOTHING IS INVENTED. Every entry is a round the feed actually published, at
+ * the second it published it, in the order it published them; the replay steps on those timestamps rather
+ * than on a grid of our choosing, so the cadence of the simulation is the cadence of the real feed. The
+ * output carries `keccak256` of the source file's bytes, and `MarkoutReplay.t.sol` re-reads the source and
+ * asserts that hash before it uses a single price -- so a regenerated tape that no longer matches its
+ * source fails the test rather than quietly changing the result.
  *
  *   tsx scripts/markout/tape.ts            regenerate contracts/test/markout/tape.json
  *   tsx scripts/markout/tape.ts --check    fail if the committed file is not what this script produces
@@ -26,9 +27,7 @@ const HERE = dirname(fileURLToPath(import.meta.url)); // scripts/markout
 const ROOT = resolve(HERE, '..', '..');
 export const TAPE_PATH = resolve(ROOT, 'contracts/test/markout/tape.json');
 
-/** One hour. Short enough that a leg is re-hedged 168 times over its seven-day life. */
-const STEP_SECONDS = 3_600;
-/** The demo book's expiry. The window runs from the first round to exactly maturity. */
+/** The demo book's expiry. A replay window is seven days long and can start anywhere on the tape. */
 const HORIZON_SECONDS = 7 * 24 * 3_600;
 
 export interface MarkoutTape {
@@ -43,63 +42,52 @@ export interface MarkoutTape {
   feedDescription: string;
   readAtBlock: number;
   decimals: number;
-  stepSeconds: number;
-  /** Unix seconds of sample 0 -- the first round in the captured window. */
+  /** Longest replay window the tape can carry, in seconds. */
+  horizonSeconds: number;
+  /** How many seven-day windows the tape can start, at `windowOffsetSeconds` apart. */
+  windows: number;
+  windowOffsetSeconds: number;
   firstTimestamp: number;
   lastTimestamp: number;
-  /** Sample times, `firstTimestamp + i * stepSeconds`. */
+  /** Publication time of every round, ascending. */
   t: number[];
-  /** The answer in force at `t[i]`, in feed decimals. Always below 2^53, so it survives JSON. */
+  /** The answer of that round, in feed decimals. Always below 2^53, so it survives JSON. */
   answer: number[];
-  /** Index into the source `ticks` of the round in force, so any sample can be traced back. */
-  roundIndex: number[];
 }
 
-/** The last round published at or before `at`. Binary search, same rule as `Tape.at`. */
-function roundAt(series: PriceSeries, at: number): number {
-  const ticks = series.ticks;
-  let lo = 0;
-  let hi = ticks.length - 1;
-  if (at < ticks[0][0]) return 0;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1;
-    if (ticks[mid][0] <= at) lo = mid;
-    else hi = mid - 1;
-  }
-  return lo;
-}
+/** Half a day, so a 10.7-day capture yields eight overlapping seven-day windows. */
+const WINDOW_OFFSET_SECONDS = 12 * 3_600;
 
 export function buildTape(): MarkoutTape {
   const series = loadSeries();
   const sourceBytes = readFileSync(SERIES_PATH);
-  const first = series.firstTimestamp;
-  const last = first + HORIZON_SECONDS;
-  if (last > series.lastTimestamp) {
+  const span = series.lastTimestamp - series.firstTimestamp;
+  if (span < HORIZON_SECONDS) {
     throw new Error(
-      `the captured window is ${(series.lastTimestamp - first) / 86_400} days, shorter than the ` +
+      `the captured window is ${span / 86_400} days, shorter than the ` +
         `${HORIZON_SECONDS / 86_400}-day horizon this replay needs`,
     );
   }
 
   const t: number[] = [];
   const answer: number[] = [];
-  const roundIndex: number[] = [];
-  for (let at = first; at <= last; at += STEP_SECONDS) {
-    const idx = roundAt(series, at);
-    const raw = Number(series.ticks[idx][1]);
+  let previous = 0;
+  for (const [roundTs, rawAnswer] of series.ticks) {
+    if (roundTs <= previous) throw new Error(`rounds are not strictly ascending at ${roundTs}`);
+    previous = roundTs;
+    const raw = Number(rawAnswer);
     if (!Number.isSafeInteger(raw)) {
-      throw new Error(`answer ${series.ticks[idx][1]} does not survive a JSON number`);
+      throw new Error(`answer ${rawAnswer} does not survive a JSON number`);
     }
-    t.push(at);
+    t.push(roundTs);
     answer.push(raw);
-    roundIndex.push(idx);
   }
 
   return {
     kind: 'strikeline-markout-tape',
     note:
-      'SIMULATION INPUT. Real Chainlink ETH/USD rounds published on Base, resampled hourly. ' +
-      'Generated by scripts/markout/tape.ts; do not edit by hand.',
+      'SIMULATION INPUT. Every Chainlink ETH/USD round published on Base in the captured window, ' +
+      'at the second it was published. Generated by scripts/markout/tape.ts; do not edit by hand.',
     source: 'scripts/arb/series/base-ethusd.json',
     sourceKeccak256: keccak256(toHex(sourceBytes)),
     sourceRounds: series.ticks.length,
@@ -108,12 +96,13 @@ export function buildTape(): MarkoutTape {
     feedDescription: series.feedDescription,
     readAtBlock: series.readAtBlock,
     decimals: series.decimals,
-    stepSeconds: STEP_SECONDS,
-    firstTimestamp: first,
-    lastTimestamp: last,
+    horizonSeconds: HORIZON_SECONDS,
+    windows: Math.floor((span - HORIZON_SECONDS) / WINDOW_OFFSET_SECONDS) + 1,
+    windowOffsetSeconds: WINDOW_OFFSET_SECONDS,
+    firstTimestamp: series.firstTimestamp,
+    lastTimestamp: series.lastTimestamp,
     t,
     answer,
-    roundIndex,
   };
 }
 
@@ -132,7 +121,7 @@ function main(): void {
       console.error('contracts/test/markout/tape.json is not what scripts/markout/tape.ts produces.');
       process.exit(1);
     }
-    console.log(`tape.json matches its source (${tape.t.length} hourly samples)`);
+    console.log(`tape.json matches its source (${tape.t.length} rounds)`);
     return;
   }
 
@@ -140,8 +129,9 @@ function main(): void {
   const px = (a: number) => (a / 10 ** tape.decimals).toFixed(2);
   console.log(`wrote ${TAPE_PATH}`);
   console.log(
-    `  ${tape.t.length} hourly samples over ${(tape.lastTimestamp - tape.firstTimestamp) / 86_400} days, ` +
-      `drawn from ${tape.sourceRounds} real ${tape.feedDescription} rounds on chain ${tape.chainId}`,
+    `  ${tape.t.length} real ${tape.feedDescription} rounds on chain ${tape.chainId} over ` +
+      `${((tape.lastTimestamp - tape.firstTimestamp) / 86_400).toFixed(2)} days, ` +
+      `${tape.windows} seven-day windows`,
   );
   console.log(`  first ${px(tape.answer[0])}  last ${px(tape.answer[tape.answer.length - 1])}`);
   console.log(`  source keccak256 ${tape.sourceKeccak256}`);

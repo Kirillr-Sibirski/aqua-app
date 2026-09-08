@@ -82,7 +82,7 @@ library Coverage {
     ///                              a maker parameter reported as a contract bug.
     ///
     ///      Neither names the byte that is wrong. Re-checking here costs 45 bytes of router runtime code
-    ///      (23,619 -> 23,664, EIP-170 margin 957 -> 912) and makes both cases say which argument is bad,
+    ///      and makes both cases say which argument is bad,
     ///      before any curve evaluation is paid for. `test/invariants/CoverageHaircut.t.sol` pins all three
     ///      rows, including the legal 9,999 that must still refuse on SIZE rather than on encoding.
     function parse(bytes calldata args) internal pure returns (uint8 flags, uint16 haircutBps) {

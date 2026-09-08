@@ -36,7 +36,7 @@ import { WadMath } from "./math/WadMath.sol";
 ///         is returned signed: an approximated `Phi` can put a deep-in-the-money leg a few wei below
 ///         intrinsic, and a lens that clamps that to zero is hiding its own error bar.
 ///
-///      SEPARATE CONTRACT ON PURPOSE. `StrikelineRouter` has 912 B of EIP-170 headroom; none of it is
+///      SEPARATE CONTRACT ON PURPOSE. `StrikelineRouter` has 725 B of EIP-170 headroom; none of it is
 ///      spent here. The lens holds no funds, has no owner and cannot be called by the VM.
 ///
 ///      EVERY BATCH ENTRY IS FAULT-ISOLATED. The input is a public event log, so anyone can ship bytes

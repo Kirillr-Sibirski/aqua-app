@@ -9,7 +9,7 @@
  * that elides to nothing, a symbol that wraps).
  *
  * The amounts are the ones the contract suite actually measured, so the gallery and the README
- * agree: 0.338 WETH of theta over one leg's life, a 133.49 USDC decay band after two days, and the
+ * agree: 0.338 WETH of theta over one leg's life, a 133.5473 USDC decay band after two days, and the
  * demo book's 10.4 WETH wallet.
  */
 
@@ -38,8 +38,8 @@ export const BOOK_BACKING = BigInt('10400000000000000000');
 export const BOOK_REMAINING = BigInt('5400000000000000000');
 /** 0.338 WETH of theta collected over one leg's life. */
 export const THETA_COLLECTED = BigInt('338000000000000000');
-/** 133.49 USDC — the decay band two days in. */
-export const DECAY_BAND = BigInt('133490000');
+/** 133.547310 USDC — the decay band two days in, as `test_Band_MatchesObservedMinimum` prints it. */
+export const DECAY_BAND = BigInt('133547310');
 /** A loss, for the negative branch. */
 export const NEGATIVE_DELTA = BigInt('-1204380000');
 /** Small enough to round away at eight fraction digits, so the `<` bound shows. */

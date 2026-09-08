@@ -51,7 +51,7 @@ import { RmmSwap } from "../../src/instructions/RmmSwap.sol";
 ///      dropped. The framework's check compares AVERAGE prices, which for any instrument charging a FIXED premium
 ///      must rise with size until the premium is amortised; the framework's own comment says the flag exists for
 ///      "flat rate orders". At issue our band is EPS-sized and the check passes at 0 bps. Two days in, the band is
-///      133.49 USDC and average price keeps improving up to about 6,800 USDC of size. That is the option premium,
+///      133.5473 USDC and average price keeps improving up to about 6,800 USDC of size. That is the option premium,
 ///      not a pricing defect. What must hold instead, and what
 ///      `test_Monotonicity_MarginalPriceIsMonotoneInsideAndOutsideTheBand` asserts over a 40-point scan that
 ///      starts INSIDE the band, is that the MARGINAL price is monotone: equivalently that `amountOut(amountIn)`
@@ -129,9 +129,9 @@ contract StrikelineCoreInvariantsTest is StrikelineLeg, CoreInvariants {
         );
     }
 
-    /// @notice The same suite in the state a leg spends most of its life in: two days of decay, a 133.49 USDC
+    /// @notice The same suite in the state a leg spends most of its life in: two days of decay, a 133.5473 USDC
     ///         band open. Run WETH in, because the framework probes spot with a hard-coded `10 ** decimals`
-    ///         trade and 1 USDC is inside a 133.49 USDC band while 1 WETH is far outside it. Average-price
+    ///         trade and 1 USDC is inside a 133.5473 USDC band while 1 WETH is far outside it. Average-price
     ///         monotonicity is the single skip, and it is replaced, see the contract docblock.
     function test_CoreInvariants_AfterTwoDaysOfDecay() public {
         vm.warp(block.timestamp + 2 days);
@@ -202,7 +202,7 @@ contract StrikelineCoreInvariantsTest is StrikelineLeg, CoreInvariants {
     // ------------------------------------------------------------ replacement for average-price monotonicity
 
     /// @notice `amountOut(amountIn)` is concave: every additional 200 USDC buys weakly less WETH than the 200
-    ///         before it. Asserted from 200 USDC (INSIDE the 133.49 USDC band) up to 8,000 USDC, so the range
+    ///         before it. Asserted from 200 USDC (INSIDE the 133.5473 USDC band) up to 8,000 USDC, so the range
     ///         the framework's average-price check cannot cover on a decayed leg is covered here at zero
     ///         tolerance.
     /// @dev This, plus additivity at tolerance 0, is what actually rules out a size-splitting arbitrage. Average
