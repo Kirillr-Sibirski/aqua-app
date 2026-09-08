@@ -73,14 +73,23 @@ const ZERO_ADDRESS: Address = '0x0000000000000000000000000000000000000000';
  */
 export const MATURED_MATURITY = 1;
 
-/** `x` values to ask for: evenly spaced across the domain, both endpoints included. */
+/**
+ * `x` values to ask for: evenly spaced across the domain, both endpoints included, no repeats.
+ *
+ * Integer arithmetic throughout, and the last point is `L` exactly, because `stableOf` reverts
+ * `RmmOutOfDomain` above `L` and a float step across the domain eventually lands one wei past it.
+ *
+ * The duplicate check matters for the same reason the endpoint does: for a leg whose `L` is smaller
+ * than the sample count — dust, or a low-decimal token — the spacing rounds to zero and a naive
+ * grid asks the router the same question forty-seven times inside one multicall. Fewer points is
+ * the right answer there; the curve has nowhere else to be sampled.
+ */
 export function curveGrid(liquidityWad: bigint, samples: number): bigint[] {
   const n = Math.max(2, Math.min(256, Math.floor(samples)));
-  const out: bigint[] = new Array(n);
+  const out: bigint[] = [];
   for (let i = 0; i < n; i += 1) {
-    // Integer arithmetic throughout, and the last point is L exactly: `stableOf` reverts
-    // `RmmOutOfDomain` above L, and a float step would eventually land one wei past it.
-    out[i] = i === n - 1 ? liquidityWad : (liquidityWad * BigInt(i)) / BigInt(n - 1);
+    const x = i === n - 1 ? liquidityWad : (liquidityWad * BigInt(i)) / BigInt(n - 1);
+    if (out.at(-1) !== x) out.push(x);
   }
   return out;
 }
