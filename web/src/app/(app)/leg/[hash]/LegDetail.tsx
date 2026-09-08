@@ -22,6 +22,7 @@ import {
   Address as AddressText,
   Card,
   CardRow,
+  Delta,
   EmptyState,
   ErrorState,
   Pill,
@@ -56,7 +57,7 @@ import {
   type FillMarker,
 } from '@/components/curve';
 import { formatExpiry } from '@/components/write';
-import { useCurveSamples } from '@/hooks/useCurveSamples';
+import { MATURED_MATURITY, useCurveSamples } from '@/hooks/useCurveSamples';
 import { useDeployments, useShippedStrategies } from '@/hooks';
 import { aquaFork } from '@/lib/chain';
 import { tokenInfo, type ShippedStrategy } from '@/lib/contracts';
@@ -168,12 +169,20 @@ function Leg({
 
   // Scrubbing changes which leg we ask the router about, not how we interpret its answer: a leg
   // maturing sooner is a real sample, and one that has already matured returns the closed form.
+  //
+  // Three cases, and the two ends are exact on purpose. At rest the chart must be this leg's own
+  // curve, so the maturity is the one in its bytes, untouched. At the far end it is the settlement
+  // sentinel. In between the value is snapped to a minute, because the raw expression drifts with
+  // the block clock at `settled` seconds per second and every distinct value is another 48-call
+  // multicall for a curve that has not visibly changed.
   const effectiveMaturity =
     chainNow === undefined || rmm === undefined
       ? undefined
-      : settled >= 1
-        ? chainNow
-        : Math.max(chainNow, Math.round(rmm.maturity - (remainingNow ?? 0) * settled));
+      : settled <= 0
+        ? rmm.maturity
+        : settled >= 1
+          ? MATURED_MATURITY
+          : snapToMinute(rmm.maturity - (remainingNow ?? 0) * settled);
 
   const live = useCurveSamples({
     router: deployments.router,
@@ -188,12 +197,11 @@ function Leg({
     strikeWad: rmm?.strikeWad,
     sigmaWad: rmm?.sigmaWad,
     // Already matured, so `tauOf` returns zero and the curve takes its constant-sum branch.
-    maturity: chainNow,
+    maturity: MATURED_MATURITY,
     liquidityWad: rmm?.liquidityWad,
   });
 
-  const band = useThetaBand(
-    deployments.router,
+  const bandParams =
     rmm && xWad > BigInt(0)
       ? {
           strikeWad: rmm.strikeWad,
@@ -203,8 +211,26 @@ function Leg({
           xWad,
           yWad,
         }
+      : undefined;
+
+  /** What a taker has to cross right now. The tradeable number, and the one the rail quotes. */
+  const band = useThetaBand(deployments.router, bandParams);
+
+  /**
+   * The same band at the scrubber's position, so the wedge on the chart is bounded by the curve
+   * that is actually drawn under it. Without this the outline's interior would come from the
+   * scrubbed samples while its two corners came from the live band, which is not a shape that
+   * exists. It also makes the point of the scrubber visible: drag three days forward and the
+   * minimum fillable trade grows, with nothing having happened on chain.
+   */
+  const scrubbedBand = useThetaBand(
+    deployments.router,
+    bandParams && effectiveMaturity !== undefined && settled > 0
+      ? { ...bandParams, maturity: effectiveMaturity }
       : undefined,
   );
+
+  const chartBand = settled > 0 ? scrubbedBand.band : band.band;
 
   const coverage = useCoverage(deployments.router, strategy.maker, [riskyToken, stableToken]);
   const ledger = useLegFills({
@@ -316,10 +342,10 @@ function Leg({
                   : undefined
               }
               band={
-                band.band
+                chartBand
                   ? {
-                      xOnCurve: Number(viemFormatUnits(band.band.xOnCurveWad, 18)),
-                      yOnCurve: Number(viemFormatUnits(band.band.yOnCurveWad, 18)),
+                      xOnCurve: Number(viemFormatUnits(chartBand.xOnCurveWad, 18)),
+                      yOnCurve: Number(viemFormatUnits(chartBand.yOnCurveWad, 18)),
                     }
                   : undefined
               }
@@ -500,6 +526,50 @@ function Leg({
                 The router did not return a band for these reserves.
               </p>
             )}
+
+            {band.band && scrubbedBand.band && settled > 0 && scrubbedSeconds !== undefined ? (
+              <div className="mt-4 border-t border-line pt-4">
+                <p className="text-mini leading-prose text-ink-3">
+                  At <span className="font-mono tnum">{formatDuration(scrubbedSeconds)}</span> to
+                  maturity, with no transaction in between, the same reserves would refuse anything
+                  under:
+                </p>
+                <dl className="mt-2 flex flex-col">
+                  <CardRow label={stable.symbol}>
+                    <span className="flex items-center gap-2">
+                      <TokenAmount
+                        value={scrubbedBand.band.minStableIn / rmm.rateStable}
+                        decimals={stable.decimals}
+                        size="sm"
+                      />
+                      <Delta
+                        value={
+                          (scrubbedBand.band.minStableIn - band.band.minStableIn) / rmm.rateStable
+                        }
+                        decimals={stable.decimals}
+                        size="sm"
+                      />
+                    </span>
+                  </CardRow>
+                  <CardRow label={risky.symbol}>
+                    <span className="flex items-center gap-2">
+                      <TokenAmount
+                        value={scrubbedBand.band.minRiskyIn / rmm.rateRisky}
+                        decimals={risky.decimals}
+                        size="sm"
+                      />
+                      <Delta
+                        value={
+                          (scrubbedBand.band.minRiskyIn - band.band.minRiskyIn) / rmm.rateRisky
+                        }
+                        decimals={risky.decimals}
+                        size="sm"
+                      />
+                    </span>
+                  </CardRow>
+                </dl>
+              </div>
+            ) : null}
           </Card>
 
           <Card
@@ -577,6 +647,11 @@ function Leg({
       </div>
     </>
   );
+}
+
+/** Floor to the minute, so a value that drifts with the block clock stops re-keying its query. */
+function snapToMinute(seconds: number): number {
+  return Math.floor(seconds / 60) * 60;
 }
 
 function LegSkeleton({ hash }: { hash: string }) {

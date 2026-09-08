@@ -61,8 +61,20 @@ export interface UseCurveSamplesResult {
 
 const ZERO_ADDRESS: Address = '0x0000000000000000000000000000000000000000';
 
+/**
+ * A maturity that has always already passed, for asking the router what the settlement line is.
+ *
+ * `RmmSwap.tauOf` branches on `block.timestamp >= maturity` and, once it has, the trading function
+ * is `Y = K*(L - X)` — a closed form that contains no `tau` at all. So every matured maturity
+ * returns the *same* curve, and which one is asked for is free. Passing the live block timestamp
+ * would be the obvious choice and is the wrong one: the timestamp changes every block, so the query
+ * key changes every block, and a line that cannot move would be re-sampled with 48 `eth_call`s a
+ * block forever. One is unix second 1, and it never moves.
+ */
+export const MATURED_MATURITY = 1;
+
 /** `x` values to ask for: evenly spaced across the domain, both endpoints included. */
-function grid(liquidityWad: bigint, samples: number): bigint[] {
+export function curveGrid(liquidityWad: bigint, samples: number): bigint[] {
   const n = Math.max(2, Math.min(256, Math.floor(samples)));
   const out: bigint[] = new Array(n);
   for (let i = 0; i < n; i += 1) {
@@ -93,7 +105,7 @@ export function useCurveSamples({
     liquidityWad > BigInt(0);
 
   const xs = useMemo(
-    () => (liquidityWad !== undefined && liquidityWad > BigInt(0) ? grid(liquidityWad, samples) : []),
+    () => (liquidityWad !== undefined && liquidityWad > BigInt(0) ? curveGrid(liquidityWad, samples) : []),
     [liquidityWad, samples],
   );
 
