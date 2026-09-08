@@ -282,8 +282,13 @@ function Leg({
     };
   });
 
+  // Derived from the maturity the router was actually asked about, not from the scrubber's
+  // fraction: the two differ by up to the snapping quantum, and the chart's caption and the theta
+  // card's projection both label numbers that came back from that call.
   const scrubbedSeconds =
-    remainingNow === undefined ? undefined : Math.round(remainingNow * (1 - settled));
+    effectiveMaturity === undefined || chainNow === undefined
+      ? undefined
+      : Math.max(effectiveMaturity - chainNow, 0);
 
   return (
     <>
