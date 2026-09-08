@@ -64,7 +64,7 @@ export function ReadLayer({
         <p className="text-mini leading-prose text-ink-3">
           <em className="not-italic text-ink-2">If you already trade options:</em> this is an
           implied-volatility surface reconstructed from event logs alone. The registry has no order
-          book, so the cross-maker aggregation at a given strike and expiry — the best bid — is
+          book, so the cross-maker aggregation at a given strike and expiry (the best bid) is
           computed in the mapping and stored as an entity, not solved for in the browser.
         </p>
       }
