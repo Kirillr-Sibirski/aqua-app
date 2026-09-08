@@ -346,6 +346,12 @@ export const strikelineErrorsAbi = [
   },
   { type: 'error', name: 'TxOriginTokenBalanceIsZero', inputs: [{ name: 'txOrigin', type: 'address' }, { name: 'token', type: 'address' }] },
   { type: 'error', name: 'UnknownOpcode', inputs: [{ name: 'opcode', type: 'uint256' }] },
+  // @1inch/solidity-utils SafeERC20, which is what `Aqua.pull` transfers through. This is the error an
+  // over-allocated book fails with WITHOUT `Coverage`: not at quote time and not with a number, but from
+  // inside the settlement transfer, after the depth has already been published. Scene 4 ships that leg
+  // deliberately, so the selector has to have a name here.
+  { type: 'error', name: 'SafeTransferFromFailed', inputs: [] },
+  { type: 'error', name: 'SafeTransferFailed', inputs: [] },
 ] as const;
 
 export interface DecodedRevert {
