@@ -53,6 +53,13 @@ contract GasReportTest is StrikelineLeg {
     // ------------------------------------------------------------------ the table
 
     function test_GasReport() public {
+        // Pass 1 is discarded. Every account, token slot and Aqua slot any of the four programs touches is cold
+        // exactly once, and whichever program ran first would otherwise be charged for all of it.
+        _measureQuiet(legA);
+        _measureQuiet(legB);
+        _measureQuiet(legC);
+        _measureQuiet(legX);
+
         console2.log("=== per-instruction gas, Strikeline on the official Aqua flow ===");
         console2.log("");
         console2.log("program                                    quote      swap");
@@ -68,20 +75,38 @@ contract GasReportTest is StrikelineLeg {
         _diff("   Coverage       (B - A)               ", qB, qA, sB, sA);
         _diff("   Deadline       (C - B)               ", qC, qB, sC, sB);
 
+        console2.log("");
+        console2.log("The swap column is the cost of a FILL. `forge test` separately reports 657,504-667,243");
+        console2.log("for test/probe/CurveProbeAqua.t.sol's test_RMM_* cases, but that is the whole test body:");
+        console2.log("a quote, a cheatcode `deal`, two full balance snapshots and then the swap.");
+
         // Sanity, so the table cannot silently invert.
         assertGt(qA, qX, "the RMM curve must cost more than a constant-product step");
         assertGt(qB, qA, "Coverage must cost something");
         assertGe(qC, qB, "Deadline must not be free");
+        assertGt(sA, sX, "the RMM fill must cost more than a constant-product fill");
+        assertGt(sB, sA, "Coverage must cost something on the fill path too");
+        assertGe(sC, sB, "Deadline must not be free on the fill path either");
+    }
+
+    function _measureQuiet(ISwapVM.Order memory order) internal {
+        bytes memory td = takerDataFor(order, address(usdc), true);
+        _quoteGas(order, BUY, td);
+        _swapGas(order, td);
     }
 
     /// @notice What the transcendental part costs: the same instruction, once with `Phi`/`Phi^-1` and once at
     ///         `tau == 0` where the curve is the closed-form constant-sum settlement order.
     function test_GasReport_TranscendentalShare() public {
-        uint256 live = _quoteGas(legC, BUY, takerDataFor(legC, address(usdc), true));
+        bytes memory buy = takerDataFor(legC, address(usdc), true);
+
+        _quoteGas(legC, BUY, buy); // discarded: both measurements must see the same warmth
+        uint256 live = _quoteGas(legC, BUY, buy);
 
         vm.warp(uint256(maturity) + 1);
         assertEq(sl.tauNow(maturity), 0, "must be measuring the settlement branch");
-        uint256 settled = _quoteGas(legC, 2_600e6, takerDataFor(legC, address(usdc), true));
+        _quoteGas(legC, 2_600e6, buy); // discarded
+        uint256 settled = _quoteGas(legC, 2_600e6, buy);
 
         console2.log("quote with the Gaussian (tau > 0)  ", live);
         console2.log("quote at settlement     (tau == 0) ", settled);
@@ -104,22 +129,25 @@ contract GasReportTest is StrikelineLeg {
 
     // ------------------------------------------------------------------ measurement
 
+    /// @dev Reported numbers come from the SECOND pass over all four programs. The first pass is discarded, so
+    ///      no program is charged for cold slots that the ones measured after it then find warm. Without that,
+    ///      the table inverts by a few thousand gas and reads as if `Coverage` were free.
     function _measure(ISwapVM.Order memory order, string memory label) internal returns (uint256 q, uint256 s) {
         bytes memory td = takerDataFor(order, address(usdc), true);
 
-        // Warm up storage and code so the delta is the instruction, not the access list.
-        quote(order, BUY, td);
-
         q = _quoteGas(order, BUY, td);
+        s = _swapGas(order, td);
 
+        console2.log(label, q, s);
+    }
+
+    function _swapGas(ISwapVM.Order memory order, bytes memory td) internal returns (uint256 used) {
         uint256 snap = vm.snapshotState();
         vm.prank(taker);
         uint256 before = gasleft();
         sl.swap(order, BUY, td);
-        s = before - gasleft();
+        used = before - gasleft();
         vm.revertToState(snap);
-
-        console2.log(label, q, s);
     }
 
     function _quoteGas(
