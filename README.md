@@ -70,6 +70,32 @@ keeper, no shared storage, no message passing. Over-allocation becomes portfolio
 It runs *after* the curve on purpose: clamping `balanceOut` beforehand would move the reserve point and
 therefore change the **price**, not just the size — quoting a different option than the maker wrote.
 
+## The read layer: a volatility surface out of Aqua's event log
+
+`Aqua.ship` takes the strategy *"fully instead of being pre-hashed, for data availability"*, and the
+`Shipped` event carries those bytes verbatim. A Strikeline leg's 62 `RmmSwap` argument bytes hold the
+strike, the implied vol, the maturity and the liquidity **in the clear**. So every option any maker has
+ever written on this router is decodable by anyone holding the log, with no cooperation from the maker,
+no off-chain order book and no price feed.
+
+That makes something possible that does not currently exist anywhere in DeFi: **an implied-volatility
+surface read off-chain state alone.** Three pieces build it, and each degrades to the next.
+
+| | | |
+|---|---|---|
+| [`contracts/src/SurfaceLens.sol`](contracts/src/SurfaceLens.sol) | A view contract that prices a whole book in one call: terms, live Aqua reserves, mark, delta, premium and theta band per leg. | 8,904 B runtime, a **separate** contract so it spends none of the router's EIP-170 headroom. Prices the four-leg demo ladder in one `eth_call` for 1,427,664 gas. Every batch entry is fault-isolated in `try/catch`, so a strategy that is not a leg comes back `isLeg == false` instead of taking the book down. |
+| [`subgraph/`](subgraph/README.md) | **The Graph.** Indexes the official Aqua's `Shipped`/`Docked`/`Pushed`/`Pulled` and our router's `Swapped`, decoding the strategy bytes inside the AssemblyScript mapping into `Leg`, `Maker`, `Fill` and `SurfacePoint`. | Aqua's events carry no indexed parameters, so the `app` filter lives in the mapping. `SurfacePoint` is the aggregation the registry has no notion of: a strategy is opaque bytes keyed by its own hash, and nothing relates two makers who wrote the same option. |
+| [`web/src/app/(app)/surface`](web/src/app/(app)/surface/page.tsx) | Strike on x, expiry on y, implied vol as the surface, every live leg plotted and yours marked. Plus **"best bid for a 7-day 2,800 call, across all makers"** — the quote Aqua structurally lacks. | Needs no wallet: it reads a public log. If the subgraph is not running it pulls the same `Shipped` events straight through viem and decodes them with the same byte offsets; if the lens is not deployed it runs the contract's own init code inside one `eth_call`. The demo never waits on external infrastructure. |
+
+The lens is the read that matters for a solver: one multicall returns the deliverable depth `Coverage`
+will actually honour on every leg at once, which is the number an order book would publish and Aqua
+does not have.
+
+```bash
+make subgraph        # graph codegen && graph build
+make test-surface    # 20 Foundry tests on the lens, then the read path against the fork
+```
+
 ## Proven, not asserted
 
 `contracts/test/strikeline/StrikelineBook.t.sol` — 9 tests, all against a live Aqua deployment:
@@ -112,8 +138,12 @@ contracts/          Foundry. The router, the two instructions, the math, the tes
   src/instructions/ RmmSwap.sol, Coverage.sol           <- the contribution
   src/math/         Gaussian.sol (A&S 7.1.26 erfc + bisection), WadMath.sol (solady)
   src/StrikelineRouter.sol, StrikelineOpcodes.sol, StrikelineViews.sol
+  src/SurfaceLens.sol                                   <- the read layer, off the router
   test/strikeline/  the nine thesis tests
+  test/surface/     the lens: decode, mark, delta, premium, band, cross-maker ranking
   test/fork/        mainnet-fork fills through the official Aqua + official router
+subgraph/           The Graph. Decodes the shipped bytes in the mapping into Leg / Maker /
+                    Fill / SurfacePoint. schema.graphql, subgraph.yaml, src/*.ts (AssemblyScript).
 web/                Next.js 16 / React 19 / wagmi 3. Verified TypeScript SwapVM encoder.
 scripts/fork/       anvil Base fork, bootstrap, oracle mock, time warp, smoke test.
 docs/               CONCEPT.md, research corpus, AI-usage disclosure.
