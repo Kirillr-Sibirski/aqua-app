@@ -12,6 +12,9 @@ web/out/
 .DS_Store
 scripts/fork/.state/
 scripts/fork/.snapshot.json
+# Byte-identical duplicate of web/public/deployments/local.json; both are rewritten by every
+# `make bootstrap`. The web one is served to the app, so that is the copy the repo keeps.
+scripts/fork/deployments.local.json
 scripts/node_modules/
 __pycache__/
 scripts/story/.story-state.json
