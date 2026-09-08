@@ -69,7 +69,7 @@ contract OpcodeLayoutTest is StrikelineLeg {
     function test_Layout_UnknownOpcodeFallsThroughByName() public {
         bytes memory program = bytes.concat(rawInstruction(Opcode._56), Salt.build(uint64(999)));
         ISwapVM.Order memory order = buildAquaOrder(maker, weth, address(usdc), program);
-        shipOrder(maker, order, 1e18, 1_000e6);
+        shipOrder(maker, order, 1e18, 1000e6);
 
         vm.expectRevert(abi.encodeWithSelector(StrikelineOpcodes.UnknownOpcode.selector, 0x56));
         this.quote(order, 100e6, takerDataFor(order, address(usdc), true));
@@ -161,7 +161,9 @@ contract OpcodeLayoutTest is StrikelineLeg {
         assertEq(Coverage.FLAG_CHECK_TOKEN_IN, 0x01, "bit 0: also require tokenIn to be receivable");
     }
 
-    /// @notice A haircut of 100% or more is rejected at build time, not silently clamped at run time.
+    /// @notice A haircut of 100% or more is rejected at build time, not silently clamped.
+    /// @dev The builder is only half of it. `CoverageHaircut.t.sol` asserts the same bound on the WIRE, where
+    ///      the bytes can arrive from an encoder that never called `build`.
     function test_Layout_CoverageRejectsAnImpossibleHaircut() public {
         vm.expectRevert(abi.encodeWithSelector(Coverage.CoverageHaircutTooLarge.selector, uint256(10_000)));
         this.buildCoverage(0, 10_000);
@@ -224,7 +226,7 @@ contract OpcodeLayoutTest is StrikelineLeg {
         (ISwapVM.Order memory good,,) = shipDemoLeg(501);
         bytes memory buy = takerDataFor(good, address(usdc), true);
 
-        (, uint256 out,) = quote(good, 1_940e6, buy);
+        (, uint256 out,) = quote(good, 1940e6, buy);
         assertGt(out, 0, "the correctly encoded leg must quote");
 
         // Flip the lowest byte of `rateStable`: 1e12 becomes 1e12 + 1. Economically meaningless, and it changes
@@ -238,7 +240,7 @@ contract OpcodeLayoutTest is StrikelineLeg {
 
         // Aqua accepted the good strategy under the good hash; the drifted order resolves to a hash Aqua has
         // never seen, so it has no reserves and quoting reverts.
-        (bool ok, bytes memory ret) = address(sl).staticcall(abi.encodeCall(ISwapVM.quote, (bad, 1_940e6, buy)));
+        (bool ok, bytes memory ret) = address(sl).staticcall(abi.encodeCall(ISwapVM.quote, (bad, 1940e6, buy)));
         assertFalse(ok, "a drifted program must not quote");
         // The error is Aqua's, not ours, and it names a token rather than the encoding. To a caller this is
         // indistinguishable from an empty market, which is exactly why the layout is frozen in this file.

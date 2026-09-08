@@ -71,9 +71,24 @@ library Coverage {
         return ptr.resolve();
     }
 
+    /// @dev The bound is re-checked here, not only in `build`. `build` guards the encoder; `parse` guards the
+    ///      WIRE, and the wire is what a strategy hash commits to. A program assembled by hand, by a different
+    ///      SDK, or by an encoder bug can carry any two bytes here, and Aqua ships it without reading it. The
+    ///      two out-of-range cases are both silent and both wrong:
+    ///
+    ///        haircutBps == 10000   `free` evaluates to 0 and every quote reverts `NotCovered(needed, 0)` —
+    ///                              a full wallet reported as an empty one.
+    ///        haircutBps >  10000   `f - f*haircutBps/BPS` underflows and every quote reverts `Panic(0x11)` —
+    ///                              a maker parameter reported as a contract bug.
+    ///
+    ///      Neither names the byte that is wrong. Re-checking here costs 45 bytes of router runtime code
+    ///      (23,619 -> 23,664, EIP-170 margin 957 -> 912) and makes both cases say which argument is bad,
+    ///      before any curve evaluation is paid for. `test/invariants/CoverageHaircut.t.sol` pins all three
+    ///      rows, including the legal 9,999 that must still refuse on SIZE rather than on encoding.
     function parse(bytes calldata args) internal pure returns (uint8 flags, uint16 haircutBps) {
         flags = args.at(0).asU8();
         haircutBps = args.at(1).asU16();
+        require(haircutBps < BPS, CoverageHaircutTooLarge(haircutBps));
     }
 
     /// @notice What `maker` can actually deliver of `token` through Aqua right now.
