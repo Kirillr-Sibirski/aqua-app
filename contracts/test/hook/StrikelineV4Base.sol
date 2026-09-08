@@ -12,9 +12,16 @@ import { SwapParams } from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import { IHooks } from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import { Hooks } from "@uniswap/v4-core/src/libraries/Hooks.sol";
 
+import { ISwapVM } from "@1inch/swap-vm/src/interfaces/ISwapVM.sol";
+import { Salt } from "@1inch/swap-vm/src/instructions/Controls.sol";
+
 import { AquaSwapVMTestBase } from "../base/AquaSwapVMTestBase.sol";
+import { ProbeRouter } from "../../src/ProbeRouter.sol";
+import { StrikelineRouter } from "../../src/StrikelineRouter.sol";
 import { StrikelineHook } from "../../src/hooks/StrikelineHook.sol";
 import { RmmPricer } from "../../src/hooks/RmmPricer.sol";
+import { RmmSwap } from "../../src/instructions/RmmSwap.sol";
+import { Coverage } from "../../src/instructions/Coverage.sol";
 
 /// @title StrikelineV4Base
 /// @notice Both venues in one fixture: the Aqua registry + Strikeline router from `AquaSwapVMTestBase`,
@@ -29,6 +36,7 @@ abstract contract StrikelineV4Base is AquaSwapVMTestBase {
     IPoolManager internal pm;
     PoolSwapTest internal swapRouter;
     StrikelineHook internal hook;
+    StrikelineRouter internal sl;
 
     /// @dev Bottom 14 bits: beforeSwap (1<<7) | beforeSwapReturnsDelta (1<<3) | beforeAddLiquidity (1<<11).
     uint160 internal constant HOOK_FLAGS =
@@ -50,6 +58,12 @@ abstract contract StrikelineV4Base is AquaSwapVMTestBase {
     function setUp() public virtual override {
         super.setUp();
 
+        // Venue A: the Strikeline router settling through the Aqua registry the base fixture deployed.
+        sl = new StrikelineRouter(address(aqua), weth, address(this), "Strikeline", "1");
+        vm.label(address(sl), "StrikelineRouter");
+        router = ProbeRouter(payable(address(sl)));
+
+        // Venue B: a canonical Uniswap v4 PoolManager with the hook on top.
         pm = IPoolManager(
             deployCode("node_modules/@uniswap/v4-core/out/PoolManager.sol/PoolManager.json", abi.encode(address(this)))
         );
@@ -163,6 +177,58 @@ abstract contract StrikelineV4Base is AquaSwapVMTestBase {
         usdcReserve = hook.stableFor(t, xWad) / t.rateStable;
         vm.prank(maker_);
         hook.write(key, legFor(t, backing), xWad, usdcReserve);
+    }
+
+    // ------------------------------------------------------------------ the same leg, on Aqua
+
+    /// @notice The Aqua program for the identical leg: `Coverage . RmmSwap . Salt`, or bare `RmmSwap`
+    ///         when the comparison is meant to be curve against curve with no solvency guard.
+    function aquaProgram(RmmPricer.Terms memory t, uint64 salt, bool withCoverage)
+        internal
+        view
+        returns (bytes memory)
+    {
+        uint8 flags = (wethIsCurrency0 ? RmmSwap.FLAG_RISKY_IS_TOKEN_A : 0);
+        if (t.oneWayAfterExpiry) {
+            flags |= RmmSwap.FLAG_POST_EXPIRY_ONE_WAY;
+        }
+        if (t.assignmentPaysRisky) {
+            flags |= RmmSwap.FLAG_POST_EXPIRY_OUT_IS_RISKY;
+        }
+        bytes memory curve = RmmSwap.build(
+            RmmSwap.Args({
+                flags: flags,
+                sigmaWad: t.sigmaWad,
+                maturity: t.maturity,
+                strikeWad: t.strikeWad,
+                liquidityWad: t.liquidityWad,
+                rateRisky: t.rateRisky,
+                rateStable: t.rateStable
+            })
+        );
+        return withCoverage
+            ? bytes.concat(Coverage.build(0, 0), curve, Salt.build(salt))
+            : bytes.concat(curve, Salt.build(salt));
+    }
+
+    /// @notice Ship the identical leg through the official Aqua registry.
+    /// @dev `stableFor` is asked of the chain, not computed off-chain: one wei low and every quote
+    ///      reverts for good, one wei high and the surplus goes to the first taker.
+    function shipAquaLeg(
+        RmmPricer.Terms memory t,
+        uint256 xWad,
+        uint64 salt,
+        bool withCoverage,
+        address maker_
+    )
+        internal
+        returns (ISwapVM.Order memory order, uint256 usdcReserve)
+    {
+        order = buildAquaOrder(maker_, weth, address(usdc), aquaProgram(t, salt, withCoverage));
+        usdcReserve = sl.stableFor(t.strikeWad, t.sigmaWad, t.maturity, t.liquidityWad, xWad) / t.rateStable;
+        (address a,) = orderTokens(order);
+        (uint256 amountA, uint256 amountB) = a == weth ? (xWad, usdcReserve) : (usdcReserve, xWad);
+        shipOrder(maker_, order, amountA, amountB);
     }
 
     // ------------------------------------------------------------------ swapping
