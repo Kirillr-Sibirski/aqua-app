@@ -26,7 +26,7 @@ export interface ErrorStateProps {
  * A failed data surface.
  *
  * The custom error name is the headline, because on this app a revert usually *is* the answer:
- * `CoverageShortfall` means the guard did its job and the maker's wallet cannot deliver the size
+ * `NotCovered(needed, free)` means the guard did its job and the maker's wallet cannot deliver the size
  * that was quoted, which is a fact worth reading, not an outage. The decoded arguments are rendered
  * as mono values under it, so the two numbers the guard compared are on screen.
  *

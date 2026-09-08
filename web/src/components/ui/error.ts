@@ -2,9 +2,9 @@
  * Turning a thrown thing into the two strings the UI actually shows.
  *
  * DESIGN.md's rule is "decoded custom error name, not 'something went wrong'". When a Strikeline
- * quote refuses, it refuses with `CoverageShortfall(uint256 required, uint256 available)` — the
- * name and the two numbers are the whole point of the guard, so throwing them away and printing
- * "transaction failed" would hide the only interesting thing on the screen.
+ * quote refuses, it refuses with `NotCovered(uint256 needed, uint256 free)` — the name and the two
+ * numbers are the whole point of the guard, so throwing them away and printing "transaction
+ * failed" would hide the only interesting thing on the screen.
  *
  * viem nests the decoded revert several layers down (`error.cause.cause.data.errorName`), and how
  * deep depends on which action wrapped it, so this walks the chain rather than reaching for a fixed
@@ -66,7 +66,9 @@ function stringify(value: unknown): string {
 }
 
 /**
- * @example describeError(revert) // { name: 'CoverageShortfall', args: ['6000000000000000000', '5400000000000000000'], … }
+ * @example describeError(revert) // { name: 'NotCovered', args: ['6000000000000000000', '5400000000000000000'], … }
+ *          The shipped demo pair: 6 WETH asked of a wallet holding 5.4, which is what
+ *          `test_Book_FillOnOneLegShrinksSiblingDepth` measures after the first leg is filled.
  */
 export function describeError(error: unknown): DescribedError {
   if (error === undefined || error === null) return { message: '', args: [], rejected: false };

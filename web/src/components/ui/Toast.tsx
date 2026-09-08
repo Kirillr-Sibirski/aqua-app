@@ -86,7 +86,7 @@ type ToastId = string | number;
  * The app's notification vocabulary.
  *
  * Wrapping sonner rather than re-exporting it keeps one decision in one place: `notify.error`
- * decodes the revert through {@link describeError}, so a `CoverageShortfall` surfaces by name in
+ * decodes the revert through {@link describeError}, so a `NotCovered` surfaces by name in
  * the toast exactly as it does in `ErrorState`, and a wallet rejection is downgraded to a plain
  * note because the person did it on purpose.
  */

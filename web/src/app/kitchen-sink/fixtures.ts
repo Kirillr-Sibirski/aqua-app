@@ -115,7 +115,7 @@ export const COVERAGE_REVERT = Object.assign(
     cause: Object.assign(new Error('reverted'), {
       name: 'ContractFunctionRevertedError',
       data: {
-        errorName: 'CoverageShortfall',
+        errorName: 'NotCovered',
         args: [BigInt('6000000000000000000'), BigInt('5400000000000000000')],
       },
     }),
