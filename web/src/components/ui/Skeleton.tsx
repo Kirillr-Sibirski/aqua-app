@@ -8,6 +8,17 @@ export interface SkeletonProps extends ComponentPropsWithRef<'div'> {
   /** `control` (8px) for inline placeholders, `card` (10px) for a whole block, `pill` for a pill. */
   radius?: 'control' | 'card' | 'pill';
   /**
+   * Render a `<span>` instead of a `<div>`, for a placeholder that sits inside a paragraph.
+   *
+   * Not cosmetic. A `<div>` inside a `<p>` is invalid HTML, and the parser does not merely tolerate
+   * it: it implicitly closes the paragraph, so the DOM the browser builds from the server's markup
+   * has a different SHAPE from the tree React rendered. React reports that as a hydration mismatch
+   * and throws the entire server tree away -- one red console error on every route that has a
+   * footer. It is also the only way this component can go wrong at a distance, so it lives here
+   * rather than in the caller.
+   */
+  inline?: boolean;
+  /**
    * What is loading, for assistive technology: "maker book". Supplying it makes this skeleton the
    * announcing one (`role="status"`); leave it off for the other skeletons in the same group so a
    * screen reader hears the region once rather than once per placeholder.
@@ -22,23 +33,25 @@ export interface SkeletonProps extends ComponentPropsWithRef<'div'> {
  * The sweep is a CSS-module keyframe with its own `prefers-reduced-motion` branch that removes the
  * gradient entirely, leaving a flat block rather than a frozen highlight.
  */
-export function Skeleton({ radius = 'control', label, className, ...props }: SkeletonProps) {
+export function Skeleton({ radius = 'control', inline = false, label, className, ...props }: SkeletonProps) {
   const announcing = Boolean(label);
+  const Tag = inline ? 'span' : 'div';
   return (
-    <div
+    <Tag
       role={announcing ? 'status' : undefined}
       aria-busy={announcing || undefined}
       aria-hidden={announcing ? undefined : 'true'}
       className={cn(
         styles.sweep,
         'bg-surface-2',
+        inline && 'inline-block',
         radius === 'card' ? 'rounded-card' : radius === 'pill' ? 'rounded-pill' : 'rounded-control',
         className,
       )}
       {...props}
     >
       {announcing ? <span className="sr-only">Loading {label}</span> : null}
-    </div>
+    </Tag>
   );
 }
 

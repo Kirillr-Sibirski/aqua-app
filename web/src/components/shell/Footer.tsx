@@ -97,7 +97,7 @@ export function Footer({ className }: { className?: string }) {
                   </span>
                 )
               ) : (
-                <Skeleton className="inline-block h-3.5 w-20 align-middle" />
+                <Skeleton inline className="h-3.5 w-20 align-middle" />
               )}
               <span aria-hidden="true">·</span>
               <span>{name}</span>
