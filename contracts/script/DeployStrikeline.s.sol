@@ -3,7 +3,11 @@ pragma solidity 0.8.30;
 
 import { Script, VmSafe, console } from "forge-std/Script.sol";
 
+import { Opcode, OpcodeOps } from "@1inch/swap-vm/src/libs/OpcodeList.sol";
+
 import { StrikelineRouter } from "../src/StrikelineRouter.sol";
+import { RmmSwap } from "../src/instructions/RmmSwap.sol";
+import { Coverage } from "../src/instructions/Coverage.sol";
 
 /// @notice Addresses that are the same on every chain Strikeline targets, and the ones that are not.
 library Canonical {
@@ -86,6 +90,8 @@ contract DeployStrikeline is Script {
 ///        - `fork` is present only when `FORK_CHAIN_ID` / `FORK_BLOCK` are set, which is how the local Base fork
 ///          at block 50946000 identifies itself. On a real chain the field is absent.
 contract RecordDeployment is Script {
+    using OpcodeOps for Opcode;
+
     function run() external {
         uint64 chainId = uint64(block.chainid);
 
@@ -97,10 +103,22 @@ contract RecordDeployment is Script {
         address router = tx_.contractAddress;
         require(router.code.length > 0, "the recorded address has no code on this RPC");
 
+        // The address must be a STRIKELINE router, not merely a contract. `tauNow` is one of the four views
+        // only this router carries, so a manifest can never end up pointing at a stock SwapVM deployment or at
+        // a stale address that something else has since occupied.
+        require(
+            StrikelineRouter(payable(router)).tauNow(uint40(block.timestamp + 365 days)) > 0,
+            "the recorded address does not answer StrikelineViews.tauNow"
+        );
+
         address aqua = vm.envOr("AQUA", Canonical.AQUA);
         address weth = vm.envOr("WETH", Canonical.wethFor(block.chainid));
 
         // --- external references ------------------------------------------------------------------------
+        //
+        // Each carries its own `runtimeCodeHash` so the manifest records not just which address we pointed at
+        // but which bytecode was there when we did. `codehash` is 0 for an account with no code at all, and
+        // `keccak256("")` for one that exists but is not a contract; neither is silently hidden.
         string memory aquaKey = "aqua";
         vm.serializeAddress(aquaKey, "address", aqua);
         vm.serializeBool(aquaKey, "canonical", aqua == Canonical.AQUA);
@@ -109,6 +127,22 @@ contract RecordDeployment is Script {
         string memory wethKey = "weth";
         vm.serializeAddress(wethKey, "address", weth);
         string memory wethJson = vm.serializeBytes32(wethKey, "runtimeCodeHash", weth.codehash);
+
+        // Recorded for provenance only: Strikeline never calls it. Its presence is what lets a reader check
+        // that we ran beside the official router rather than in place of it.
+        string memory officialKey = "officialRouter";
+        vm.serializeAddress(officialKey, "address", Canonical.OFFICIAL_ROUTER);
+        string memory officialJson =
+            vm.serializeBytes32(officialKey, "runtimeCodeHash", Canonical.OFFICIAL_ROUTER.codehash);
+
+        // --- what this router adds to the standard set --------------------------------------------------
+        //
+        // The two opcode slots are the whole contribution, and they are what a caller's encoder has to agree
+        // with. Recording them beside the address means a manifest is enough to check that a program built
+        // off-chain will dispatch here. `docs/OPCODES.md` carries the argument layout behind each slot.
+        string memory ixKey = "instructions";
+        vm.serializeUint(ixKey, "RmmSwap", RmmSwap.opcode.asU8());
+        string memory ixJson = vm.serializeUint(ixKey, "Coverage", Coverage.opcode.asU8());
 
         // --- the deployed contract ----------------------------------------------------------------------
         //
@@ -128,6 +162,10 @@ contract RecordDeployment is Script {
 
         string memory routerKey = "StrikelineRouter";
         vm.serializeAddress(routerKey, "address", router);
+        // The OWNER, read back off the deployed contract, not the deployer. The broadcast receipt carries no
+        // sender field, so a "deployer" here could only be this script's default sender — a guess. The owner
+        // is the address that actually holds privilege, and it is on chain, so it is the one worth recording.
+        vm.serializeAddress(routerKey, "owner", StrikelineRouter(payable(router)).owner());
         vm.serializeBytes32(routerKey, "transactionHash", tx_.txHash);
         vm.serializeUint(routerKey, "blockNumber", tx_.blockNumber);
         vm.serializeBytes32(routerKey, "runtimeCodeHash", router.codehash);
@@ -146,7 +184,8 @@ contract RecordDeployment is Script {
         vm.serializeBool(root, "sourceDirty", vm.envOr("SOURCE_DIRTY", false));
         vm.serializeUint(root, "recordedAtBlock", block.number);
         vm.serializeUint(root, "recordedAtTimestamp", block.timestamp);
-        vm.serializeAddress(root, "officialRouter", Canonical.OFFICIAL_ROUTER);
+        vm.serializeString(root, "officialRouter", officialJson);
+        vm.serializeString(root, "instructions", ixJson);
 
         uint256 forkChainId = vm.envOr("FORK_CHAIN_ID", uint256(0));
         if (forkChainId != 0) {
@@ -170,5 +209,10 @@ contract RecordDeployment is Script {
         console.log("  buildCodeHash     ", vm.toString(keccak256(artifact)));
         console.log("  aqua              ", aqua);
         console.log("  aqua codehash     ", vm.toString(aqua.codehash));
+        console.log("  opcodes           ", RmmSwap.opcode.asU8(), Coverage.opcode.asU8());
+        console.log("");
+        console.log("Verify with nothing but an RPC (note the substitution: cast keccak takes an argument,");
+        console.log("not stdin, and piping it feeds the trailing newline into the hash):");
+        console.log('  cast keccak "$(cast code %s --rpc-url $RPC)"', vm.toString(router));
     }
 }
