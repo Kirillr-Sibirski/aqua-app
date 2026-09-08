@@ -109,7 +109,7 @@ export function CurveChart({
   return (
     <ChartFrame
       title="Trading curve"
-      description={`Stable reserve against risky reserve for this leg. The solid line is where a trade clears now, the dashed line is the constant-sum order at the strike that the curve becomes at expiry, and the shaded wedge is the decay a taker has to cross. X runs from 0 to ${formatChartNumber(maxX)} ${riskySymbol}; Y from 0 to ${formatChartNumber(maxY)} ${stableSymbol}.`}
+      description={`Stable reserve against risky reserve for this leg. The solid line is where a trade clears ${scrubbed ? 'at the scrubbed time' : 'now'}, the dashed line is the constant-sum order at the strike that the curve becomes at expiry, and the shaded wedge is the decay a taker has to cross to reach it from the reserve point. X runs from 0 to ${formatChartNumber(maxX)} ${riskySymbol}; Y from 0 to ${formatChartNumber(maxY)} ${stableSymbol}.`}
       subtitle={subtitle}
       height={height}
       margin={MARGIN}
@@ -307,7 +307,7 @@ function Legend({ scrubbed, hasBand }: { scrubbed: boolean; hasBand: boolean }) 
           <svg width={16} height={8} aria-hidden="true">
             <rect width={16} height={8} fill={colorMix('warn', 16)} stroke={color('warn')} strokeWidth={1} />
           </svg>
-          Theta band
+          {scrubbed ? 'Theta band at that time' : 'Theta band'}
         </LegendItem>
       ) : null}
     </span>
