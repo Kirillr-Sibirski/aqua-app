@@ -23,6 +23,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/', label: 'Overview', ready: true, match: 'exact' },
   { href: '/book', label: 'Book', ready: true, match: 'prefix' },
   { href: '/write', label: 'Write', ready: true, match: 'prefix' },
+  { href: '/surface', label: 'Surface', ready: true, match: 'prefix' },
   { href: '/activity', label: 'Activity', ready: false, match: 'prefix' },
 ];
 
