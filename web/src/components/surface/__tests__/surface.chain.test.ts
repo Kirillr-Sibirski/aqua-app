@@ -11,7 +11,7 @@
  * loudly enough to notice.
  *
  *   make fork                                     # anvil, Base pinned at 50946000
- *   SURFACE_RPC_URL=http://127.0.0.1:8545 npx vitest run src/components/surface
+ *   npm test                                      # these run too, against 127.0.0.1:8545
  *
  * It wants a fork rather than a bare anvil, for the same reason the app does: the production read
  * path batches Aqua's `rawBalances` through Multicall3, and a bare anvil has none. When the chain
@@ -42,7 +42,15 @@ import { buildAquaOrder, encodeStrategyForShip } from '@/lib/swapvm';
 import { censusOf, decodeSurface, groupSurface, impliedSpot } from '../decode';
 import { pricingOf, readBook } from '../lens';
 
-const RPC = process.env.SURFACE_RPC_URL;
+/**
+ * The fork's own URL by default, so the suite runs whenever anvil is up.
+ *
+ * It used to require `SURFACE_RPC_URL` to be set and skipped silently otherwise, which meant a bare
+ * `npm test` reported 297 passed / 7 skipped and looked green while the read layer's only
+ * against-the-chain assertions never ran once. The variable still overrides, for a fork on another
+ * port; unset, the probe below decides, and it prints why when it declines.
+ */
+const RPC = process.env.SURFACE_RPC_URL ?? 'http://127.0.0.1:8545';
 
 /** Canonical addresses. Both exist on any fork of a real chain; neither exists on a bare anvil. */
 const MULTICALL3 = '0xcA11bde05977b3631167028862bE2a173976CA11' as Address;
@@ -55,15 +63,19 @@ const AQUA_OFFICIAL = '0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a' as Address;
  * inside the body would run too late to prevent the suite from being collected.
  */
 const chain = await (async () => {
-  if (!RPC) return { usable: false, officialAqua: false };
   try {
     const probe = createPublicClient({ chain: foundry, transport: http(RPC) });
     const [multicall, aqua] = await Promise.all([
       probe.getCode({ address: MULTICALL3 }),
       probe.getCode({ address: AQUA_OFFICIAL }),
     ]);
-    return { usable: !!multicall && multicall !== '0x', officialAqua: !!aqua && aqua !== '0x' };
+    const usable = !!multicall && multicall !== '0x';
+    if (!usable) {
+      console.log(`  surface chain tests skipped: no Multicall3 at ${RPC}; this wants a fork, not a bare anvil`);
+    }
+    return { usable, officialAqua: !!aqua && aqua !== '0x' };
   } catch {
+    console.log(`  surface chain tests skipped: nothing answering at ${RPC}. Run \`make fork\`.`);
     return { usable: false, officialAqua: false };
   }
 })();

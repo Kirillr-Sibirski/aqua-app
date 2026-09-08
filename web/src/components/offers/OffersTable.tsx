@@ -32,6 +32,7 @@
 import { Anchor, Badge, Collapse, Table, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { ChevronDown } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { Hex } from 'viem';
 import { formatCountdown, sigmaRatio } from '@/hooks/strikeline';
@@ -48,12 +49,47 @@ export interface OffersTableProps {
   onHighlight?: (hash: Hex | undefined) => void;
 }
 
+/*
+ * The headers say what the cells beneath them say.
+ *
+ * They used to read STRIKE / EXPIRY / PREMIUM EARNED, and this is the screen a newcomer lands on
+ * one click after publishing their first offer — with the plain-English version already sitting in
+ * the cell underneath each of them ("if it reaches", "nobody has taken it yet"). The precise word
+ * is not removed, it is demoted: it lives in the header's own tooltip, where the reader who wants
+ * it finds it and the reader who does not is never asked to decode a column name to read the row.
+ */
 const HEAD = [
-  { key: 'offer', label: 'Offer', numeric: false, width: '26%' },
-  { key: 'price', label: 'Strike', numeric: true, width: '14%' },
-  { key: 'when', label: 'Expiry', numeric: true, width: '16%' },
-  { key: 'depth', label: 'Can be taken now', numeric: true, width: '22%' },
-  { key: 'earned', label: 'Premium earned', numeric: true, width: '22%' },
+  { key: 'offer', label: 'Offer', precise: undefined, numeric: false, width: '26%' },
+  {
+    key: 'price',
+    label: 'If it reaches',
+    precise: 'The strike, K: the price the offer hands its tokens over at.',
+    numeric: true,
+    width: '14%',
+  },
+  {
+    key: 'when',
+    label: 'By when',
+    precise: 'Expiry: the maturity in the offer\u2019s own bytes, on the chain\u2019s clock, in UTC.',
+    numeric: true,
+    width: '16%',
+  },
+  {
+    key: 'depth',
+    label: 'Can be taken now',
+    precise:
+      'The bound the Coverage guard itself reported when the offer was probed for everything it promises, at the pinned block.',
+    numeric: true,
+    width: '22%',
+  },
+  {
+    key: 'earned',
+    label: 'What you have earned',
+    precise:
+      'Premium, realised: the spread past takers actually had to cross, replayed from the chain at each fill\u2019s own block.',
+    numeric: true,
+    width: '22%',
+  },
 ] as const;
 
 export function OffersTable({ live, withdrawn, highlight, onHighlight }: OffersTableProps) {
@@ -84,7 +120,13 @@ export function OffersTable({ live, withdrawn, highlight, onHighlight }: OffersT
                   )}
                   style={{ fontWeight: 500 }}
                 >
-                  {col.label}
+                  {col.precise ? (
+                    <Tooltip multiline w={260} withArrow label={col.precise}>
+                      <span>{col.label}</span>
+                    </Tooltip>
+                  ) : (
+                    col.label
+                  )}
                 </Table.Th>
               ))}
             </Table.Tr>
@@ -172,20 +214,40 @@ function OfferRow({
   const delivers = leg.deliversRisky ? leg.risky : leg.stable;
   const receives = leg.deliversRisky ? leg.stable : leg.risky;
   const on = !withdrawn && highlight === leg.strategyHash;
+  const router = useRouter();
+  const href = `/offer/${leg.strategyHash}`;
 
   return (
     <Table.Tr
       bg={on ? 'var(--accent-soft)' : undefined}
       onMouseEnter={() => onHighlight?.(leg.strategyHash)}
       onMouseLeave={() => onHighlight?.(undefined)}
-      style={{ transition: 'background-color var(--duration-base) var(--ease-out-quart)' }}
+      /*
+       * The whole row is the target, not the 20px line of text inside it.
+       *
+       * At 390px the offer name was a 166x20 anchor and it was the only route into `/offer/[hash]`,
+       * which is well under a thumb. The anchor stays — it is what a keyboard tabs to, what a
+       * middle click opens in a tab, and what a screen reader announces — and the row carries a
+       * click as well, so the target is the row's own 56px height. A click that landed on something
+       * already interactive is left alone, and so is one that ended a text selection.
+       */
+      onClick={(event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest('a, button, [role="button"]')) return;
+        if (window.getSelection()?.toString()) return;
+        router.push(href);
+      }}
+      style={{
+        cursor: 'pointer',
+        transition: 'background-color var(--duration-base) var(--ease-out-quart)',
+      }}
     >
       {/* The offer, as a sentence. */}
       <Table.Th scope="row" style={{ fontWeight: 400 }}>
         <span className="flex flex-col gap-1">
           <Anchor
             component={Link}
-            href={`/offer/${leg.strategyHash}`}
+            href={href}
             underline="never"
             className="text-body text-ink hover:text-accent hover:underline hover:underline-offset-2"
           >

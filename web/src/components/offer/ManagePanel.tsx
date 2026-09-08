@@ -46,6 +46,13 @@ import { formatUnits } from '@/lib/ui';
 import { Num, Panel, Row } from './bits';
 import { TxSteps } from './TxSteps';
 
+/**
+ * A roll is two transactions, in this order and never the other way round: `Aqua.safeBalances`
+ * reverts on a docked strategy, so docking first would kill every quote on the position for the
+ * length of one block.
+ */
+const ROLL_PLAN = ['Publish it at the new date', 'Take the old one down'] as const;
+
 export interface ManagePanelProps {
   aqua: Address;
   router: Address;
@@ -291,6 +298,25 @@ export function ManagePanel({
           new maturity, read from the router rather than worked out here.
         </Text>
 
+        {/*
+          * What "Move to a later date" does, above the button that does it.
+          *
+          * These two lines used to sit directly beneath the buttons, each behind a dashed circle,
+          * which is the shape of an unselected radio: they read as a choice a person had to make
+          * before the buttons would work, with neither one picked. They are a description, so they
+          * are numbered, they come first, and the circles are gone.
+          */}
+        <ol className="flex flex-col gap-1 pl-0">
+          {ROLL_PLAN.map((step, i) => (
+            <li key={step} className="flex items-baseline gap-2">
+              <span className="font-mono text-mini tnum text-ink-3">{i + 1}</span>
+              <Text size="xs" c="var(--ink-3)">
+                {step}
+              </Text>
+            </li>
+          ))}
+        </ol>
+
         <Group gap="xs">
           <Button
             leftSection={<RotateCw size={15} strokeWidth={1.75} />}
@@ -319,11 +345,9 @@ export function ManagePanel({
           </Text>
         ) : null}
 
-        <TxSteps
-          steps={steps}
-          chainId={chainId}
-          plan={['Publish it at the new date', 'Take the old one down']}
-        />
+        {/* No `plan`: the numbered list above already says what is about to happen, and saying it
+            twice on one panel is what made the second copy read as a control. */}
+        <TxSteps steps={steps} chainId={chainId} />
 
         {error ? (
           <Alert variant="light" color="ember" radius="md" title="That did not go through">

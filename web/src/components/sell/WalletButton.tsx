@@ -98,11 +98,21 @@ function ConnectorList({ onClose }: { onClose: () => void }) {
 
   const burner = connectors.find((c) => c.id === BURNER_CONNECTOR_ID);
   const rest = connectors.filter((c) => c.id !== BURNER_CONNECTOR_ID);
-  // The generic `injected()` connector is the same wallet a second time whenever any EIP-6963
-  // wallet announced, so it only appears when nothing did.
+  /*
+   * The generic `injected()` connector, and the two things wrong with showing it.
+   *
+   * It is the same wallet a second time whenever any EIP-6963 wallet announced, so it only appears
+   * when nothing did — and that is exactly the case where clicking it fails, because there is no
+   * provider for it to reach. It also arrives named "Injected", which is a wagmi implementation
+   * detail rather than a wallet, and it was the first option a first-timer saw. So it is shown only
+   * when a provider is actually on `window`, and it is shown under a name that names a thing.
+   *
+   * This list is mounted only while the modal is open, which is client-only, so `window` is real.
+   */
   const announced = rest.filter((c) => c.id !== 'injected');
   const generic = rest.find((c) => c.id === 'injected');
-  const wallets = announced.length > 0 ? announced : generic ? [generic] : [];
+  const hasProvider = typeof window !== 'undefined' && 'ethereum' in window;
+  const wallets = announced.length > 0 ? announced : generic && hasProvider ? [generic] : [];
 
   const rejected = error?.name === 'UserRejectedRequestError';
 
@@ -120,7 +130,7 @@ function ConnectorList({ onClose }: { onClose: () => void }) {
         wallets.map((connector) => (
           <ConnectorRow
             key={connector.uid}
-            name={connector.name}
+            name={connector.id === 'injected' ? 'Browser wallet' : connector.name}
             icon={connector.icon}
             pending={isPending && variables?.connector === connector}
             onClick={() => {
