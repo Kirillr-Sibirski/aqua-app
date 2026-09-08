@@ -72,23 +72,26 @@ against a constant nobody re-derives.
 
 `ProbeRouter.sol` · `ProbeScale.sol`
 
-This one is not dead code and never was. It is a stock router — `Simulator + SwapVM + AquaOpcodes`
-plus one trivial custom opcode (`ProbeScale`, `0xd0`) that exists only to prove custom dispatch
-works and falls through correctly. It carries **neither** `RmmSwap` nor `Coverage`.
+This one is not dead code and never was, and "probe" undersells it. It is a stock router —
+`Simulator + SwapVM + AquaOpcodes` plus one trivial custom opcode (`ProbeScale`, `0xd0`) that exists
+only to prove custom dispatch works and falls through correctly. It carries **neither** `RmmSwap`
+nor `Coverage`, which is the whole point of it.
 
-Seven test files import it, because it is the baseline every Strikeline claim is measured against:
+`AquaSwapVMTestBase` declares its `router` field as a `ProbeRouter` and deploys one in `setUp`, so
+this type is load-bearing for every Foundry suite in the repo. Three places run a real one:
 
-| Used by | As |
+| Deploys and drives a real `ProbeRouter` | For |
 |---|---|
-| `test/base/AquaSwapVMTestBase.sol` → `test/AquaXYC.t.sol` | the Aqua/SwapVM harness itself (19 XYC tests) |
-| `test/invariants/GasReport.t.sol` (via `StrikelineLeg.sol`) | the `XYCSwap` reference row `RmmSwap` is priced against |
-| `test/strikeline/StrikelineBook.t.sol` | the unguarded router in `test_Book_WithoutCoverageTheDepthIsPhantom` |
-| `test/surface/SurfaceLens.t.sol` | a non-Strikeline app the lens must report as `isLeg == false` |
-| `test/hook/StrikelineV4Base.sol` | the Aqua side of the v4-vs-Aqua venue experiment |
-| `test/encoding/EncodingVectors.t.sol` | the router the TypeScript encoder's golden vectors are checked against |
-| `test/fork/live/AquaBaseLiveFork.t.sol` | the second app, proving Aqua scopes balances per `(maker, app, hash)` |
+| `test/AquaXYC.t.sol` (19 tests, via the base's default `setUp`) | the Aqua/SwapVM harness itself: ship, quote, swap, dock, fees, taker modes, custom-opcode dispatch and unknown-opcode fall-through |
+| `test/encoding/EncodingVectors.t.sol` | the golden vectors the TypeScript encoder is checked against — `test/encoding/vectors.json` carries `"name": "ProbeRouter"` as the EIP-712 domain, and `web/src/lib/swapvm/__tests__/encoding.test.ts` reads it |
+| `test/fork/live/AquaBaseLiveFork.t.sol` | `test_Live_B`: a second app on the official Base Aqua, proving the registry scopes balances per `(maker, app, strategyHash)` in both directions |
 
-It lives here anyway. It sits under `spikes/` and not next to `StrikelineRouter.sol` because a
+The Strikeline suites — `StrikelineBook.t.sol`, `SurfaceLens.t.sol`, `StrikelineV4Base.sol`,
+`invariants/StrikelineLeg.sol` — deploy a `StrikelineRouter` and assign it to the same inherited
+field (`router = ProbeRouter(payable(address(sl)))`; both are `SwapVM`, so the `ISwapVM` surface is
+identical). They never execute probe code, but they will not compile without the type.
+
+It sits under `spikes/` and not next to `StrikelineRouter.sol` because a
 router named "Probe" beside the real one, with no explanation, is exactly the kind of thing that
 makes a reader wonder which contract the project actually ships — and because it deploys to the
 **same deterministic address** as `StrikelineRouter` from anvil account #0, answers `AQUA()` with

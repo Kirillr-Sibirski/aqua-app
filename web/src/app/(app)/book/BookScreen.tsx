@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * The book.
+ * Your offers.
  *
- * The claim this screen has to carry is one sentence: *one wallet backs the whole ladder, and a
- * fill on any leg shrinks what the others can deliver, in the same block, with no keeper.* Three
- * decisions serve it and nothing else:
+ * The claim this screen has to carry is one sentence: *one wallet stands behind every offer, and
+ * somebody taking any one of them shrinks what the others can sell, in the same block, with no
+ * keeper.* Three decisions serve it and nothing else:
  *
  *  1. **The shared inventory is first and it is the largest thing on the page.** Not a stat tile —
  *     a bar per token with every leg's claim stacked inside it and a line where the wallet runs
@@ -46,8 +46,25 @@ export function BookScreen() {
   return (
     <AppShell>
       <PageHeader
-        title="Book"
-        subtitle="One wallet, a ladder of legs written against it, and the margin that makes the over-allocation real."
+        title="Your offers"
+        subtitle={
+          <>
+            <span className="block">
+              Every offer you have open to sell your ETH at a price you named, and the one wallet
+              balance standing behind all of them. Your tokens are still in your wallet; the moment
+              somebody takes one offer, the others shrink by what it used.
+            </span>
+            <span className="mt-2 block text-ink-3">
+              You are not paid up front. What you have been paid below is what past buyers actually
+              had to cross, not a projection, and it stays at zero until somebody trades.
+            </span>
+            <span className="mt-2 block text-ink-3">
+              <em className="not-italic text-ink-2">If you already trade options:</em> a ladder of
+              covered calls and cash-secured puts written as price curves against one wallet, with
+              the over-allocation margined per fill rather than pre-funded per strike.
+            </span>
+          </>
+        }
         meta={
           <>
             {connected ? (

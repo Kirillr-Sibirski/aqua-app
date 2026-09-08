@@ -1,10 +1,12 @@
 'use client';
 
 /**
- * The legs, as rows.
+ * The offers, as rows.
  *
  * Seven columns, and only two of them are the sort of number a maker could get anywhere else. The
- * other five exist because the option is a curve rather than a contract:
+ * other five exist because the offer is a curve rather than a contract. Every header says what the
+ * number means in words a newcomer already has, and carries the desk term in its `title` for the
+ * reader who wants it:
  *
  *  - **Expiry** runs on the chain's clock, not the browser's. On a fork warped three days forward,
  *    the leg really is three days closer to expiry, and `tau` beside it is what the curve itself
@@ -57,13 +59,25 @@ function Head() {
   return (
     <TableHead>
       <TableRow>
-        <TableHeaderCell>Leg</TableHeaderCell>
-        <TableHeaderCell>Expiry</TableHeaderCell>
-        <TableHeaderCell numeric>IV</TableHeaderCell>
-        <TableHeaderCell numeric>Moneyness</TableHeaderCell>
-        <TableHeaderCell numeric>Deliverable depth</TableHeaderCell>
-        <TableHeaderCell numeric>Theta band</TableHeaderCell>
-        <TableHeaderCell numeric>Realised theta</TableHeaderCell>
+        <TableHeaderCell title="The leg, keyed by its strategy hash">Offer</TableHeaderCell>
+        <TableHeaderCell title="Time to expiry, and tau as the curve reads it">
+          Time left
+        </TableHeaderCell>
+        <TableHeaderCell numeric title="Implied volatility">
+          Movement priced in
+        </TableHeaderCell>
+        <TableHeaderCell numeric title="Moneyness: X/L = Phi(-d1), the share of the offer still in the risky asset">
+          Share still unsold
+        </TableHeaderCell>
+        <TableHeaderCell numeric title="Deliverable depth">
+          How much you can sell right now
+        </TableHeaderCell>
+        <TableHeaderCell numeric title="Theta band">
+          Minimum trade size right now
+        </TableHeaderCell>
+        <TableHeaderCell numeric title="Realised theta">
+          Paid so far
+        </TableHeaderCell>
       </TableRow>
     </TableHead>
   );
@@ -102,21 +116,21 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
             </Link>
             <span className="text-meta text-ink-2">{leg.kind}</span>
             {leg.status === 'docked' ? (
-              <Pill tone="neutral" size="sm">
-                Docked
+              <Pill tone="neutral" size="sm" title="Docked in Aqua">
+                Withdrawn
               </Pill>
             ) : leg.status === 'settling' ? (
-              <Pill tone="warning" size="sm">
-                Settling
+              <Pill tone="warning" size="sm" title="Past maturity: settling, assignment only">
+                Past its date
               </Pill>
             ) : leg.status === 'idle' ? (
-              <Pill tone="neutral" size="sm">
-                Empty
+              <Pill tone="neutral" size="sm" title="Reserves are zero">
+                Nothing left
               </Pill>
             ) : null}
             {leg.guarded ? null : (
-              <Pill tone="negative" size="sm">
-                Unguarded
+              <Pill tone="negative" size="sm" title="No Coverage instruction wraps the curve">
+                Wallet not checked
               </Pill>
             )}
           </span>
@@ -131,7 +145,7 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
                 <span className="mx-1.5">·</span>
               </>
             ) : null}
-            delivers {(leg.deliversRisky ? leg.risky : leg.stable).symbol}
+            sells {(leg.deliversRisky ? leg.risky : leg.stable).symbol}
             <span className="mx-1.5">·</span>
             <span className="font-mono">0x55</span> RmmSwap
             {leg.guarded ? (
@@ -149,7 +163,10 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
           <span className="font-mono text-meta tnum text-ink">
             {Number.isNaN(leg.secondsLeft) ? '-' : formatCountdown(leg.secondsLeft)}
           </span>
-          <span className="font-mono text-mini tnum text-ink-3">
+          <span
+            className="font-mono text-mini tnum text-ink-3"
+            title="tau, the time the curve itself is reading"
+          >
             {leg.tauWad === undefined ? 'tau unread' : `tau ${formatUnits(leg.tauWad, 18, { significantDigits: 3 })}y`}
           </span>
         </div>
@@ -160,7 +177,7 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
       <TableCell numeric>
         <div className="flex flex-col items-end gap-0.5 leading-num">
           <span>{formatPercent(leg.deltaRatio, { fractionDigits: 1 })}</span>
-          <span className="font-mono text-mini tnum text-ink-3">X/L</span>
+          <span className="text-mini text-ink-3">of the offer</span>
         </div>
       </TableCell>
 
@@ -176,19 +193,19 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
         {leg.status === 'docked' ? (
           <div className="flex flex-col items-end gap-0.5 leading-num">
             <span className="text-ink-3">-</span>
-            <span className="text-mini text-ink-3">docked</span>
+            <span className="text-mini text-ink-3">withdrawn</span>
           </div>
         ) : leg.bandNext === undefined ? (
           <span className="text-ink-3">{leg.bandPending ? 'reading' : '-'}</span>
         ) : leg.bandNext === ZERO ? (
           <div className="flex flex-col items-end gap-0.5 leading-num">
             <span className="text-ink-3">0</span>
-            <span className="text-mini text-ink-3">on the curve</span>
+            <span className="text-mini text-ink-3">no gap yet</span>
           </div>
         ) : (
           <div className="flex flex-col items-end gap-0.5 leading-num">
             <TokenAmount value={leg.bandNext} decimals={leg.bandToken.decimals} symbol={leg.bandToken.symbol} size="sm" />
-            <span className="text-mini text-ink-3">the next fill pays</span>
+            <span className="text-mini text-ink-3">the next buyer pays it</span>
           </div>
         )}
       </TableCell>
@@ -197,7 +214,7 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
         {thetaAmounts.length === 0 ? (
           <div className="flex flex-col items-end gap-0.5 leading-num">
             <span className="text-ink-3">{theta?.pending ? 'replaying' : '0'}</span>
-            <span className="text-mini text-ink-3">{theta ? `${theta.fills} ${theta.fills === 1 ? 'fill' : 'fills'}` : 'no fills'}</span>
+            <span className="text-mini text-ink-3">{theta ? `${theta.fills} ${theta.fills === 1 ? 'trade' : 'trades'}` : 'nobody yet'}</span>
           </div>
         ) : (
           <div className="flex flex-col items-end gap-0.5 leading-num">
@@ -205,8 +222,8 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
               <TokenAmount key={entry.token.address} value={entry.amount} decimals={entry.token.decimals} symbol={entry.token.symbol} size="sm" />
             ))}
             <span className="text-mini text-ink-3">
-              {theta?.fills} {theta?.fills === 1 ? 'fill' : 'fills'}
-              {theta?.incomplete ? ', one band unread' : null}
+              {theta?.fills} {theta?.fills === 1 ? 'trade' : 'trades'}
+              {theta?.incomplete ? ', one gap unread' : null}
             </span>
           </div>
         )}
@@ -216,12 +233,12 @@ function LegRow({ leg, highlight, onHighlight }: { leg: BookLeg; highlight?: Hex
 }
 
 export function LegsTable({ book, connected, connectAction, highlight, onHighlight }: LegsTableProps) {
-  const description = 'Each row is a SwapVM program shipped to Aqua. The terms are decoded from the bytes the Shipped event carried.';
+  const description = 'Each row is one offer to sell at a price you named. The price and the date are read back out of the bytes the chain itself published, not out of a database beside this app.';
   const [showDocked, setShowDocked] = useState(false);
 
-  // The live ladder IS the table. A rolled book leaves one docked row per leg per roll, all of them
-  // repeating the terms of the leg they replaced, and after two rolls they outnumber the live legs
-  // three to one and bury them in the middle of the screen. History stays one keystroke away.
+  // The live offers ARE the table. Rolling leaves one withdrawn row per offer per roll, all of them
+  // repeating the terms of the offer they replaced, and after two rolls they outnumber the live
+  // ones three to one and bury them in the middle of the screen. History stays one keystroke away.
   const live = book.legs.filter((leg) => leg.status !== 'docked');
   const docked = book.legs.filter((leg) => leg.status === 'docked');
 
@@ -229,8 +246,8 @@ export function LegsTable({ book, connected, connectAction, highlight, onHighlig
     return (
       <EmptyState
         icon={Layers}
-        title="Connect a wallet to see the book"
-        description="Legs are discovered from Aqua's own Shipped logs and decoded with the verified encoder, so there is nothing to read until there is a maker to read for."
+        title="Connect a wallet to see your offers"
+        description="An offer to sell your ETH at a price you choose. Your tokens stay in your wallet until someone takes it, so there is nothing to read until a wallet is connected."
         action={connectAction}
         note="No extension? The picker offers a demo wallet that signs locally against the Base fork."
       />
@@ -239,19 +256,19 @@ export function LegsTable({ book, connected, connectAction, highlight, onHighlig
 
   if (book.error) {
     return (
-      <Card title="Legs" description={description}>
-        <ErrorState error={book.error} title="Could not read the book" onRetry={book.refetch} bare />
+      <Card title="Offers" description={description}>
+        <ErrorState error={book.error} title="Could not read your offers" onRetry={book.refetch} bare />
       </Card>
     );
   }
 
   if (book.isLoading) {
     return (
-      <Card title="Legs" description={description} flush>
-        <Table caption="Legs in this book" hideCaption minWidth="66rem">
+      <Card title="Offers" description={description} flush>
+        <Table caption="Your open offers" hideCaption minWidth="66rem">
           <Head />
           <TableBody>
-            <TableSkeletonRows rows={4} columns={COLUMNS} label="book" />
+            <TableSkeletonRows rows={4} columns={COLUMNS} label="your offers" />
           </TableBody>
         </Table>
       </Card>
@@ -263,9 +280,9 @@ export function LegsTable({ book, connected, connectAction, highlight, onHighlig
       <>
         <EmptyState
           icon={Layers}
-          title="No legs shipped from this wallet"
-          description="A leg is a covered call or a cash-secured put written as a price curve: one RmmSwap instruction, wrapped in Coverage, shipped to Aqua against tokens that never leave your wallet."
-          note="On the local fork, the demo book ships a 2,600 / 2,800 / 3,000 call ladder and a 2,300 put against one balance."
+          title="You have not made an offer yet"
+          description="An offer to sell your ETH at a price you choose. Your tokens stay in your wallet until someone takes it, and one balance can stand behind several offers at once."
+          note="On the local fork, the demo publishes offers to sell at 2,600 / 2,800 / 3,000 and one to buy at 2,300, all against one balance."
         />
         {book.foreignStrategies.length > 0 ? <ForeignNote count={book.foreignStrategies.length} className="mt-4" /> : null}
       </>
@@ -275,32 +292,34 @@ export function LegsTable({ book, connected, connectAction, highlight, onHighlig
   return (
     <div className="flex flex-col gap-4">
       <Card
-        title="Legs"
+        title="Offers"
         description={description}
         flush
         footer={
           <>
             <span>
-              Depth is the bound the guard reports, not the virtual balance. Moneyness is{' '}
-              <span className="font-mono">X/L = Phi(-d1)</span>, read from the reserves: no oracle is consulted on this screen.
+              How much you can sell is what the guard would actually allow this instant, not what the
+              offer advertises. <em className="not-italic text-ink-2">Mechanically:</em> the share
+              still unsold is <span className="font-mono">X/L = Phi(-d1)</span>, read straight from
+              the reserves, so no oracle is consulted anywhere on this screen.
             </span>
             <span className="font-mono text-mini tnum text-ink-3">
               {live.length} live
-              {docked.length > 0 ? ` · ${docked.length} docked` : null}
+              {docked.length > 0 ? ` · ${docked.length} withdrawn` : null}
             </span>
           </>
         }
       >
         <Table
-          caption="Legs in this book"
+          caption="Your open offers"
           hideCaption
           minWidth="66rem"
-          scrollHint="depth, theta band, realised theta"
+          scrollHint="how much you can sell, minimum trade, paid so far"
         >
           <Head />
           <TableBody>
             {live.length === 0 && docked.length === 0 ? (
-              <TableMessageRow colSpan={COLUMNS}>Nothing shipped yet.</TableMessageRow>
+              <TableMessageRow colSpan={COLUMNS}>Nothing on offer yet.</TableMessageRow>
             ) : (
               <>
                 {live.map((leg) => (
@@ -308,7 +327,7 @@ export function LegsTable({ book, connected, connectAction, highlight, onHighlig
                 ))}
                 {live.length === 0 && docked.length > 0 ? (
                   <TableMessageRow colSpan={COLUMNS}>
-                    Nothing live. Every leg this wallet wrote has been docked.
+                    Nothing live. Every offer this wallet made has been withdrawn.
                   </TableMessageRow>
                 ) : null}
                 {docked.length > 0 ? (
@@ -331,8 +350,8 @@ export function LegsTable({ book, connected, connectAction, highlight, onHighlig
 }
 
 /**
- * The row that stands in for the docked history: a real button in a real cell, so it is reachable by
- * Tab and announces its own state, rather than a chevron a pointer has to find.
+ * The row that stands in for the withdrawn history: a real button in a real cell, so it is reachable
+ * by Tab and announces its own state, rather than a chevron a pointer has to find.
  */
 function DockedDisclosure({ open, count, onToggle }: { open: boolean; count: number; onToggle: () => void }) {
   const Icon = open ? ChevronDown : ChevronRight;
@@ -347,9 +366,9 @@ function DockedDisclosure({ open, count, onToggle }: { open: boolean; count: num
         >
           <Icon size={14} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-ink-3" />
           <span className="font-mono tnum">{count}</span>
-          <span>{count === 1 ? 'docked leg' : 'docked legs'}</span>
+          <span>{count === 1 ? 'withdrawn offer' : 'withdrawn offers'}</span>
           <span className="text-mini text-ink-3">
-            {open ? 'shown below' : 'rolled or withdrawn, and no longer fillable'}
+            {open ? 'shown below' : 'moved to a later date or taken down. Nobody can take these.'}
           </span>
         </button>
       </td>
@@ -361,7 +380,7 @@ function ForeignNote({ count, className }: { count: number; className?: string }
   return (
     <Callout tone="info" title={`${count} other ${count === 1 ? 'strategy' : 'strategies'} on this router`} className={className}>
       Shipped to the Strikeline router by this wallet but carrying no <span className="font-mono">RmmSwap</span> instruction, so they are not
-      option legs and the book does not invent terms for them.
+      offers to sell at a price, and this screen does not invent a price for them.
     </Callout>
   );
 }

@@ -1,43 +1,37 @@
 %% Strikeline architecture. Source of truth: the fenced block in docs/ARCHITECTURE.md.
-%% Regenerate this file and architecture.svg with the two commands at the bottom of that document.
+%% Regenerate this file and architecture.svg with the two commands at the end of that document.
 flowchart TB
-  taker(["Taker or arbitrageur<br/>anyone. no permission, no allowlist"])
+  wallet["<b>Maker's wallet</b><br/>EOA · 10.4 WETH + 24,850 USDC<br/>approves Aqua, never the router"]
+  taker(["<b>Taker or arbitrageur</b><br/>anyone. no allowlist"])
 
   subgraph ours["written here"]
-    router["<b>StrikelineRouter</b><br/>redeployed SwapVM, 23,851 B<br/>quote 113,283 gas / swap 211,317 gas"]
-    cov["<b>Coverage</b> · opcode 0x93<br/>runs the rest of the program first,<br/>then requires the priced output to be<br/>deliverable from the real wallet"]
-    rmm["<b>RmmSwap</b> · opcode 0x55<br/>Y = L·K·Φ(Φ⁻¹(1−X/L) − σ√τ)<br/>62 argument bytes: K, σ, maturity, L"]
-    lens["<b>SurfaceLens</b> · 9,179 B<br/>a separate contract, off the router's<br/>EIP-170 budget. prices a whole book<br/>in one eth_call"]
+    direction TB
+    router["<b>StrikelineRouter</b><br/>redeployed SwapVM · 23,851 B<br/>quote 113,283 / swap 211,317 gas"]
+    cov["<b>Coverage</b> · 0x93<br/>prices first, then requires the<br/>output to be deliverable"]
+    rmm["<b>RmmSwap</b> · 0x55<br/>Y = L·K·Φ(Φ⁻¹(1−X/L) − σ√τ)<br/>62 bytes: K, σ, maturity, L"]
+    lens["<b>SurfaceLens</b> · 9,179 B<br/>separate contract, off the<br/>router's EIP-170 budget"]
+    router --> cov
+    cov -- "ctx.runLoop()" --> rmm
   end
 
   subgraph inch["1inch, unmodified"]
-    aqua["<b>Aqua registry</b><br/>0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a<br/>holds no tokens. stores virtual balances<br/>and emits the strategy bytes verbatim"]
+    aqua["<b>Aqua registry</b><br/>0x1111113CCf…6a90a<br/>holds no tokens. stores virtual<br/>balances, publishes the bytes"]
   end
-
-  wallet["<b>Maker's wallet</b> · EOA<br/>10.4 WETH + 24,850 USDC<br/>approves Aqua. never approves the router.<br/>the tokens never leave"]
 
   subgraph read["the read layer"]
-    graphnode["<b>subgraph/</b> · The Graph<br/>decodes the shipped bytes in the mapping<br/>into Leg / Maker / Fill / SurfacePoint"]
-    web["<b>web/</b> · Next.js<br/>prefers the subgraph, falls back to<br/>getLogs on the same Shipped events"]
+    direction TB
+    graphnode["<b>subgraph/</b> · The Graph<br/>Leg · Maker · Fill · SurfacePoint"]
+    web["<b>web/</b> · Next.js<br/>subgraph first, getLogs if it is down"]
+    graphnode --> web
   end
 
-  wallet -- "1 · approve WETH and USDC to Aqua" --> aqua
-  wallet -- "2 · ship(app = router, strategy, tokens, amounts)<br/>moves zero tokens. one leg = Deadline · Coverage · RmmSwap · Salt" --> aqua
+  wallet -- "approve · ship(app = router)<br/>zero tokens move" --> aqua
+  taker -- "quote() · swap()" --> router
+  router -- "safeBalances · pull · push" --> aqua
+  cov -. "balanceOf ∧ allowance(maker, Aqua)<br/>else NotCovered(needed, free)" .-> wallet
+  aqua -- "transferFrom(maker → taker)<br/>the only transfer out" --> taker
 
-  taker -- "3 · quote(order, amount, takerTraits) · staticcall<br/>5 · swap(...)" --> router
-  router -- "4 · safeBalances(maker, router, hash, tokenIn, tokenOut)<br/>the virtual reserves the curve prices against" --> aqua
-  router --> cov
-  cov -- "ctx.runLoop() prices on the shipped reserves" --> rmm
-  cov -. "balanceOf(maker) ∧ allowance(maker, Aqua), minus the haircut<br/>short by one wei and the quote reverts NotCovered(needed, free)" .-> wallet
-
-  router -- "6 · pull(maker, hash, tokenOut, amountOut, taker)" --> aqua
-  aqua -- "7 · transferFrom(maker → taker)<br/>the only transfer out. wallet to taker, direct" --> taker
-  taker -- "8 · tokenIn to the router" --> router
-  router -- "9 · push(maker, router, hash, tokenIn, amountIn − fee)" --> aqua
-  aqua -- "10 · transferFrom(router → maker)" --> wallet
-
-  aqua -. "Shipped / Docked / Pushed / Pulled" .-> graphnode
+  aqua -. "Shipped · Docked · Pushed · Pulled" .-> graphnode
   router -. "Swapped" .-> graphnode
-  graphnode --> web
-  web -- "one eth_call, or the init code inline when nothing is deployed" --> lens
+  web -- "one eth_call" --> lens
   lens -. "rawBalances" .-> aqua

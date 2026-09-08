@@ -8,7 +8,10 @@ import { InstructionBuilder } from "@1inch/swap-vm/src/libs/InstructionBuilder.s
 import { InstructionArgs } from "@1inch/swap-vm/src/libs/InstructionArgs.sol";
 import { Calldata } from "@1inch/solidity-utils/contracts/libraries/Calldata.sol";
 
-/// @notice Compile-probe custom opcode: scales balanceOut by a factor (1e9 = 1x)
+/// @notice Trivial custom opcode for `ProbeRouter` (0xd0): scales balanceOut by a factor (1e9 = 1x).
+/// @dev    Not shipped and not part of the contribution. It exists so the dispatch tests can prove a
+///         custom opcode is reached and an unknown one falls through to `AquaOpcodes`. `build()` has a
+///         known defect, deliberately unfixed -- see src/spikes/README.md.
 library ProbeScale {
     using Calldata for bytes;
     using InstructionArgs for bytes;

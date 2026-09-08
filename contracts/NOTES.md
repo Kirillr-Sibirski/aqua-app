@@ -1,15 +1,19 @@
 # Contracts notes
 
-Engineering log for `contracts/`. Two routers live here:
+Engineering log for `contracts/`. **One router ships:**
 
-- **`src/StrikelineRouter.sol`** — the product. Simulator + SwapVM + `StrikelineOpcodes` +
-  `StrikelineViews`, adding `RmmSwap` (`0x55`) and `Coverage` (`0x93`). This is what ships.
-- **`src/ProbeRouter.sol`** — the research harness that came first. Simulator + SwapVM + AquaOpcodes +
-  `ProbeScale` (`0xd0`). Kept because the curve probes and the math benchmarks still run against it, and
-  because it is the control in several comparisons.
+- **`src/StrikelineRouter.sol`** — Simulator + SwapVM + `StrikelineOpcodes` + `StrikelineViews`,
+  adding `RmmSwap` (`0x55`) and `Coverage` (`0x93`). This is what `make bootstrap`, `make smoke`,
+  `make story-setup` and `make deploy` all build, and the only router any manifest names.
 
-Sections 1–4 below are about the shipped router. Everything from *"Probe harness"* onward is the older
-harness and the API facts learned building it, which still apply to both.
+Everything else that compiles to a router in this tree lives under **`src/spikes/`** and is research:
+the two curve probes that decided the fixed-point backend, the math bench that measures the error
+budget, and `ProbeRouter` — the control, stock SwapVM + `AquaOpcodes` with neither custom
+instruction. [`src/spikes/README.md`](src/spikes/README.md) says what each one measured and why it
+is still compiled. `src/instructions/` contains exactly `RmmSwap.sol` and `Coverage.sol`.
+
+Sections 1–4 below are about the shipped router. Everything from *"Probe harness"* onward is the
+older harness and the API facts learned building it, which still apply to both.
 
 ---
 
@@ -126,10 +130,11 @@ quote costs 14,191.
 `forge build --sizes`:
 
 ```
-| StrikelineRouter | 23,664 | 25,166 | 912 | 23,986 |
+| StrikelineRouter | 23,851 | 25,353 | 725 | 23,799 |
 ```
 
-**23,664 bytes runtime, 912 under EIP-170**, with no size override anywhere in `foundry.toml`.
+**23,851 bytes runtime, 725 under EIP-170**, with no size override anywhere in `foundry.toml`.
+`test_Size_RouterIsUnderEip170` prints both numbers and fails if the margin goes negative.
 
 > **The size that counts is the artifact's, not the one a test deploys.** `new StrikelineRouter(...)` inside a
 > test file inlines the creation code into *that* compilation unit, where `via_ir`'s inlining decisions can
@@ -162,7 +167,7 @@ Two code hashes, because they answer different questions. `runtimeCodeHash` is a
 its EIP-712 domain separator in an immutable and that separator contains `address(this)` — so it is what you
 check with `cast keccak "$(cast code <addr> --rpc-url $RPC)"`. `buildCodeHash` is the build fingerprint, stable
 across addresses. Measured: reformatting `src/math/Gaussian.sol` with `forge fmt`, whitespace only, identical
-23,664-byte runtime, moved `buildCodeHash` from `0x2b2dbb87…` to `0x5139d6f6…`, because solc's appended CBOR
+runtime (23,664 B at the time of that experiment), moved `buildCodeHash` from `0x2b2dbb87…` to `0x5139d6f6…`, because solc's appended CBOR
 blob hashes the metadata and the metadata hashes every source file.
 
 > `forge fmt` with no path argument reformats the **whole tree**, including files nobody asked you to touch,
@@ -173,8 +178,9 @@ blob hashes the metadata and the metadata hashes every source file.
 
 # Probe harness
 
-Foundry harness for Aqua-backed SwapVM strategies executed through `src/ProbeRouter.sol`
-(Simulator + SwapVM + AquaOpcodes + custom `ProbeScale` opcode at `0xd0`).
+Foundry harness for Aqua-backed SwapVM strategies executed through `src/spikes/ProbeRouter.sol`
+(Simulator + SwapVM + AquaOpcodes + custom `ProbeScale` opcode at `0xd0`). It is the control, not a
+deliverable — `src/spikes/README.md` §3 has the full account of what still depends on it.
 
 ## Layout
 
@@ -184,7 +190,7 @@ Foundry harness for Aqua-backed SwapVM strategies executed through `src/ProbeRou
 | `test/AquaXYC.t.sol` | 19 unit tests: ship 10 WETH + 20,000 USDC XYC strategy, exactIn/exactOut both directions, FeeFlatIn, thresholds, `to` recipient, callback-taker mode, custom opcode dispatch, unknown opcode fall-through, dock semantics, fuzz quote==swap. |
 | `test/fork/AquaMainnetFork.t.sol` | 5 fork tests against the OFFICIAL Aqua `0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a` + real WETH/USDC. Auto-skipped unless `FORK_RPC_URL` is set. |
 | `src/mocks/` | `WETHMock`, `TokenMockDecimals`, `MockCallbackTaker` (ITakerCallbacks taker that pushes into Aqua itself). |
-| `script/DeployProbeRouter.s.sol` | Deploys `ProbeRouter(AQUA, WETH, OWNER)`; defaults to mainnet official Aqua + WETH, overridable via env. |
+| `script/DeployStrikeline.s.sol` | The only deploy script. `DeployStrikeline` deploys `StrikelineRouter(AQUA, WETH, OWNER, name, version)`, `RecordDeployment` writes `deployments/<chainid>.json` from the broadcast receipt. There is deliberately no deploy script for `ProbeRouter`. |
 | `Makefile` | `make test`, `make test-unit`, `make test-fork`, `make test-gas`. |
 
 ## Commands
@@ -234,7 +240,7 @@ about 1.4 s wall-clock on publicnode.
   runs on `amountIn - fee`.
 - **Custom opcode dispatch works.** `ProbeRouter._runOpcode` handles `0xd0` and falls through to
   `AquaOpcodes._runOpcode` (verified: an `0xd1` instruction reverts `AquaOpcodes.UnknownOpcode(0xd1)`).
-- **KNOWN BUG in `src/instructions/ProbeScale.sol` (not modified per instructions).** `ProbeScale.build()` ends with
+- **KNOWN BUG in `src/spikes/ProbeScale.sol` (deliberately unfixed, see `src/spikes/README.md`).** `ProbeScale.build()` ends with
   `return start.resolve();` but `MemoryPtrLib.resolve` is strict and must be called on the END pointer; it always
   reverts `MemoryPtrStrictResolveFailed(end, current)`. One-line fix: `return ptr.resolve();` (as `XYCSwap.build`,
   `FeeFlatIn.build` do). Until then use `AquaSwapVMTestBase.buildProbeScale(factor)`, which produces the exact bytes

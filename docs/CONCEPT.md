@@ -4,9 +4,11 @@
 the third ranked Fathom #1 on prize-text fit but *composited to Strikeline anyway* once the repo was
 priced. The deciding facts are in our own tree, not in the pitch:
 
-- `contracts/src/instructions/CurveProbeSolady.sol` already implements RMM-01 in **all four
+- `contracts/src/spikes/CurveProbeSolady.sol` already implements RMM-01 in **all four
   direction/exactness cases**, driven end-to-end through the **official Aqua** by
   `contracts/test/probe/CurveProbeAqua.t.sol`, error **≈5e-12 vs mpmath**, **657–667k gas** measured.
+  *(That figure is a whole-test-body `forge test` number — quote, `deal`, two balance snapshots, swap.
+  The shipped leg was later measured at 113,283 quote / 211,317 swap; see `contracts/NOTES.md` §3.)*
 - `docs/research/router-size-budget.md §12`: `AquaOpcodes + RMM-01 + weighted + prims` = **23,966 B, +610 B under
   EIP-170**. Dropping the weighted/prims probe functions frees ~1–1.5 KB for the second opcode.
   **Mainnet-deployable router. No `--disable-code-size-limit`.**
@@ -567,7 +569,7 @@ the owner. Small commits from hour 0.
 
 | Agent | Owns | Work | Hours |
 |---|---|---|---|
-| **C1** | `contracts/src/math/{GaussianSolady,WadMathSolady}.sol`, `contracts/src/instructions/RmmSwap.sol` | Promote the probe math out of `src/probe/`. Productionise `RmmSwap` from `CurveProbeSolady._rmm`: **live τ + 1h floor**, τ=0 closed form, one-way settlement flags, 18/6 decimal normalisation, `EPS_OUT` band, 62-byte codec, named errors. *This is productionisation, not research.* | h0–h3 |
+| **C1** | `contracts/src/math/{GaussianSolady,WadMathSolady}.sol`, `contracts/src/instructions/RmmSwap.sol` | Promote the probe math out of `src/probe/` (now `src/spikes/`). Productionise `RmmSwap` from `CurveProbeSolady._rmm`: **live τ + 1h floor**, τ=0 closed form, one-way settlement flags, 18/6 decimal normalisation, `EPS_OUT` band, 62-byte codec, named errors. *This is productionisation, not research.* | h0–h3 |
 | **C2** | `contracts/src/instructions/Coverage.sol`, `contracts/src/StrikelineViews.sol` | `Coverage` wrapper (balance ∧ allowance, haircut, protocol-fee term, fail-closed). Views: `stableFor`, `coverage`, `bandFor`. | h0–h2 |
 | **C3** | `contracts/src/StrikelineRouter.sol`, `contracts/script/Deploy.s.sol`, `contracts/foundry.toml` | Router + dispatcher; **`forge build --sizes` HARD GATE at h2** with the `PeggedSwap` drop-lever pre-approved; deterministic-nonce deploy so the address survives `--load-state`. | h0–h2 |
 | **C4** | `contracts/test/strikeline/**` | The nine invariants of §5.7 + the justified-tolerance table + **USDC(6)/WETH(18) golden vectors first** (six scale paths: 2 pairs × 2 directions × exactIn/exactOut, each rounding toward the maker). | h1–h7 |

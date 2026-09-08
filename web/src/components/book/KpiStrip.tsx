@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * The five figures that describe a book.
+ * The five figures that describe your offers.
  *
  * Every one is measured. The two that are usually modelled elsewhere are the two this file is most
  * careful about:
  *
- *  - **Theta captured** is realised, summed from the decay band each past fill actually had to
+ *  - **Paid so far** is realised theta, summed from the decay band each past fill actually had to
  *    clear, replayed at that fill's own block. It is never a Black-Scholes evaluation, and while a
  *    replay is still in flight the tile says so rather than showing a number that is about to grow.
  *  - **Book delta** is read, not computed. For an RMM leg the position value is `V = S*X + Y` along
@@ -69,12 +69,12 @@ export function KpiStrip({ kpis, connected = true, blockTimestamp, loading = fal
   const figure = <T,>(value: T | undefined): T | undefined => (connected ? value : undefined);
 
   const thetaDetail = kpis.thetaPending
-    ? 'Replaying the band at each fill block'
+    ? 'Replaying what each past buyer had to cross'
     : kpis.thetaFills === 0
-      ? 'No fills yet'
+      ? 'Nobody has taken an offer yet'
       : kpis.thetaIncomplete
-        ? `From ${kpis.thetaFills} ${kpis.thetaFills === 1 ? 'fill' : 'fills'}, one band unreadable`
-        : `Band cleared across ${kpis.thetaFills} ${kpis.thetaFills === 1 ? 'fill' : 'fills'}`;
+        ? `From ${kpis.thetaFills} ${kpis.thetaFills === 1 ? 'trade' : 'trades'}, one gap unreadable`
+        : `Actually crossed on ${kpis.thetaFills} ${kpis.thetaFills === 1 ? 'trade' : 'trades'}`;
 
   const lastFill =
     kpis.lastFillAt !== undefined && blockTimestamp !== undefined
@@ -82,11 +82,11 @@ export function KpiStrip({ kpis, connected = true, blockTimestamp, loading = fal
       : undefined;
 
   return (
-    <section className={cn('flex flex-col gap-5', className)} aria-label="Book summary">
+    <section className={cn('flex flex-col gap-5', className)} aria-label="Summary of your offers">
       <div className="grid grid-cols-2 gap-x-6 gap-y-7 lg:grid-cols-5">
         <Tile>
           <StatTile
-            label="Notional written"
+            label={<span title="Notional written">Total on offer</span>}
             loading={loading}
             value={figure(kpis.writtenToken ? multiple(kpis.writtenMultiple) : undefined)}
             empty={connected ? '0x' : '—'}
@@ -94,11 +94,11 @@ export function KpiStrip({ kpis, connected = true, blockTimestamp, loading = fal
               detail(
                 kpis.writtenToken ? (
                   <>
-                    {formatUnits(kpis.writtenToken.written, kpis.writtenToken.decimals, { significantDigits: 6 })} {kpis.writtenToken.symbol} written on{' '}
+                    {formatUnits(kpis.writtenToken.written, kpis.writtenToken.decimals, { significantDigits: 6 })} {kpis.writtenToken.symbol} offered against{' '}
                     {formatUnits(kpis.writtenToken.coverage, kpis.writtenToken.decimals, { significantDigits: 6 })} held
                   </>
                 ) : (
-                  'Nothing written yet'
+                  'Nothing on offer yet'
                 ),
               )
             }
@@ -107,7 +107,7 @@ export function KpiStrip({ kpis, connected = true, blockTimestamp, loading = fal
 
         <Tile>
           <StatTile
-            label="Backed"
+            label={<span title="The deepest single offer, against what the wallet can deliver">Covered</span>}
             loading={loading}
             value={figure(kpis.backedToken ? backedText(kpis.backed) : undefined)}
             // Never '100.0%'. A connected wallet with no legs has nothing to back, and a
@@ -119,15 +119,15 @@ export function KpiStrip({ kpis, connected = true, blockTimestamp, loading = fal
               detail(
                 kpis.backedToken ? (
                   kpis.backed >= 1 ? (
-                    <>Deepest {kpis.backedToken.symbol} leg deliverable in full</>
+                    <>Biggest {kpis.backedToken.symbol} offer sellable in full</>
                   ) : (
                     <>
-                      Deepest {kpis.backedToken.symbol} leg wallet-bound at{' '}
+                      Biggest {kpis.backedToken.symbol} offer capped by your wallet at{' '}
                       {formatUnits(kpis.backedToken.coverage, kpis.backedToken.decimals, { significantDigits: 6 })}
                     </>
                   )
                 ) : (
-                  'No obligation to back'
+                  'Nothing on offer to cover'
                 ),
               )
             }
@@ -136,7 +136,7 @@ export function KpiStrip({ kpis, connected = true, blockTimestamp, loading = fal
 
         <Tile>
           <StatTile
-            label="Theta captured"
+            label={<span title="Realised theta">Paid so far</span>}
             loading={loading}
             value={figure(kpis.thetaByToken.length === 0 ? undefined : <Amounts entries={kpis.thetaByToken} />)}
             detail={detail(thetaDetail)}
@@ -145,28 +145,36 @@ export function KpiStrip({ kpis, connected = true, blockTimestamp, loading = fal
 
         <Tile>
           <StatTile
-            label="Book delta"
+            label={<span title="Book delta">What you would hand over now</span>}
             loading={loading}
             value={figure(kpis.deltaByToken.length === 0 ? undefined : <Amounts entries={kpis.deltaByToken} />)}
-            detail={detail(<>Sum of the legs&rsquo; risky reserves</>)}
+            detail={detail(<>Sum of what every offer is holding</>)}
           />
         </Tile>
 
         <Tile className="col-span-2 lg:col-span-1">
           <StatTile
-            label="Fills, 24h"
+            label={<span title="Fills in the last 24 hours">Times taken, 24h</span>}
             loading={loading}
             value={figure(formatUnits(BigInt(kpis.fills24h), 0))}
-            detail={detail(lastFill ? `Last ${lastFill} on the chain clock` : 'No fill on record')}
+            detail={detail(lastFill ? `Last ${lastFill} on the chain clock` : 'Nobody has taken an offer yet')}
           />
         </Tile>
       </div>
 
-      <p className="max-w-prose text-mini leading-prose text-ink-3">
-        Theta captured is realised, not modelled: it is the decay band each past fill had to clear, replayed from{' '}
-        <span className="font-mono">bandFor</span> at that fill&rsquo;s own block. Book delta is read rather than computed: along the curve{' '}
-        <span className="font-mono">dV/dS = X</span>, so the delta in risky units is the legs&rsquo; own reserves.
-      </p>
+      <div className="flex max-w-prose flex-col gap-2 text-mini leading-prose text-ink-3">
+        <p>
+          You are not paid up front. What you earn is the gap that opens in your own quote as the
+          date approaches, and it only becomes real when somebody crosses it. Paid so far is
+          measured, never modelled: it is the gap each past buyer actually had to clear.
+        </p>
+        <p>
+          <em className="not-italic text-ink-2">Mechanically:</em> realised theta is replayed from{' '}
+          <span className="font-mono">bandFor</span> at each fill&rsquo;s own block. Book delta is
+          read rather than computed: along the curve <span className="font-mono">dV/dS = X</span>, so
+          the delta in risky units is the legs&rsquo; own reserves.
+        </p>
+      </div>
     </section>
   );
 }

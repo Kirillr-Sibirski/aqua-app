@@ -8,6 +8,7 @@ import { SwapVM } from "@1inch/swap-vm/src/SwapVM.sol";
 import { AquaOpcodes } from "@1inch/swap-vm/src/opcodes/AquaOpcodes.sol";
 import { CurveProbeSolady } from "./CurveProbeSolady.sol";
 
+/// @dev Feasibility spike, never deployed. What it measured and why it is kept: src/spikes/README.md §1.
 /// @notice Size/gas probe: official SwapVM + AquaOpcodes + opcode 0xd1 = CurveProbeSolady (solady 0.1.26 FixedPointMathLib).
 contract CurveProbeRouterSolady is Simulator, SwapVM, AquaOpcodes {
     using OpcodeOps for Opcode;

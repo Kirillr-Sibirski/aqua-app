@@ -97,8 +97,8 @@ export function InventoryBar({ token, highlight, onHighlight, loading = false, c
 
   const summary =
     token.claims.length === 0
-      ? `${token.symbol}: ${exactDeliverable} deliverable, nothing written against it.`
-      : `${token.symbol}: ${exactWritten} written across ${token.claims.length} ${token.claims.length === 1 ? 'leg' : 'legs'}, ${exactDeliverable} deliverable from the wallet right now.`;
+      ? `${token.symbol}: ${exactDeliverable} sellable, nothing offered against it.`
+      : `${token.symbol}: ${exactWritten} offered across ${token.claims.length} ${token.claims.length === 1 ? 'offer' : 'offers'}, ${exactDeliverable} sellable from the wallet right now.`;
 
   // The flag sits on the far side of the rule once the rule is past the middle, so it never runs
   // off the end of the bar.
@@ -112,13 +112,13 @@ export function InventoryBar({ token, highlight, onHighlight, loading = false, c
         </h3>
         <div className="flex items-baseline gap-6">
           <p className="flex items-baseline gap-1.5 leading-num">
-            <span className="text-mini text-ink-3">Written</span>
+            <span className="text-mini text-ink-3" title="Notional written">On offer</span>
             <span className="font-mono text-lead tnum text-ink" title={exactWritten}>
               {writtenText}
             </span>
           </p>
           <p className="flex items-baseline gap-1.5 leading-num">
-            <span className="text-mini text-ink-3">Deliverable now</span>
+            <span className="text-mini text-ink-3" title="Deliverable depth">Can sell right now</span>
             <span className="font-mono text-lead tnum text-accent" title={exactDeliverable}>
               {deliverableText}
             </span>
@@ -127,7 +127,7 @@ export function InventoryBar({ token, highlight, onHighlight, loading = false, c
       </div>
 
       {loading ? (
-        <Skeleton radius="control" className="h-11 w-full" label={`${token.symbol} inventory`} />
+        <Skeleton radius="control" className="h-11 w-full" label={`what backs your ${token.symbol} offers`} />
       ) : (
         <div
           role="img"

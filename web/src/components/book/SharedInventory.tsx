@@ -29,14 +29,14 @@ export interface SharedInventoryProps {
 
 export function SharedInventory({ book, connected, connectAction, highlight, onHighlight, readChainName }: SharedInventoryProps) {
   const description =
-    'One balance backs every leg. The solid stack is what could be delivered if all of them were swept at once; beyond the wallet line is written and margined, not pre-funded.';
+    'One balance stands behind every offer. The solid part of the stack is what could actually be sold if every offer were taken at once; past the wallet line is offered and margin-checked, not set aside in advance.';
 
   if (!connected) {
     return (
       <EmptyState
         icon={Wallet}
-        title="Connect a wallet to see the inventory"
-        description="Strikeline never custodies anything, so there is no vault balance to show. The bar is your own wallet, read with balanceOf and allowance, which is exactly what Coverage checks when a taker asks for a fill."
+        title="Connect a wallet to see what stands behind your offers"
+        description="Nothing is ever custodied here, so there is no vault balance to show. The bar is your own wallet, and it is exactly what gets checked when somebody tries to take one of your offers."
         action={connectAction}
       />
     );
@@ -44,20 +44,20 @@ export function SharedInventory({ book, connected, connectAction, highlight, onH
 
   if (book.error) {
     return (
-      <Card title="Shared inventory" description={description}>
-        <ErrorState error={book.error} title="Could not read the inventory" onRetry={book.refetch} bare />
+      <Card title="The wallet behind every offer" description={description}>
+        <ErrorState error={book.error} title="Could not read your wallet" onRetry={book.refetch} bare />
       </Card>
     );
   }
 
   if (book.isLoading || book.tokens.length === 0) {
     return (
-      <Card title="Shared inventory" description={description}>
+      <Card title="The wallet behind every offer" description={description}>
         <div className="flex flex-col gap-8">
           {[0, 1].map((i) => (
             <div key={i} className="flex flex-col gap-2">
               <div className="flex items-baseline justify-between">
-                <Skeleton className="h-5 w-16" label={i === 0 ? 'shared inventory' : undefined} />
+                <Skeleton className="h-5 w-16" label={i === 0 ? 'the wallet behind every offer' : undefined} />
                 <Skeleton className="h-5 w-48" />
               </div>
               <Skeleton radius="control" className="h-11 w-full" />
@@ -74,7 +74,7 @@ export function SharedInventory({ book, connected, connectAction, highlight, onH
 
   return (
     <Card
-      title="Shared inventory"
+      title="The wallet behind every offer"
       description={description}
       footer={
         <>
@@ -96,22 +96,22 @@ export function SharedInventory({ book, connected, connectAction, highlight, onH
 
       {nothingWritten ? (
         <p className="mt-6 max-w-prose text-mini leading-prose text-ink-3">
-          Nothing is written against this inventory yet. Ship a ladder and each leg appears here as a claim inside the bar it
-          draws on.
+          You have no offers against this balance yet. Name a price and each offer appears here as a
+          claim inside the bar it draws on.
         </p>
       ) : null}
 
       {!book.routerHasViews ? (
         <Callout tone="warning" title="This router does not answer StrikelineViews" className="mt-6">
           The wallet line falls back to <span className="font-mono">min(balanceOf, allowance)</span>, which is the same quantity{' '}
-          <span className="font-mono">Coverage</span> enforces, but the leg rows below cannot read <span className="font-mono">tauNow</span>,{' '}
+          <span className="font-mono">Coverage</span> enforces, but the offer rows below cannot read <span className="font-mono">tauNow</span>,{' '}
           <span className="font-mono">bandFor</span> or <span className="font-mono">coverage</span> from it. Point the deployment manifest at a
           StrikelineRouter.
         </Callout>
       ) : null}
 
       {constrained.length > 0 ? (
-        <Callout tone="warning" title="An allowance, not a balance, is the binding limit" className="mt-6">
+        <Callout tone="warning" title="Your approval, not your balance, is the limit right now" className="mt-6">
           {constrained.map((t) => (
             <span key={t.address} className="mr-4 inline-block font-mono text-meta tnum">
               {t.symbol} {formatTokenAmount(t.allowance, t.decimals)} approved of {formatTokenAmount(t.wallet, t.decimals)} held

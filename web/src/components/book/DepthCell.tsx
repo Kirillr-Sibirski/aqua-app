@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Deliverable depth: the largest fill this leg can actually honour right now.
+ * How much you can sell right now (deliverable depth): the largest fill this offer can honour.
  *
  * The number is not the virtual balance Aqua reports, because that number can be a lie —
  * `ship()` checks no balance and `safeBalances()` does not clamp to the wallet, which is exactly how
@@ -36,19 +36,19 @@ function caption(leg: BookLeg): { text: string; tone: 'quiet' | 'warn'; title?: 
 
   if (probe.ok) {
     return depth.amount < depth.written
-      ? { text: 'wallet is the limit', tone: 'warn', title: 'The quote clears at exactly this size, so this is what the leg can deliver right now.' }
-      : { text: 'quote clears at full size', tone: 'quiet' };
+      ? { text: 'your wallet is the limit', tone: 'warn', title: 'The quote clears at exactly this size, so this is what the offer can deliver right now.' }
+      : { text: 'all of it can be sold', tone: 'quiet' };
   }
 
   switch (probe.errorName) {
     case 'NotCovered':
-      return { text: 'NotCovered: wallet is the limit', tone: 'warn', title: 'Coverage refused the full size and reported what the wallet can actually deliver.' };
+      return { text: 'your wallet is the limit', tone: 'warn', title: 'NotCovered: Coverage refused the full size and reported what the wallet can actually deliver.' };
     case 'RmmExceedsReserve':
-      return { text: 'the reserve is the limit', tone: 'quiet', title: 'RmmExceedsReserve: the wallet covers this leg in full, the curve runs out first.' };
+      return { text: 'the offer runs out first', tone: 'quiet', title: 'RmmExceedsReserve: the wallet covers this offer in full, the curve runs out first.' };
     case 'RmmInsideSpread':
-      return { text: 'inside the theta band', tone: 'quiet', title: 'RmmInsideSpread: decay has moved the curve away from the reserves, so a trade this small cannot clear.' };
+      return { text: 'under the minimum trade size', tone: 'quiet', title: 'RmmInsideSpread: time has moved the curve away from the reserves, so a trade this small cannot clear.' };
     case 'RmmSettlementOneWay':
-      return { text: 'settled, assignment only', tone: 'quiet', title: 'RmmSettlementOneWay: past maturity the leg trades in one direction.' };
+      return { text: 'past its date, sells one way', tone: 'quiet', title: 'RmmSettlementOneWay: past maturity the leg trades in one direction.' };
     case 'RmmOutOfDomain':
       return { text: 'reserves off the curve', tone: 'warn', title: 'RmmOutOfDomain' };
     default:
@@ -64,7 +64,7 @@ export function DepthCell({ leg }: DepthCellProps) {
   const note = caption(leg);
 
   if (written === ZERO) {
-    return <span className="font-mono text-meta tnum text-ink-3">no reserve</span>;
+    return <span className="font-mono text-meta tnum text-ink-3">nothing on offer</span>;
   }
 
   return (

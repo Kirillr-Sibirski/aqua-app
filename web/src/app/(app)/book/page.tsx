@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import { BookScreen } from './BookScreen';
 
 export const metadata: Metadata = {
-  title: 'Book',
+  title: 'Your offers',
   description:
-    'One wallet backing a ladder of option legs on 1inch Aqua. Deliverable depth comes from the Coverage instruction that enforces it, and realised theta from the decay band each fill actually cleared.',
+    'Every offer you have open to sell your ETH at a price you named, and the one wallet balance standing behind all of them. How much you can actually sell is read from the guard that enforces it, and what you have been paid from the gap each past trade really had to clear.',
 };
 
 /**
