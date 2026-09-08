@@ -41,6 +41,12 @@ export interface LiveStrategy {
   ledgerUsdc: bigint;
   /** Gated on `tx.origin` holding the access NFT. */
   gated: boolean;
+  /**
+   * The maker's own wallet holds the inventory, so a fill is capped by it and shows up as a wallet
+   * delta. False for makers whose hooks source the token just-in-time from somewhere else: live2's
+   * wallet holds literally nothing, and the fill still settles.
+   */
+  walletBacked: boolean;
   /** What the program does, decoded from its bytes. */
   program: string;
 }
@@ -67,6 +73,7 @@ const LIVE1: LiveStrategy = {
   ledgerWeth: 224_075_990_008_781n,
   ledgerUsdc: 1_461_965n,
   gated: false,
+  walletBacked: true,
   program: 'concentrateGrowLiquidity2D(2000..2100) . flatFeeAmountInXD(10%) . xycSwapXD',
 };
 
@@ -81,6 +88,7 @@ const LIVE2: LiveStrategy = {
   ledgerWeth: 17_577_848_751_888_246n,
   ledgerUsdc: 37_320_137n,
   gated: false,
+  walletBacked: false,
   program: 'flatFeeAmountInXD(0.3%) . xycSwapXD . salt',
 };
 
@@ -95,6 +103,7 @@ const LIVE3: LiveStrategy = {
   ledgerWeth: 680_657_569_152n,
   ledgerUsdc: 1_983_510_251n,
   gated: true,
+  walletBacked: true,
   program:
     'onlyTxOriginTokenBalanceNonZero(RES) . aquaProtocolFeeAmountInXD(0.0125%) . concentrateGrowLiquidity2D(1875..2091) . flatFeeAmountInXD(0.05%) . xycSwapXD . salt',
 };

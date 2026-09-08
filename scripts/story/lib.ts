@@ -32,6 +32,8 @@ export const PATHS = {
   state: resolve(HERE, '.story-state.json'),
   dumpDir: resolve(HERE, 'state'),
   dump: resolve(HERE, 'state/demo.json'),
+  snapshot: resolve(HERE, 'state/snapshot.json'),
+  storyStateBackup: resolve(HERE, 'state/story-state.json'),
 } as const;
 
 // ---------------------------------------------------------------------------

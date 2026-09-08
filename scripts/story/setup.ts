@@ -219,6 +219,15 @@ async function main(): Promise<void> {
   saveState(state);
 
   // ---- freeze ----
+  // Two undo mechanisms, because they fail in different ways.
+  //
+  // `evm_snapshot` is the complete one: `evm_revert` rewinds the clock, the block height and every
+  // account, including the third-party wallets scene 0 fills, which this process never touched and
+  // therefore never dumped. It does not survive restarting anvil.
+  //
+  // `anvil_dumpState` does survive a restart, and is what makes the demo load in a second instead of a
+  // two-minute bootstrap -- but it only *merges* what it holds, so it cannot undo a fill against a
+  // stranger's wallet. `load.ts` prefers the snapshot and falls back to the dump.
   step('freeze');
   mkdirSync(PATHS.dumpDir, { recursive: true });
   const dump = await rpc<Hex>('anvil_dumpState', []);
@@ -226,6 +235,9 @@ async function main(): Promise<void> {
   copyFileSync(PATHS.state, `${PATHS.dumpDir}/story-state.json`);
   const bytes = (dump.length - 2) / 2;
   check(bytes > 0, `anvil_dumpState wrote ${(bytes / 1024).toFixed(0)} KiB of gzipped chain state to ${PATHS.dump}`);
+  const snapshot = await rpc<string>('evm_snapshot', []);
+  writeFileSync(PATHS.snapshot, JSON.stringify({ id: snapshot, takenAt: new Date().toISOString(), blockNumber: Number(now.blockNumber), timestamp: Number(now.timestamp) }) + '\n');
+  check(!!snapshot, `evm_snapshot ${snapshot} taken -- a retake inside this anvil session is a full rewind`);
 
   out();
   out('ready. `make story-load` returns here in about a second; `make story-1` opens the show.');
