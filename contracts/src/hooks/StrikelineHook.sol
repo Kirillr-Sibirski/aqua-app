@@ -169,7 +169,9 @@ contract StrikelineHook is BaseHook, IUnlockCallback {
             (Currency risky, Currency stable) =
                 leg.riskyIsCurrency0 ? (key.currency0, key.currency1) : (key.currency1, key.currency0);
             poolManager.unlock(
-                abi.encode(ACTION_DEFUND, risky, stable, uint256(leg.reserveRisky), uint256(leg.reserveStable), leg.maker)
+                abi.encode(
+                    ACTION_DEFUND, risky, stable, uint256(leg.reserveRisky), uint256(leg.reserveStable), leg.maker
+                )
             );
         }
 
@@ -242,8 +244,9 @@ contract StrikelineHook is BaseHook, IUnlockCallback {
             revert NoLegForPool(id);
         }
         bool riskyIn = zeroForOne == leg.riskyIsCurrency0;
-        (uint256 reserveIn, uint256 reserveOut) =
-            riskyIn ? (uint256(leg.reserveRisky), uint256(leg.reserveStable)) : (uint256(leg.reserveStable), uint256(leg.reserveRisky));
+        (uint256 reserveIn, uint256 reserveOut) = riskyIn
+            ? (uint256(leg.reserveRisky), uint256(leg.reserveStable))
+            : (uint256(leg.reserveStable), uint256(leg.reserveRisky));
 
         (amountIn, amountOut) = RmmPricer.price(_termsOf(leg), riskyIn, exactIn, amount, reserveIn, reserveOut);
 
@@ -311,7 +314,8 @@ contract StrikelineHook is BaseHook, IUnlockCallback {
 
         uint256 reserveRisky = leg.reserveRisky;
         uint256 reserveStable = leg.reserveStable;
-        (uint256 reserveIn, uint256 reserveOut) = riskyIn ? (reserveRisky, reserveStable) : (reserveStable, reserveRisky);
+        (uint256 reserveIn, uint256 reserveOut) =
+            riskyIn ? (reserveRisky, reserveStable) : (reserveStable, reserveRisky);
 
         (uint256 amountIn, uint256 amountOut) =
             RmmPricer.price(_termsOf(leg), riskyIn, exactIn, amount, reserveIn, reserveOut);

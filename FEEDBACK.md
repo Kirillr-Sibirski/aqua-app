@@ -147,8 +147,11 @@ would remove the ugliest part of this port.
 
 ## 8. Address mining is worse than it needs to be
 
-Measured here: **6,748 salts** for three permission bits, each iteration rehashing **13,516 bytes**
-of creation code — 21.6M gas inside `forge test`. The cause is one line in `HookMiner.computeAddress`:
+Measured here for three permission bits, each iteration rehashing **13,516 bytes** of creation code:
+**6,748 salts / 21.6M gas** inside `forge test` — and then **21,706 salts / 79.7M gas** after the only
+change in between was `forge fmt`. Reformatting whitespace moves the source-metadata hash, which moves
+the creation code, which moves the salt, which moves the deployed address. A comment edit relocates
+your hook. The cause of the cost is one line in `HookMiner.computeAddress`:
 
 ```solidity
 keccak256(abi.encodePacked(bytes1(0xFF), deployer, salt, keccak256(creationCodeWithArgs)))
@@ -159,8 +162,10 @@ into `find` is a one-line change worth roughly two orders of magnitude. (In test
 a hand-picked address with the right low bits is far better, and that *is* what `BaseHook`'s virtual
 `validateHookAddress` is for — but it took reading the source to realise it.)
 
-Also worth saying: because the salt depends on the creation code, every edit to a hook changes its
-deployed address. For a project that mines in CI, build time is non-deterministic in wall clock.
+And because the salt depends on the creation code, a project that mines in CI has a build time that
+is non-deterministic in wall clock — 3.2x between two runs here, from a formatting pass. Setting
+`bytecode_hash = "none"` (which v4-core itself does) removes the metadata sensitivity but not the
+grind.
 
 ## 9. Toolchain interaction, for whoever owns the Foundry template
 

@@ -55,8 +55,7 @@ contract StrikelineHookTest is StrikelineV4Base {
         uint256 makerWethBefore = IERC20(weth).balanceOf(maker);
         uint256 makerUsdcBefore = usdc.balanceOf(maker);
 
-        (PoolKey memory key, uint256 usdcReserve) =
-            writeLeg(100, _terms(), StrikelineHook.Backing.Pooled, X, maker);
+        (PoolKey memory key, uint256 usdcReserve) = writeLeg(100, _terms(), StrikelineHook.Backing.Pooled, X, maker);
 
         // Custody moved. This is the line `Aqua.ship` does not have.
         assertEq(IERC20(weth).balanceOf(maker), makerWethBefore - X, "pooled leg must pull WETH from the maker");
@@ -108,9 +107,7 @@ contract StrikelineHookTest is StrikelineV4Base {
         usdc.approve(address(lpRouter), type(uint256).max);
         vm.expectRevert();
         lpRouter.modifyLiquidity(
-            key,
-            ModifyLiquidityParams({ tickLower: -600, tickUpper: 600, liquidityDelta: 1e18, salt: bytes32(0) }),
-            ""
+            key, ModifyLiquidityParams({ tickLower: -600, tickUpper: 600, liquidityDelta: 1e18, salt: bytes32(0) }), ""
         );
         vm.stopPrank();
     }

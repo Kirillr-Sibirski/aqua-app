@@ -124,7 +124,12 @@ abstract contract StrikelineV4Base is AquaSwapVMTestBase {
 
     /// @notice The terms both venues share. WETH is the risky asset, USDC (6 decimals) the stable one,
     ///         so the stable rate lifts it into the curve's normalised WAD space.
-    function termsFor(uint128 strikeWad, uint64 sigmaWad, uint40 maturity, uint128 liquidityWad)
+    function termsFor(
+        uint128 strikeWad,
+        uint64 sigmaWad,
+        uint40 maturity,
+        uint128 liquidityWad
+    )
         internal
         pure
         returns (RmmPricer.Terms memory)
@@ -141,7 +146,10 @@ abstract contract StrikelineV4Base is AquaSwapVMTestBase {
         });
     }
 
-    function legFor(RmmPricer.Terms memory t, StrikelineHook.Backing backing)
+    function legFor(
+        RmmPricer.Terms memory t,
+        StrikelineHook.Backing backing
+    )
         internal
         view
         returns (StrikelineHook.Leg memory leg)
@@ -183,7 +191,11 @@ abstract contract StrikelineV4Base is AquaSwapVMTestBase {
 
     /// @notice The Aqua program for the identical leg: `Coverage . RmmSwap . Salt`, or bare `RmmSwap`
     ///         when the comparison is meant to be curve against curve with no solvency guard.
-    function aquaProgram(RmmPricer.Terms memory t, uint64 salt, bool withCoverage)
+    function aquaProgram(
+        RmmPricer.Terms memory t,
+        uint64 salt,
+        bool withCoverage
+    )
         internal
         view
         returns (bytes memory)
@@ -235,7 +247,12 @@ abstract contract StrikelineV4Base is AquaSwapVMTestBase {
 
     /// @notice Swap through the official `PoolSwapTest` router, i.e. the same path any v4 integrator uses.
     /// @param amountSpecified Negative for exact input, positive for exact output.
-    function swapV4(address who, PoolKey memory key, bool zeroForOne, int256 amountSpecified)
+    function swapV4(
+        address who,
+        PoolKey memory key,
+        bool zeroForOne,
+        int256 amountSpecified
+    )
         internal
         returns (BalanceDelta delta)
     {
@@ -255,7 +272,12 @@ abstract contract StrikelineV4Base is AquaSwapVMTestBase {
     }
 
     /// @dev External wrapper so `vm.expectRevert` placed immediately before behaves.
-    function quoteV4(PoolKey memory key, bool zeroForOne, bool exactIn, uint256 amount)
+    function quoteV4(
+        PoolKey memory key,
+        bool zeroForOne,
+        bool exactIn,
+        uint256 amount
+    )
         public
         view
         returns (uint256 amountIn, uint256 amountOut)
