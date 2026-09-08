@@ -234,6 +234,11 @@ function ok<T>(entry: CallResult | undefined): T | undefined {
   return entry?.status === 'success' ? (entry.result as T) : undefined;
 }
 
+/** Coverage for one token, defaulting to zero for a token no bar was drawn for. */
+function coverageOf(map: ReadonlyMap<string, bigint>, token: Address): bigint {
+  return map.get(token.toLowerCase()) ?? ZERO;
+}
+
 /** A leg after the bytes have been decoded but before any chain state is attached. */
 interface StaticLeg {
   strategy: ShippedStrategy;
@@ -402,6 +407,7 @@ export function useBook(maker: Address | undefined, options: UseBookOptions = {}
 
   const roundTwo = useMemo<Call[]>(() => {
     if (!deployments || !maker || legState.length !== staticLegs.length) return [];
+    const tokenCoverage = new Map(tokens.map((t) => [t.address.toLowerCase(), t.coverage]));
     const calls: Call[] = [];
     for (let i = 0; i < staticLegs.length; i += 1) {
       const leg = staticLegs[i];
@@ -419,20 +425,31 @@ export function useBook(maker: Address | undefined, options: UseBookOptions = {}
       const deliveryToken = leg.deliversRisky ? leg.risky : leg.stable;
       const written = leg.deliversRisky ? state.reserveRisky : state.reserveStable;
       const isAToB = deliveryToken.toLowerCase() === leg.strategy.tokens[1].toLowerCase();
+
+      // Probe at the smaller of the two bounds, not at the whole reserve.
+      //
+      // `Coverage` runs the curve first (`ctx.runLoop()`), and `RmmSwap`'s exact-out branch requires
+      // `amountOut*rate + eps <= balanceOut`. So a probe for the entire reserve always trips the
+      // curve's guard band before the solvency check runs, and the wallet never gets to answer. At
+      // `min(coverage, reserve)` the two cases separate cleanly: when the wallet binds the quote
+      // clears at exactly the deliverable size and returns its cost, and when the curve binds it
+      // refuses with the reserve, which is the honest answer to "can this leg deliver all it wrote".
+      const probeAmount = coverageOf(tokenCoverage, deliveryToken) < written ? coverageOf(tokenCoverage, deliveryToken) : written;
+
       calls.push({
         address: deployments.router,
         abi: quoteWithStrikelineErrorsAbi as Abi,
         functionName: 'quote',
         args: [
           leg.strategy.order,
-          written,
+          probeAmount,
           buildTakerTraits({ taker: maker, isExactIn: false, isAToB, threshold: null, useTransferFromAndAquaPush: true }),
         ],
         chainId,
       });
     }
     return calls;
-  }, [deployments, maker, staticLegs, legState, chainId]);
+  }, [deployments, maker, staticLegs, legState, tokens, chainId]);
 
   const probeReady = roundTwo.length > 0 && legState.every((s) => s.read);
 

@@ -21,8 +21,8 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/', label: 'Overview', ready: true, match: 'exact' },
-  { href: '/positions', label: 'Book', ready: false, match: 'prefix' },
-  { href: '/new', label: 'Ship', ready: false, match: 'prefix' },
+  { href: '/book', label: 'Book', ready: true, match: 'prefix' },
+  { href: '/write', label: 'Write', ready: true, match: 'prefix' },
   { href: '/activity', label: 'Activity', ready: false, match: 'prefix' },
 ];
 

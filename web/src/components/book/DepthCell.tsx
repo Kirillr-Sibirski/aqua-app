@@ -30,24 +30,29 @@ export interface DepthCellProps {
 }
 
 /** What the row says under the bar, and whether that reads as normal or as a constraint. */
-function caption(leg: BookLeg): { text: string; tone: 'quiet' | 'warn' } {
+function caption(leg: BookLeg): { text: string; tone: 'quiet' | 'warn'; title?: string } {
   const { probe, depth } = leg;
   if (probe.pending) return { text: 'quoting', tone: 'quiet' };
-  if (probe.ok) return { text: 'quote clears at full size', tone: 'quiet' };
+
+  if (probe.ok) {
+    return depth.amount < depth.written
+      ? { text: 'wallet is the limit', tone: 'warn', title: 'The quote clears at exactly this size, so this is what the leg can deliver right now.' }
+      : { text: 'quote clears at full size', tone: 'quiet' };
+  }
 
   switch (probe.errorName) {
     case 'NotCovered':
-      return { text: 'NotCovered: wallet-bound', tone: 'warn' };
+      return { text: 'NotCovered: wallet is the limit', tone: 'warn', title: 'Coverage refused the full size and reported what the wallet can actually deliver.' };
     case 'RmmExceedsReserve':
-      return { text: 'RmmExceedsReserve: curve-bound', tone: 'quiet' };
+      return { text: 'the reserve is the limit', tone: 'quiet', title: 'RmmExceedsReserve: the wallet covers this leg in full, the curve runs out first.' };
     case 'RmmInsideSpread':
-      return { text: 'RmmInsideSpread: inside the theta band', tone: 'quiet' };
+      return { text: 'inside the theta band', tone: 'quiet', title: 'RmmInsideSpread: decay has moved the curve away from the reserves, so a trade this small cannot clear.' };
     case 'RmmSettlementOneWay':
-      return { text: 'settled, assignment only', tone: 'quiet' };
+      return { text: 'settled, assignment only', tone: 'quiet', title: 'RmmSettlementOneWay: past maturity the leg trades in one direction.' };
     case 'RmmOutOfDomain':
-      return { text: 'RmmOutOfDomain: reserves off the curve', tone: 'warn' };
+      return { text: 'reserves off the curve', tone: 'warn', title: 'RmmOutOfDomain' };
     default:
-      return { text: probe.errorName ?? `${depth.bound}-bound`, tone: 'warn' };
+      return { text: probe.errorName ?? `${depth.bound} is the limit`, tone: 'warn' };
   }
 }
 
@@ -88,7 +93,9 @@ export function DepthCell({ leg }: DepthCellProps) {
       {leg.probe.pending ? (
         <Skeleton className="h-3 w-24" />
       ) : (
-        <span className={cn('text-micro normal-case', note.tone === 'warn' ? 'text-warn' : 'text-ink-3')}>{note.text}</span>
+        <span title={note.title} className={cn('text-micro normal-case', note.tone === 'warn' ? 'text-warn' : 'text-ink-3')}>
+          {note.text}
+        </span>
       )}
     </div>
   );
