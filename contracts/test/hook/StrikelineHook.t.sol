@@ -6,11 +6,14 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { PoolKey } from "@uniswap/v4-core/src/types/PoolKey.sol";
 import { PoolModifyLiquidityTest } from "@uniswap/v4-core/src/test/PoolModifyLiquidityTest.sol";
-import { ModifyLiquidityParams } from "@uniswap/v4-core/src/types/PoolOperation.sol";
+import { ModifyLiquidityParams, SwapParams } from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import { Currency } from "@uniswap/v4-core/src/types/Currency.sol";
+import { IPoolManager } from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import { PoolSwapTest } from "@uniswap/v4-core/src/test/PoolSwapTest.sol";
 import { HookMiner } from "@uniswap/v4-periphery/src/utils/HookMiner.sol";
 
 import { StrikelineV4Base } from "./StrikelineV4Base.sol";
+import { TakeProbe } from "./TakeProbe.sol";
 import { StrikelineHook } from "../../src/hooks/StrikelineHook.sol";
 import { RmmPricer } from "../../src/hooks/RmmPricer.sol";
 import { RmmSwap } from "../../src/instructions/RmmSwap.sol";
@@ -219,6 +222,66 @@ contract StrikelineHookTest is StrikelineV4Base {
         (, uint256 small) = hook.quoteSwap(key, zeroForOne, true, 60e6);
         assertLe(small, 0.05e18, "a fill must fit inside real coverage");
         console2.log("v4 wallet-backed: undeliverable size refused, small fill clears wei:", small);
+    }
+
+    // ------------------------------------------------------------------ two v4 facts, evidenced
+
+    /// @notice FEEDBACK.md section 6, evidenced rather than asserted. `PoolManager.take` with
+    ///         `claims: false` pays out of the manager's OWN ERC-20 balance. Inside `beforeSwap` the
+    ///         taker has not settled, so on a manager holding nothing the call simply reverts, and on
+    ///         mainnet it would succeed only by spending other pools' reserves for the rest of the call.
+    ///         That is why a wallet-backed leg pays its maker in ERC-6909 claims.
+    function test_Feedback_TakeSpendsThePoolManagersOwnBalance() public {
+        TakeProbe probe = new TakeProbe(pm);
+        assertEq(usdc.balanceOf(address(pm)), 0, "the manager starts empty");
+
+        // Empty manager: the ERC-20 transfer itself fails, before any accounting runs.
+        bytes memory emptyErr = _expectTakeToFail(probe, 1000e6);
+        assertTrue(bytes4(emptyErr) != IPoolManager.CurrencyNotSettled.selector, "expected a transfer failure");
+
+        // Fund the manager with tokens that belong to somebody else and the identical call gets past the
+        // transfer - only the unsettled delta stops it. That is the whole point: `take` reaches for the
+        // manager's balance, whoever it belongs to, and a hook calling it inside `beforeSwap` is spending
+        // reserves the taker has not replaced yet.
+        deal(address(usdc), address(pm), 1000e6);
+        bytes memory fundedErr = _expectTakeToFail(probe, 1000e6);
+        assertEq(bytes4(fundedErr), IPoolManager.CurrencyNotSettled.selector, "the transfer must have gone through");
+    }
+
+    function takeProbe(TakeProbe probe, uint256 amount) public {
+        probe.takeFrom(Currency.wrap(address(usdc)), maker, amount);
+    }
+
+    function _expectTakeToFail(TakeProbe probe, uint256 amount) internal returns (bytes memory err) {
+        try this.takeProbe(probe, amount) {
+            revert("take unexpectedly succeeded");
+        } catch (bytes memory e) {
+            err = e;
+        }
+    }
+
+    /// @notice FEEDBACK.md section 10, evidenced. `Pool.swap` returns on a zero amount BEFORE it checks
+    ///         `sqrtPriceLimitX96`, so a hook that consumes the whole swap makes the caller's price limit
+    ///         irrelevant rather than a trap. Here the limit is one that would revert with
+    ///         `PriceLimitAlreadyExceeded` if the pool's own swap ever ran.
+    function test_Feedback_ANoOpHookMakesThePriceLimitIrrelevant() public {
+        (PoolKey memory key,) = writeLeg(108, _terms(), StrikelineHook.Backing.Pooled, X, maker);
+        bool zeroForOne = !wethIsCurrency0;
+
+        vm.prank(taker);
+        swapRouter.swap(
+            key,
+            SwapParams({
+                zeroForOne: zeroForOne,
+                amountSpecified: -int256(2000e6),
+                // Equal to the pool price: `zeroForOne` requires strictly below, `oneForZero` strictly
+                // above, so exactly one of the two branches would reject this on any real swap.
+                sqrtPriceLimitX96: SQRT_PRICE_1_1
+            }),
+            PoolSwapTest.TestSettings({ takeClaims: false, settleUsingBurn: false }),
+            ""
+        );
+        assertGt(IERC20(weth).balanceOf(taker), 50e18, "the swap must have cleared despite the limit");
     }
 
     // ------------------------------------------------------------------ what setup costs
