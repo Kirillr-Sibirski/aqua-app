@@ -150,7 +150,9 @@ STRIKELINE_ARTIFACT ?= contracts/out/StrikelineRouter.sol/StrikelineRouter.json
 tape: $(TSX)
 	cd $(ROOT) && $(STORY) scripts/arb/capture.ts $(ARGS)
 
-# The demo needs OUR router, not the probe one, so bootstrap is re-run with the Strikeline artifact.
+# Same artifact as `make bootstrap` (StrikelineRouter is the default for both). What this target adds is
+# FORCE_REDEPLOY: the demo has to open on a router deployed at a known nonce, so it never reuses whatever
+# an earlier bootstrap left in the manifest.
 story-bootstrap: $(TSX)
 	@[ -f "$(ROOT)$(STRIKELINE_ARTIFACT)" ] || $(MAKE) build-src
 	cd $(ROOT) && ROUTER_ARTIFACT=$(STRIKELINE_ARTIFACT) ROUTER_NAME=Strikeline ROUTER_VERSION=1 FORCE_REDEPLOY=1 $(TSX) scripts/fork/bootstrap.ts

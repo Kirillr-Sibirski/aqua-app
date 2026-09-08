@@ -1,7 +1,8 @@
 /**
  * Bootstrap the running Base fork for the demo:
- *   (a) deploy our SwapVM router from a Foundry artifact (env ROUTER_ARTIFACT, default ProbeRouter) against the
- *       OFFICIAL Aqua 0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a using anvil account #0,
+ *   (a) deploy our SwapVM router from a Foundry artifact (env ROUTER_ARTIFACT, default StrikelineRouter) against
+ *       the OFFICIAL Aqua 0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a using anvil account #0, refusing to write a
+ *       manifest unless it answers `tauNow(uint40)` — see `assertStrikeline`,
  *   (b) fund anvil accounts #0-#3 (+ optional DEMO_ADDRESS, e.g. your MetaMask EOA) with ETH, WETH, USDC, cbBTC
  *       via whale impersonation, falling back to anvil_setStorageAt on the token's balance slot,
  *   (c) write web/public/deployments/local.json and scripts/fork/deployments.local.json,
