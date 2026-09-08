@@ -5,6 +5,16 @@ import { readContract } from 'wagmi/actions';
 import { aquaFork } from '@/lib/chain';
 import { tokenInfo } from '@/lib/contracts';
 import { buildTakerTraits, decodeOrder, swapVmAbi, type Order } from '@/lib/swapvm';
+import { strikelineErrorsAbi } from './strikeline';
+
+/**
+ * The router's `swap` surface with both custom instructions' errors attached.
+ *
+ * viem decodes a revert only against the ABI it was handed, and the simulation wagmi runs before a
+ * write is exactly where a taker meets `RmmInsideSpread` or `NotCovered`. Without these entries the
+ * toast said "0x…" for the two refusals this whole product is built to explain.
+ */
+const swapWithStrikelineErrorsAbi = [...swapVmAbi, ...strikelineErrorsAbi] as const;
 import { useDeployments } from './useDeployments';
 import { useTxFlow, type TxPlanStep } from './useTxFlow';
 
@@ -102,7 +112,9 @@ export function useSwap() {
           send: () =>
             writeContract({
               address: deployments.router,
-              abi: swapVmAbi,
+              // The instructions' errors travel with the function, or the simulation that precedes
+              // the write reports `RmmInsideSpread` and `NotCovered` as an undecoded hex blob.
+              abi: swapWithStrikelineErrorsAbi,
               functionName: 'swap',
               args: [params.order, params.amount, takerTraits],
               chainId,
