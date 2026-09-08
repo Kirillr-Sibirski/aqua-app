@@ -26,7 +26,6 @@
  * oracle appears anywhere in the pricing path. The feed exists so the arbitrageur knows what the world
  * price is.
  */
-import { aquaAbi } from '../../../web/src/lib/swapvm/index.ts';
 import { warpTo } from '../../arb/clock.ts';
 import { syncFeed } from '../../arb/feed.ts';
 import { EPS_WAD, WAD, ceilDiv } from '../../arb/rmm.ts';
