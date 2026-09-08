@@ -149,10 +149,16 @@ async function main(): Promise<void> {
   for (const who of [arb, taker]) await approve(who, d.weth, OFFICIAL_ROUTER);
   const allowance = (owner: Address, spender: Address, token: Address) =>
     publicClient.readContract({ address: token, abi: erc20Abi, functionName: 'allowance', args: [owner, spender] });
-  check((await allowance(maker.address, d.aqua, d.weth)) === maxUint256, 'maker WETH allowance to Aqua is unlimited');
-  check((await allowance(maker.address, d.aqua, d.usdc)) === maxUint256, 'maker USDC allowance to Aqua is unlimited');
-  check((await allowance(arb.address, d.router, d.usdc)) === maxUint256, 'arb USDC allowance to the router is unlimited');
-  check((await allowance(taker.address, OFFICIAL_ROUTER, d.weth)) === maxUint256, 'taker WETH allowance to the official router is unlimited');
+  // Match `approve`'s own contract, which treats anything above half of uint256 as unlimited. Asserting
+  // strict equality made setup fail on any fork that had ever settled a trade: `Aqua.pull` DECREMENTS a
+  // maxUint256 allowance, so after one fill the allowance is `maxUint256 - n`, `approve` correctly skips
+  // the redundant transaction, and the check then rejected the state it had just accepted. That is the
+  // state the README's own `make fork && make bootstrap && make smoke` leaves behind.
+  const unlimited = (a: bigint) => a > maxUint256 / 2n;
+  check(unlimited(await allowance(maker.address, d.aqua, d.weth)), 'maker WETH allowance to Aqua is unlimited');
+  check(unlimited(await allowance(maker.address, d.aqua, d.usdc)), 'maker USDC allowance to Aqua is unlimited');
+  check(unlimited(await allowance(arb.address, d.router, d.usdc)), 'arb USDC allowance to the router is unlimited');
+  check(unlimited(await allowance(taker.address, OFFICIAL_ROUTER, d.weth)), 'taker WETH allowance to the official router is unlimited');
 
   step('scene 0: the gated third-party maker needs a taker who holds the access NFT');
   // The 1inch dApp strategy is gated on `tx.origin` holding a "RES" access token. We do not mint one --
