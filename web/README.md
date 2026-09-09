@@ -20,7 +20,7 @@ One. `next build` prints `/`, `/_not-found` and `/icon.svg`, and two of those ar
 
 | | |
 |---|---|
-| `/` | **The terminal, and the whole app.** A 56px bar naming the pair and the block; a chart beside a 380px ticket; the positions strip underneath, one row per live offer with its size, its terms, what it has earned and what fraction of what it promises the shared balance can still deliver. Every figure pinned to one block |
+| `/` | **The terminal, and the whole app.** A 56px bar naming the pair and the block; a chart beside a 380px ticket; the positions strip underneath, one row per live offer with its size, its strike, its volatility, its expiry, what it has earned and what fraction of what it promises the shared balance can still deliver. Every figure pinned to one block |
 | `/dev` | Plain-HTML diagnostics for the wallet and contract plumbing. Not product UI, and not a route unless `DEV_ROUTES=1` |
 
 The read-layer market screen and the markout study used to be `/surface` and `/receipt`. Both were

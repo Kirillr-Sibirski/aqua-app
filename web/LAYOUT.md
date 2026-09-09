@@ -24,9 +24,9 @@ perp UI lays out.
 │                                            │  └───────────────────────┘  │
 ├────────────────────────────────────────────┴─────────────────────────────┤
 │ POSITIONS                    PROMISED 30.7400 / 10.4000 WETH 2.96×       │
-│      SIZE       STRIKE     EXPIRY      EARNED       BACKING              │
-│ ⬡C  9.9251 WETH  3,000.00  16 Sep 6d   0.00 USDC  ▓▓▓▓▓▓▓▓▓ 100%   ×     │
-│ ⬡C  9.4551 WETH  2,800.00  16 Sep 6d   0.00 USDC  ▓▓▓▓▓▓▓▓▓ 100%   ×     │
+│     SIZE       STRIKE      IV    EXPIRY     EARNED      BACKING          │
+│ ⬡C 9.9251 WETH 3,000.00  60.0%  16 Sep 6d  0.00 USDC ▓▓▓▓▓▓▓▓▓ 100%  ×   │
+│ ⬡C 9.4551 WETH 2,800.00  60.0%  16 Sep 6d  0.00 USDC ▓▓▓▓▓▓▓▓▓ 100%  ×   │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -101,11 +101,14 @@ beside the kink, in the money colour, under the same word the ticket uses, and t
 draws a curve that actually moves, is what the screen opens on. Lifting the position line by the
 premium would have claimed this instrument pays up front. It does not.
 
-**The positions strip has six columns, not seven.** `OPEN` was `SIZE × BACKING` by construction, so
-it printed the same string as `SIZE` on every untouched row. `BACKING` — the fraction of what the
-offer promises that the shared balance can still deliver — is the half that moves when a sibling is
-filled, and the absolute is one multiplication away. A `C`/`P` glyph leads the row, because a book
-that mixes a WETH-collateralised call with a USDC-collateralised put has to say which is which.
+**The positions strip trades `OPEN` for `IV`.** `OPEN` was `SIZE × BACKING` by construction, so it
+printed the same string as `SIZE` on every untouched row; `BACKING` — the fraction of what the offer
+promises that the shared balance can still deliver — is the half that moves when a sibling is
+filled, and the absolute is one multiplication away. The width goes to the leg's own `sigmaWad`,
+which is the term that makes this an options venue rather than a limit order and the one a maker
+compares across their own book: 21.2 / 20.0 / 60.0 across the offers this fork ships. A `C`/`P`
+glyph leads the row, because a book that mixes a WETH-collateralised call with a USDC-collateralised
+put has to say which is which.
 
 **The block pill stays on the phone.** It is ten characters, and a phone is exactly where a reader
 most needs to know the page is live. The wordmark and the pair name give way instead. There is one

@@ -22,6 +22,7 @@ import { ChevronDown, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Hex } from 'viem';
 import { useDock } from '@/hooks';
+import { sigmaRatio } from '@/hooks/strikeline';
 import type { BookLeg, UseBookReturn } from '@/hooks/useBook';
 import { TokenAmount, TokenAmountSkeleton, TokenIcon, tokenFractionDigits } from '@/components/token';
 import { formatPercent, formatTenor, formatUnits } from '@/lib/ui';
@@ -135,6 +136,10 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
               </th>
               <th scope="col">Size</th>
               <th scope="col">Strike</th>
+              {/* The term that makes this an options venue rather than a limit order, and the one
+                  a maker compares across their own book. It is per-leg and it varies; the column
+                  it replaced was `SIZE × BACKING`. */}
+              <th scope="col">IV</th>
               <th scope="col">Expiry</th>
               <th scope="col">Earned</th>
               {/* Not `Open`. See `Row`. */}
@@ -154,13 +159,13 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
               Array.from({ length: skeletonRows }, (_, i) => <LoadingRow key={i} />)
             ) : !connected ? (
               <tr>
-                <td colSpan={7} className={classes.emptyRow}>
+                <td colSpan={8} className={classes.emptyRow}>
                   Not connected
                 </td>
               </tr>
             ) : live.length === 0 ? (
               <tr>
-                <td colSpan={7} className={classes.emptyRow}>
+                <td colSpan={8} className={classes.emptyRow}>
                   No positions
                 </td>
               </tr>
@@ -260,11 +265,12 @@ function Columns() {
   return (
     <colgroup>
       <col style={{ width: '3.5rem' }} />
-      <col style={{ width: '24%' }} />
-      <col style={{ width: '16%' }} />
-      <col style={{ width: '16%' }} />
       <col style={{ width: '22%' }} />
-      <col style={{ width: '22%' }} />
+      <col style={{ width: '15%' }} />
+      <col style={{ width: '10%' }} />
+      <col style={{ width: '15%' }} />
+      <col style={{ width: '20%' }} />
+      <col style={{ width: '18%' }} />
       <col style={{ width: '2.5rem' }} />
     </colgroup>
   );
@@ -332,6 +338,14 @@ function Row({
             minFractionDigits: tokenFractionDigits(leg.stable.symbol),
             maxFractionDigits: tokenFractionDigits(leg.stable.symbol),
           })}
+        </Num>
+      </td>
+
+      <td>
+        {/* `sigmaWad` off the leg's own decoded `RmmSwap` args. Two significant places, because the
+            ticket publishes one and the spread across a book is tenths. */}
+        <Num tone={withdrawn ? 'dim' : undefined}>
+          {formatPercent(sigmaRatio(leg.rmm.sigmaWad), { fractionDigits: 1 })}
         </Num>
       </td>
 
@@ -432,6 +446,9 @@ function LoadingRow() {
       </td>
       <td>
         <Bar width={56} />
+      </td>
+      <td>
+        <Bar width={38} />
       </td>
       <td>
         <Bar width={48} />

@@ -749,8 +749,27 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  height: 2.25rem;
+  min-height: 2.25rem;
   padding: 0 0.75rem;
+}
+
+/*
+ * The strip header at phone width.
+ *
+ * `POSITIONS` plus `PROMISED 155.5396 / 10.4000 WETH 14.96x` is 400px of content, and the ratio is
+ * one figure that must not break — it wrapped between numerator and denominator once and put the
+ * unit in the gap. So the padding and the two gaps give up the 28px instead, which is the only
+ * width on this row that carries nothing.
+ */
+@media (max-width: 30rem) {
+  .positionsHead {
+    gap: 0.5rem;
+    padding: 0 0.5rem;
+  }
+
+  .promised {
+    gap: 0.25rem;
+  }
 }
 
 .positionsTitle {
@@ -826,7 +845,7 @@
   initial-value: 0rem;
 }
 
-@container positions (max-width: 38rem) {
+@container positions (max-width: 42rem) {
   .scroller {
     -webkit-mask-image: linear-gradient(
       to right,
@@ -858,7 +877,7 @@
 
 .table {
   width: 100%;
-  min-width: 38rem;
+  min-width: 42rem;
   border-collapse: collapse;
   table-layout: fixed;
 }

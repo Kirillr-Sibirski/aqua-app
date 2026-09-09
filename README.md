@@ -57,9 +57,9 @@ underneath. There is no navigation, because there is nowhere to go.
 │                                            │  └───────────────────────┘  │
 ├────────────────────────────────────────────┴─────────────────────────────┤
 │ POSITIONS                    PROMISED 30.7400 / 10.4000 WETH 2.96×       │
-│      SIZE      STRIKE   EXPIRY      EARNED      BACKING                  │
-│ ⬡C  9.9251 WETH  3,000.00  16 Sep 6d  0.00 USDC  ▓▓▓▓▓▓▓▓▓ 100%   ×      │
-│ ⬡C  9.4551 WETH  2,800.00  16 Sep 6d  0.00 USDC  ▓▓▓▓▓▓▓▓▓ 100%   ×      │
+│     SIZE       STRIKE      IV    EXPIRY     EARNED      BACKING          │
+│ ⬡C 9.9251 WETH 3,000.00  60.0%  16 Sep 6d  0.00 USDC ▓▓▓▓▓▓▓▓▓ 100%  ×   │
+│ ⬡C 9.4551 WETH 2,800.00  60.0%  16 Sep 6d  0.00 USDC ▓▓▓▓▓▓▓▓▓ 100%  ×   │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -89,7 +89,8 @@ is how much of what that offer advertises its wallet could hand over right now �
 `Coverage` guard itself reported when the offer was probed for the whole of it — so it reads 100%
 on an untouched book and shrinks on every sibling the moment one of them is filled. There is no
 separate `OPEN` column, because `open` is `SIZE × BACKING` by construction and two columns for one
-quantity is not density.
+quantity is not density. That width went to the leg's own implied volatility, which varies per
+offer and is the term that makes this an options book.
 
 There is one route. `next build` prints three entries and two of them are not pages:
 
