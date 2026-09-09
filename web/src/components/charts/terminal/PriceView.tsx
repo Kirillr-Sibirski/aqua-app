@@ -1,21 +1,25 @@
 'use client';
 
 /**
- * THE LIVE CURVE — where the leg actually is, and what it is holding.
+ * PRICE — the schedule this offer trades on, and where it stands on it right now.
  *
  * `y(x)` across the whole reserve domain, one `stableFor` per point inside one multicall, plus the
- * reserve point the leg is sitting on and the `tau = 0` constant-sum line ghosted behind. The gap
- * between the two is the premium the position still holds: at both ends the curves meet, and in the
- * middle the live curve sags below the settlement line by exactly what decay has yet to hand over.
+ * reserve point the leg is sitting on and the `tau = 0` constant-sum line ghosted behind. Read left
+ * to right the x axis is the risky the offer has NOT sold yet and the y axis is the stable it is
+ * holding, so the curve is a schedule — at every amount sold, what you are holding — and the slope
+ * between two points on it is the price a taker gets. That is why the tab says `price`. It used to
+ * say `curve`, which names the mark rather than the subject: every view here is a curve.
  *
- * THAT GAP GETS ITS OWN AXIS, and this is the difference between a chart and a decoration. On an
- * eight-day leg at twenty percent the gap is about sixty USDC on a reserve of twenty-seven thousand
- * — two parts in a thousand, which on a six-hundred-pixel axis is a tenth of a pixel. Shading it
- * between the curves drew a legend entry for a region nobody could see, and the view came out as
- * one straight line with a dashed line hiding under it. The two curves keep the left axis, because
- * their near-coincidence is itself the fact: an RMM leg is a constant-sum line plus a little. The
- * premium is drawn as a filled hump against a right axis of its own, at the scale it actually lives
- * at, which is the same two-axis device the decay view uses for the same reason.
+ * THE GAP BETWEEN THE TWO LINES GETS ITS OWN AXIS, and this is the difference between a chart and a
+ * decoration. On an eight-day leg at twenty percent the gap is about sixty USDC on a reserve of
+ * twenty-seven thousand — two parts in a thousand, which on a six-hundred-pixel axis is a tenth of
+ * a pixel. Shading it between the curves drew a legend entry for a region nobody could see, and the
+ * view came out as one straight line with a dashed line hiding under it. The two curves keep the
+ * left axis, because their near-coincidence is itself the fact: an RMM leg is a constant-sum line
+ * plus a little. The premium is drawn as a filled hump against a right axis of its own, at the
+ * scale it actually lives at, which is the same two-axis device the premium view uses for the same
+ * reason — and which only works once each axis says, in the reader's words and in its series'
+ * colour, what it is counting.
  *
  * Nothing here is interpolated except the straight segments the renderer draws between two measured
  * points. There is no `Phi` in TypeScript, and the reason is not tidiness: a wei-exact port of the
@@ -27,28 +31,28 @@
  * exactly. It is also the one query in the chart that never has to be repeated: no `tau` appears in
  * that branch, so the answer is the same at every block.
  */
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { scaleLinear } from 'd3-scale';
 import type { Address } from 'viem';
 import { MATURED_MATURITY, useCurveSamples } from '@/hooks/useCurveSamples';
 import type { SupportedChainId } from '@/lib/chain';
-import { color } from '@/lib/ui/tokens';
 import { AreaFill } from '../AreaFill';
 import { Axis } from '../Axis';
 import { CurveLine } from '../CurveLine';
 import { Grid } from '../Grid';
 import { tokenFractionDigits } from '@/components/token';
 import { formatChartToken } from '../format';
-import { round, type ChartGeometry, type ChartPoint } from '../types';
-import { Crosshair, UnitTag } from './Crosshair';
-import { Strip, type LegendItem, type ReadoutItem } from './chrome';
+import { type ChartGeometry, type ChartPoint } from '../types';
+import classes from './chart.module.css';
+import { Crosshair } from './Crosshair';
+import { Readout, type ReadoutItem } from './chrome';
 import { terminalError } from './errors';
+import { AxisBand, AxisName, DirectionArrow, LivePoint, SeriesLabel, Wipe } from './Marks';
 import { wadToNumber } from './payoff';
 import { Plot, PlotArea } from './Plot';
 import type { TerminalLeg, TerminalState, TerminalToken } from './types';
 
-export interface CurveViewProps {
-  control: ReactNode;
+export interface PriceViewProps {
   panelId: string;
   tabId: string;
   router?: Address;
@@ -62,13 +66,25 @@ export interface CurveViewProps {
 }
 
 /** The right margin carries the premium axis, so it is as wide as the left one. */
-const MARGIN = { top: 24, right: 62, bottom: 42, left: 62 };
+const MARGIN = { top: 26, right: 62, bottom: 42, left: 62 };
 
 /** Points across `x in [0, L]`. Each is one `eth_call` running a 40-step bisection of `Phi`. */
 const CURVE_SAMPLES = 48;
 
-export function CurveView({
-  control,
+/** Below this the axis names drop their verb; the plot is too narrow to carry both in full. */
+const COMPACT_WIDTH = 460;
+
+/**
+ * How far the direction arrow reaches back along the curve from the reserve point, in px.
+ *
+ * Long enough at desk width that its head clears the label beside the dot — the label paints last
+ * and carries a background halo, so a head inside its span would simply be erased — and short
+ * enough on a phone that it does not become a third series across a 250px plot. The label shortens
+ * to one word below the same threshold for the same reason.
+ */
+const ARROW_SPAN = { wide: 100, compact: 46 };
+
+export function PriceView({
   panelId,
   tabId,
   router,
@@ -79,7 +95,7 @@ export function CurveView({
   state,
   errorMessage,
   refusedMessage,
-}: CurveViewProps) {
+}: PriceViewProps) {
   const [index, setIndex] = useState<number | null>(null);
 
   const enabled = !!leg && state === 'ready';
@@ -144,6 +160,16 @@ export function CurveView({
    */
   const gapAt = (point: ChartPoint): number => Math.max(0, settlementAt(point.x) - point.y);
 
+  /*
+   * The readout is the cursor, not the legend, and it stopped repeating the legend.
+   *
+   * `WETH unsold` and `USDC held` were the right words in the wrong container: the x axis already
+   * says `WETH still unsold` under its ticks and the left axis already says `USDC held` beside its
+   * own, in the curve's colour, permanently. Printing them again forty pixels above was the same
+   * sentence twice in one glance. What is left is the token, its mark and the figure — plus the two
+   * quantities that live on no axis label: what the same reserves are worth once the clock runs out,
+   * and the distance between the two, which is what the maker is owed for the wait.
+   */
   const readout: ReadoutItem[] =
     shown && resolved === 'ready'
       ? [
@@ -176,25 +202,14 @@ export function CurveView({
         ]
       : [];
 
-  /* A legend names the marks on the plot. With nothing drawn there are no marks, so a refusal or an
-     error would otherwise advertise a series that is not there. Loading keeps it: the marks are
-     about to exist and the strip should not reflow when they arrive. */
-  const legend: LegendItem[] =
-    resolved !== 'ready' && resolved !== 'loading'
-      ? []
-      : [
-          { id: 'curve', color: 'accent' },
-          { id: 'at expiry', color: 'ink-3', dash: 'dashed' },
-          { id: 'reserve', color: 'accent', kind: 'dot' },
-          { id: 'premium', color: 'pos', kind: 'area' },
-        ];
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
-      <Strip control={control} legend={legend} readout={readout} />
+      {/* No legend row. The dashed line and the reserve point are labelled where they are, and each
+          axis names the series that lives on it. */}
+      <Readout items={readout} />
       <Plot
-        title="The live curve"
-        description={`The leg's trading function, sampled from the router at ${points.length} reserve points: stable reserve in ${stable.symbol} against risky reserve in ${risky.symbol} on the left axis. The dashed line is the same curve at expiry, where it degenerates to a constant sum at the strike. The filled hump is the gap between them, in ${stable.symbol}, on the right axis: the premium the leg still holds at each reserve point. The dot is where this leg's reserves sit now.`}
+        title="The price this offer trades at"
+        description={`The leg's trading function, sampled from the router at ${points.length} reserve points: the ${stable.symbol} the offer holds against the ${risky.symbol} it has not sold, on the left axis. The dashed line is the same offer at expiry, where it degenerates to a constant sum at the strike. The filled hump is the gap between them, in ${stable.symbol}, on the right axis: the premium the leg still holds at each point. The dot is where this offer's reserves sit now, and the arrow is the direction a fill moves it.`}
         margin={MARGIN}
         panelId={panelId}
         panelLabelledBy={tabId}
@@ -209,14 +224,14 @@ export function CurveView({
           },
           index,
           onIndex: setIndex,
-          label: `risky reserve, in ${risky.symbol}`,
+          label: `${risky.symbol} still unsold`,
           valueText: readout.map((item) => `${item.label} ${item.value}`).join(', '),
         }}
       >
         {(geometry) => {
           if (points.length < 2 || settlement.length < 2) return null;
 
-          const compact = geometry.inner.width < 460;
+          const compact = geometry.inner.width < COMPACT_WIDTH;
           const x = xScaleFor(geometry, points, settlement);
           /* `.nice()` rather than a 4% pad: the domain then ends on a tick, so the topmost gridline
              label is the top of the plot instead of `20,000` floating two thirds of the way up a
@@ -236,69 +251,135 @@ export function CurveView({
           }));
           const premiumMax = premiumPoints.reduce((max, p) => Math.max(max, p.y), 0);
           const yPremium = scaleLinear()
-            .domain([0, (premiumMax || 1) * 1.5])
+            /* 2.4 rather than 1.5. The hump is a derived quantity on a secondary axis, and at a
+               scale that filled the box it was the first thing the eye landed on and the last thing
+               it should have been. Confined to the lower 40% it is still readable against its own
+               ticks, and the two curves the left axis is about sit clearly above it. */
+            .domain([0, (premiumMax || 1) * 2.4])
             .range([geometry.inner.y + geometry.inner.height, geometry.inner.y]);
+
+          const bottom = geometry.inner.y + geometry.inner.height;
+
+          /* Where the dashed settlement line is furthest from the live curve on the left half, so
+             its own label sits in the widest clear space the plot has. */
+          const labelAtX = points[Math.round(points.length * 0.22)] ?? points[0];
+
+          /*
+           * The arrow: the reserve point, then back along the measured samples toward smaller `x`.
+           *
+           * A taker buying takes risky out and puts stable in, so the point walks left and up. The
+           * samples are the router's own, so the arrow lies on the curve rather than near it.
+           */
+          const arrow = reserve
+            ? [
+                { x: x(reserve.x), y: y(reserve.y) },
+                ...points
+                  .filter(
+                    (p) =>
+                      p.x < reserve.x &&
+                      x(p.x) >= x(reserve.x) - (compact ? ARROW_SPAN.compact : ARROW_SPAN.wide),
+                  )
+                  .map((p) => ({ x: x(p.x), y: y(p.y) }))
+                  .reverse(),
+              ]
+            : [];
 
           return (
             <>
               <Grid geometry={geometry} yScale={y} yCount={4} />
               <PlotArea geometry={geometry}>
-                <AreaFill
-                  points={premiumPoints}
-                  xScale={x}
-                  yScale={yPremium}
-                  baseline={0}
-                  fill="pos"
-                  tint={10}
-                />
-                <CurveLine
-                  points={premiumPoints}
-                  xScale={x}
-                  yScale={yPremium}
-                  stroke="pos"
-                  strokeWidth={1.25}
-                />
-                <CurveLine
-                  points={settlement as readonly ChartPoint[]}
-                  xScale={x}
-                  yScale={y}
-                  stroke="ink-3"
-                  strokeWidth={1.5}
-                  dash="dashed"
-                />
-                <CurveLine points={points} xScale={x} yScale={y} stroke="accent" strokeWidth={2} />
-                {reserve ? (
-                  <>
-                    {/* A drop line, so the reserve's own x is readable off the axis. */}
-                    <line
-                      x1={round(x(reserve.x))}
-                      x2={round(x(reserve.x))}
-                      y1={round(y(reserve.y))}
-                      y2={geometry.inner.y + geometry.inner.height}
-                      stroke={color('accent-dim')}
-                      strokeWidth={1}
-                      strokeDasharray="3 3"
-                    />
-                    <circle
-                      cx={round(x(reserve.x))}
-                      cy={round(y(reserve.y))}
-                      r={4}
-                      fill={color('accent')}
-                      stroke={color('surface')}
-                      strokeWidth={2}
-                    />
-                  </>
-                ) : null}
+                <Wipe geometry={geometry}>
+                  {/*
+                    * Quieter than it was, and quiet is the whole point of the change.
+                    *
+                    * This is a derived quantity on a secondary axis, and at a scale that filled the
+                    * box it was the largest and brightest shape in the view: the eye landed on the
+                    * green hump first and read it as the series. The subject of this plot is the two
+                    * curves on the left axis and the dot sitting on one of them. So the hump keeps
+                    * its outline — without one the fill dissolved into the ground and the axis on the
+                    * right named a shape nobody could find — and gives up the height instead.
+                    */}
+                  <AreaFill
+                    points={premiumPoints}
+                    xScale={x}
+                    yScale={yPremium}
+                    baseline={0}
+                    fill="pos"
+                    tint={8}
+                  />
+                  <CurveLine
+                    points={premiumPoints}
+                    xScale={x}
+                    yScale={yPremium}
+                    stroke="pos"
+                    strokeWidth={1}
+                  />
+                  {/* `ink-2` dashed, the same treatment the payoff view gives the line you would
+                      have been on instead: across this chart, dashed and grey means "the other
+                      case". At `ink-3` it disappeared under the shaded hump it crosses. */}
+                  <CurveLine
+                    points={settlement as readonly ChartPoint[]}
+                    xScale={x}
+                    yScale={y}
+                    stroke="ink-2"
+                    strokeWidth={1.5}
+                    dash="dashed"
+                  />
+                  <CurveLine points={points} xScale={x} yScale={y} stroke="accent" strokeWidth={2} />
+                  <SeriesLabel
+                    x={x(labelAtX.x) + 6}
+                    y={y(settlementAt(labelAtX.x)) - 8}
+                    tone="ink-2"
+                    className={classes.fade}
+                  >
+                    at expiry
+                  </SeriesLabel>
+                  {reserve ? (
+                    <>
+                      <DirectionArrow id={`${geometry.clipId}-arrow`} points={arrow} />
+                      <LivePoint x={x(reserve.x)} y={y(reserve.y)} baseline={bottom} />
+                      {/*
+                        * The dot, named in words, and named BELOW it.
+                        *
+                        * It is the mark the whole view exists for and it had no label at all: a
+                        * reader saw a circle on a line and had to be told. Three plain words beat a
+                        * legend entry reading `reserve`, which is the implementation's word for it
+                        * and means nothing to somebody who has not read the contracts.
+                        *
+                        * Above the dot is where the curve is, and a halo big enough to keep the
+                        * words legible there takes a bite out of the one line the view is about.
+                        * Below it is the wedge between the curve and the axis, which is empty on
+                        * every leg — the dot sits at `x = L` on a fresh offer, so the curve has
+                        * already come down to meet the axis beside it. Clamped off the axis band so
+                        * a short plot cannot push the words into the ticks.
+                        */}
+                      <SeriesLabel
+                        x={x(reserve.x) - 12}
+                        y={Math.min(y(reserve.y) + 17, bottom - 6)}
+                        anchor="end"
+                        tone="accent"
+                        className={classes.fade}
+                      >
+                        {compact ? 'now' : 'you are here'}
+                      </SeriesLabel>
+                    </>
+                  ) : null}
+                </Wipe>
               </PlotArea>
               <Axis geometry={geometry} scale={x} orientation="bottom" count={compact ? 3 : 5} />
-              <UnitTag geometry={geometry}>{risky.symbol}</UnitTag>
-              <Axis
-                geometry={geometry}
-                scale={y}
-                orientation="left"
-                count={4}
-                label={stable.symbol}
-              />
+              {/*
+                * The two ends of the axis, named, and this is the cheapest thing on the plot.
+                *
+                * `0.0` and `1.0` are a quantity of WETH; what a reader needs is that the right-hand
+                * end is an offer nobody has touched and the left-hand end is one that has been taken
+                * in full. With those two words down, the reserve point sitting hard against `none
+                * sold` and the arrow marching away from it read as one statement — this is where you
+                * are, and that is the way a fill moves you — instead of as a dot near an axis.
+                */}
+              <AxisBand geometry={geometry} start="all sold" end="none sold">
+                {compact ? `${risky.symbol} unsold` : `${risky.symbol} still unsold`}
+              </AxisBand>
+              <Axis geometry={geometry} scale={y} orientation="left" count={4} />
               <Axis
                 geometry={geometry}
                 scale={yPremium}
@@ -306,16 +387,17 @@ export function CurveView({
                 count={4}
                 textColor="ink-3"
               />
-              {/* The right axis belongs to the filled hump, and says so by standing over it. */}
-              <text
-                x={geometry.inner.x + geometry.inner.width}
-                y={geometry.inner.y - 10}
-                textAnchor="end"
-                fontSize={12}
-                fill={color('pos')}
-              >
-                premium
-              </text>
+              {/* The left axis carries both curves, so it takes the accent rule the live one wears:
+                  the dashed twin is named on the line itself, a few pixels above it. */}
+              <AxisName geometry={geometry} side="left" swatch="accent" className={classes.fade}>
+                {`${stable.symbol} held`}
+              </AxisName>
+              {/* The right axis belongs to the filled hump, and says so by standing over it in its
+                  colour — which is also what stops the hump reading as the main series when it is
+                  the tallest thing on the plot and lives on a scale a hundred times smaller. */}
+              <AxisName geometry={geometry} side="right" swatch="pos" className={classes.fade}>
+                {`premium · ${stable.symbol}`}
+              </AxisName>
               {at ? (
                 <Crosshair
                   geometry={geometry}
