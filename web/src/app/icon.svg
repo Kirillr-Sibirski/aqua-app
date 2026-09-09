@@ -4,11 +4,17 @@
     The wordmark at favicon scale: a covered call's payoff, rising with spot until the strike and
     flat above it. The white leg is the inventory the maker keeps; the cyan leg is the strike, which
     is the strikeline. The wordmark also marks the kink with a ring; at 16px that ring fills in, so
-    the favicon is the two strokes alone — same silhouette, one less thing to mush.
+    the favicon is the two strokes alone: same silhouette, one less thing to mush.
 
-    Colours are the palette resolved to sRGB, because a static asset cannot read a custom property:
-    #0a0d0f is --bg, #f1f4f6 is --ink, #4ed5d5 is --accent. The ground is opaque so the mark holds
-    on a light tab strip as well as a dark one.
+    Colours are the palette resolved to sRGB, because a static asset cannot read a custom property.
+    #0a0d0f is the bg token, #f1f4f6 the ink token, #4ed5d5 the accent. The ground is opaque so the
+    mark holds on a light tab strip as well as a dark one.
+
+    No token here is written with its CSS double-dash prefix, and that is load-bearing rather than
+    style: SVG is XML, a double hyphen may not appear inside an XML comment, and a strict parser
+    rejects the whole document over one. Chrome renders such a file as a page and refuses it as an
+    image, which is exactly the split that hides the bug: the tab keeps working off favicon.ico
+    while every consumer that parses the SVG properly gets nothing.
 
     Swapping the mark is editing this file and re-running `node scripts/favicon.mjs`, which redraws
     favicon.ico from it.
