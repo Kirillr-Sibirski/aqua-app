@@ -32,44 +32,63 @@ That is the trade. If ETH moves more than the volatility you chose, you would
 have done better holding. You can withdraw the offer at any moment, and
 withdrawing moves no tokens.
 
-## The app: one card, three fields, one button
+## The app: one screen
 
-The front door is a single 480px card, centred, and nothing else. Three fields and one button:
+One route. A 56px bar naming the instrument, a chart beside a 380px ticket, the positions
+underneath. There is no navigation, because there is nowhere to go.
 
 ```
-Sell        10.4        WETH      You hold 10.4 WETH              Max
-if it reaches   2,600   USDC      6.1% above today's 2,450.91
-by          Fri 18 Sep            8 days away, 08:00 UTC
-
-If it is taken in full                              +46.36 USDC
-What you give up                              above 2,604.97
-                    [ Publish offer ]
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ◇ strikeline   ⬡ WETH/USDC 2,442.43 -2.15% 3d   0x70…79C8                │  56px
+├────────────────────────────────────────────┬─────────────────────────────┤
+│  [ payoff | curve | decay ]                │  SELL                 10.4  │
+│                                            │  ⬡ WETH  [ 10.4      ]  MAX │
+│   payoff at expiry against                 │  STRIKE                     │
+│   holding; the live curve with             │  ⬡ USDC  [ 2,600     ] +6.5%│
+│   its reserve point; the decay             │  EXPIRY                  8d │
+│   band widening over time —                │  [ 18 Sep ]  [1w] [2w] [1m] │
+│   all three sampled from the               │  ─────────────────────────  │
+│   router, none of them a model             │  Premium     +101.77 USDC   │
+│                                            │  Capped at    2,609.79 USDC │
+│                                            │  IV                24.0 %   │
+│                                            │  ┌───────────────────────┐  │
+│                                            │  │     Publish offer     │  │
+│                                            │  └───────────────────────┘  │
+├────────────────────────────────────────────┴─────────────────────────────┤
+│ POSITIONS            PROMISED 30.74 / 10.4 WETH 2.96×                    │
+│ ⬡ 9.9251 WETH  3,000  16 Sep  9.9251 open  0  ▓▓▓▓▓▓▓▓▓  ×               │
+│ ⬡ 9.4551 WETH  2,800  16 Sep  9.4551 open  0  ▓▓▓▓▓▓▓▓▓  ×               │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-All three fields arrive pre-filled from the chain, so a person who agrees with the defaults
+The three controls arrive pre-filled from the chain, so a person who agrees with the defaults
 publishes in **one click** with a wallet already attached, three from cold. Every figure is a chain
-read: the amount from a `balanceOf` multicall, the price from the Chainlink feed the manifest names,
-the date from the block clock rather than the browser's, and the two lines under the fields from
-`StrikelineViews.stableFor` asked twice in one multicall, once at the offer's own date and once with
-the date set to zero, where the curve degenerates to the constant-sum order it becomes at expiry.
-The card quotes before a wallet is connected, because those are view calls and need no signer.
+read: the amount from a `balanceOf` multicall, the strike from the Chainlink feed the manifest
+names, the date from the block clock rather than the browser's, and the premium from
+`StrikelineViews.stableFor` asked twice in one multicall — once at the offer's own date and once
+with the date set to zero, where the curve degenerates to the constant-sum order it becomes at
+expiry. The ticket quotes before a wallet is connected, because those are view calls and need no
+signer.
 
-Nothing on that surface says strike, notional, implied volatility or leg. Those words are correct
-and they are one disclosure away, under *Details*, where someone has asked for them.
+Everything on the screen is read at one block, and that block is printed in the bar. That is what
+lets a fill land on one offer and shrink what the others can deliver in the same commit, rather than
+as four figures drifting into place as their own pollers fire.
 
-There are five screens and two tabs.
+`PROMISED 30.74 / 10.4` is the number no other venue can print: 30.74 WETH written across four
+offers against the 10.4 WETH actually in the wallet, none of which ever moved. The meter on each row
+is how much of what that offer advertises its wallet could hand over right now — the bound the
+`Coverage` guard itself reported when the offer was probed for the whole of it.
 
-| Route | What it is | In the nav |
+There is one route and two artifacts.
+
+| Route | What it is | Reachable from |
 |---|---|---|
-| `/` | the card | tab 1 |
-| `/offers` | the positions view: one wallet balance, every offer's claim on it, read at one block | tab 2, once this wallet has published something |
-| `/offer/[hash]` | one offer in full: its curve, the gap that pays it, every trade against it, and the two actions that change it | from a row |
+| `/` | the terminal: chart, ticket, positions | — |
 | `/surface` | every offer any wallet has made, rebuilt from the log. Needs no wallet | footer |
 | `/receipt` | the markout study: one week of real Base prices, replayed | footer |
 
-A positions view is worth having and is never what greets a first-time visitor, so the second tab
-appears only once there is something behind it. `/surface` and `/receipt` are demonstrations of the
-read layer rather than steps in making an offer, so they are reached from a quiet footer line.
+`/surface` and `/receipt` are demonstrations of the read layer rather than steps in writing an
+offer, so they are reached from a quiet footer line and nothing on the terminal links to them.
 
 ## The two custom SwapVM instructions
 

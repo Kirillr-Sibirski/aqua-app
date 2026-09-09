@@ -6,8 +6,8 @@ The maker's screen. Next.js 16 / React 19 / wagmi 3, dark only, every number rea
 npm ci
 npm run dev            # http://localhost:3000. Reads /deployments/local.json, written by `make bootstrap`
 npm run build          # production build, and the typecheck that goes with it
-npm test               # 291 vitest tests. The four fork suites skip when no anvil is listening
-node scripts/contrast.mjs   # all 22 design-token pairs against their contrast floor
+npm test               # 335 vitest tests. The four fork suites skip when no anvil is listening
+node scripts/contrast.mjs   # all 36 design-token pairs against their contrast floor
 ```
 
 The app needs a local Base fork to show anything: `make fork && make bootstrap` from the repo root.
@@ -17,15 +17,15 @@ it reads the same events through viem and says so on screen ([how to deploy one]
 
 ## Routes
 
+The app is one screen. `/surface` and `/receipt` are read-layer artifacts rather than steps in
+writing an offer, so nothing on the terminal links to them and they are reached from the footer.
+
 | | |
 |---|---|
-| `/` | The book you already have, or the one action that produces one |
-| `/write` | Pick the price you would sell at, the vol and the date. Sizes the leg, ships it to Aqua |
-| `/offers` | **The second tab, never the front door.** One bar per token — the real wallet balance with every offer's claim stacked inside it — over a table of what you are selling, at what price, by when, how much can actually be taken right now, and what has been earned. Every figure pinned to one block |
-| `/leg/[hash]` | One leg. The curve, the fills, and the roll to the next expiry |
-| `/surface` | **Market.** Every offer anyone has made on this router, with the best bid across all makers, rebuilt from the chain's log. Needs no wallet, which is why it is second in the nav |
-| `/kitchen-sink` | Every primitive in all five states, server-rendered, no wallet. `noindex` |
-| `/dev` | Plain-HTML diagnostics for the wallet and contract plumbing. Not product UI |
+| `/` | **The terminal, and the whole app.** A 56px bar naming the pair and the block; a chart beside a 380px ticket; the positions strip underneath, one row per live offer with what can still be taken, what it has earned and a backing meter. Every figure pinned to one block |
+| `/surface` | **Market.** Every offer anyone has made on this router, with the best bid across all makers, rebuilt from the chain's log. Needs no wallet |
+| `/receipt` | **Markout.** One week of real Base prices replayed through the shipped contracts, marked against holding and against a constant-product pool. Labelled a simulation everywhere it appears |
+| `/dev` | Plain-HTML diagnostics for the wallet and contract plumbing. Not product UI, and not a route unless `DEV_ROUTES=1` |
 
 ## Where things live
 
@@ -36,7 +36,10 @@ it reads the same events through viem and says so on screen ([how to deploy one]
 | `src/hooks/` | Chain reads: balances, shipped strategies, quotes, ships, docks, decoded custom errors |
 | `src/components/curve/` | The RMM-01 curve in TypeScript, and `buildLegProgram` |
 | `src/components/surface/` | The three-source read path: The Graph, then the logs, then `SurfaceLens`. `ReadLayer` is the panel that says which of them answered and prints the query |
-| `src/components/ui/` | The primitives DESIGN.md specifies, including the five states every data surface ships |
+| `src/components/terminal/` | The one screen: the bar, the ticket, the positions strip, and the draft both the chart and the ticket read |
+| `src/components/charts/terminal/` | `TerminalChart`: payoff, curve and decay, each sampled from the router rather than modelled |
+| `src/components/token/` | The token marks, the pair, and `TokenAmount` — the one way this app prints a quantity |
+| `src/components/sell/` | What stands behind the ticket: `useOffer` (sizing, through `stableFor`), `usePublish`, the realised-vol measurement, the date arithmetic, the wallet control |
 | `src/app/globals.css` | The OKLCH tokens. Nothing in the app hard-codes a colour |
 
 `AGENTS.md` is not ours: `next dev` regenerates it on every run, and it is committed so the tree
