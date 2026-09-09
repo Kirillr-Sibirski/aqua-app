@@ -7,6 +7,8 @@
  */
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/ui';
+import { backingIsShort } from './backing';
+import { Labelled } from './Explain';
 import classes from './terminal.module.css';
 
 /** A block of the right size, where a number is about to be. Never the word "loading". */
@@ -64,11 +66,31 @@ export function Num({
  * the picture of it, and a picture of a number that is already on the row is decoration to a reader
  * who cannot see it.
  */
-export function Meter({ value, cells = 9 }: { value: number; cells?: number }) {
+export function Meter({
+  value,
+  cells = 9,
+  digits = 0,
+}: {
+  value: number;
+  cells?: number;
+  /**
+   * The fraction digits the percentage beside this meter is printed at.
+   *
+   * The picture and the figure have to agree about what "full" is, and they did not: the meter
+   * turned amber below `0.999` while the figure rounds to `100%` anywhere above `0.995`, so a
+   * four-thousandths shortfall drew a warning bar next to a reading of 100% and a reader had to
+   * decide which of the two to believe. Full is now defined once, as "the figure beside it says
+   * 100%", and both the colour and the last cell follow from it.
+   */
+  digits?: number;
+}) {
   const clamped = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
-  const on = Math.round(clamped * cells);
+  const short = backingIsShort(clamped, digits);
+  /* A short meter never lights its last cell. Nine cells rounded from 0.99 lit all nine and then
+     coloured them amber, which is a full bar claiming to be short. */
+  const on = short ? Math.min(cells - 1, Math.round(clamped * cells)) : cells;
   return (
-    <span className={classes.meter} data-short={clamped < 0.999 || undefined} aria-hidden="true">
+    <span className={classes.meter} data-short={short || undefined} aria-hidden="true">
       {Array.from({ length: cells }, (_, i) => (
         <span key={i} className={classes.meterCell} data-on={i < on || undefined} />
       ))}
@@ -89,11 +111,17 @@ export function Meter({ value, cells = 9 }: { value: number; cells?: number }) {
  */
 export function FigureRow({
   label,
+  explain,
   unit,
   children,
   className,
 }: {
   label: string;
+  /**
+   * An `<Explain>`, for a figure whose label and unit do not between them say what it is. It rides
+   * the label's baseline inside the label track, so the numeric rail is untouched by it.
+   */
+  explain?: ReactNode;
   /** `USDC`, `%`. Rendered in its own fixed track so the digits above it line up. */
   unit?: ReactNode;
   children: ReactNode;
@@ -101,7 +129,16 @@ export function FigureRow({
 }) {
   return (
     <div className={cn(classes.figure, className)}>
-      <span className={classes.figureLabel}>{label}</span>
+      <span className={classes.figureLabel}>
+        {explain ? (
+          <Labelled>
+            {label}
+            {explain}
+          </Labelled>
+        ) : (
+          label
+        )}
+      </span>
       <span className={classes.figureValue}>{children}</span>
       <span className={classes.figureUnit}>{unit}</span>
     </div>

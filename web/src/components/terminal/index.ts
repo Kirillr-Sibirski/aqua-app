@@ -20,5 +20,8 @@ export type { TicketDraft, UseTicketDraftParams } from './useTicketDraft';
 
 export { backingRatio } from './backing';
 
+export { Explain, Labelled } from './Explain';
+export type { ExplainProps } from './Explain';
+
 export { useSpotWindow, formatSpan } from './useSpotWindow';
 export type { SpotWindow, UseSpotWindowParams, UseSpotWindowResult } from './useSpotWindow';

@@ -29,3 +29,20 @@ export function backingRatio(open: bigint, written: bigint): number {
   if (open >= written) return 1;
   return Number((open * SCALE) / written) / Number(SCALE);
 }
+
+/**
+ * Whether the meter beside a backing figure should draw itself short.
+ *
+ * It lives here, next to the ratio, because the picture and the figure have to agree about what
+ * "full" is and they did not: the meter warned below `0.999` while `formatPercent(..., 0)` rounds to
+ * `100%` anywhere above `0.995`. Between those two numbers a row printed `100%` beside an amber bar
+ * and left the reader to pick one. Full is defined once, as "the figure beside it reads 100", and
+ * both the colour and the last cell of the meter follow from this.
+ *
+ * @param digits the fraction digits the percentage beside the meter is printed at.
+ */
+export function backingIsShort(value: number, digits = 0): boolean {
+  if (!Number.isFinite(value)) return true;
+  const scale = 10 ** digits;
+  return Math.round(Math.max(0, Math.min(1, value)) * 100 * scale) / scale < 100;
+}

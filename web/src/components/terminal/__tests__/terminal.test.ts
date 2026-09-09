@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { backingRatio } from '../backing';
+import { backingIsShort, backingRatio } from '../backing';
+import { formatPercent } from '@/lib/ui';
 import { formatSpan } from '../useSpotWindow';
 
 const ZERO = BigInt(0);
@@ -34,6 +35,33 @@ describe('backingRatio', () => {
     // 1e6 WETH at 18 decimals is 1e24 — a float numerator would round before dividing.
     const written = WAD * BigInt(1_000_000);
     expect(backingRatio(written / BigInt(2), written)).toBe(0.5);
+  });
+});
+
+describe('backingIsShort', () => {
+  // The one thing that matters: the meter and the figure beside it can never disagree, because the
+  // meter's threshold IS the figure's rounding. Asserted against the formatter the row calls.
+  const reads100 = (value: number) => formatPercent(value, { fractionDigits: 0 }) === '100%';
+
+  it('agrees with the printed percentage at every boundary around full', () => {
+    for (const value of [1, 0.99999, 0.9995, 0.99949, 0.995, 0.9949, 0.99, 0.5, 0]) {
+      expect(backingIsShort(value)).toBe(!reads100(value));
+    }
+  });
+
+  it('was the bug: a figure reading 100% used to sit beside an amber meter', () => {
+    // 0.997 prints `100%` and the old `< 0.999` threshold painted the bar amber.
+    expect(formatPercent(0.997, { fractionDigits: 0 })).toBe('100%');
+    expect(backingIsShort(0.997)).toBe(false);
+  });
+
+  it('follows the figure when the figure is printed at more places', () => {
+    expect(backingIsShort(0.9994, 0)).toBe(false);
+    expect(backingIsShort(0.9994, 2)).toBe(true);
+  });
+
+  it('treats a value it cannot read as short, never as full', () => {
+    expect(backingIsShort(Number.NaN)).toBe(true);
   });
 });
 
