@@ -103,27 +103,18 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
 
       <div className={classes.scroller}>
         <table className={classes.table}>
+          <Columns />
           <thead>
             <tr>
-              <th scope="col" className={classes.cellStart} style={{ width: '22%' }}>
+              <th scope="col" className={classes.cellStart}>
                 Size
               </th>
-              <th scope="col" style={{ width: '13%' }}>
-                Strike
-              </th>
-              <th scope="col" style={{ width: '13%' }}>
-                Expiry
-              </th>
-              <th scope="col" style={{ width: '17%' }}>
-                Open
-              </th>
-              <th scope="col" style={{ width: '17%' }}>
-                Earned
-              </th>
-              <th scope="col" style={{ width: '12%' }}>
-                Backing
-              </th>
-              <th scope="col" style={{ width: '6%' }}>
+              <th scope="col">Strike</th>
+              <th scope="col">Expiry</th>
+              <th scope="col">Open</th>
+              <th scope="col">Earned</th>
+              <th scope="col">Backing</th>
+              <th scope="col">
                 <span className="sr-only">Withdraw</span>
               </th>
             </tr>
@@ -155,36 +146,58 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
               ))
             )}
           </tbody>
+
+          {/* The withdrawn legs go in the same table, and in the same scroller, deliberately.
+              They used to be a second `<table>` in a second `<div class="scroller">` below this
+              one, and that was two bugs. The columns disagreed, because `table-layout: fixed` had
+              no widths to read in a table with no header row. And the strip grew without bound:
+              the shell is `100dvh` with `overflow: hidden` on a desk, so a second 15.5rem scroll
+              region opening under the first pushed the section past what the screen could hold —
+              at twelve withdrawn legs the chart's x-axis painted over the POSITIONS heading and
+              the footer painted over the last row. One table cannot do either. */}
+          {showWithdrawn ? (
+            <tbody>
+              {withdrawn.map((leg) => (
+                <Row key={leg.key} leg={leg} withdrawn />
+              ))}
+            </tbody>
+          ) : null}
         </table>
       </div>
 
       {withdrawn.length > 0 ? (
-        <>
-          <button
-            type="button"
-            className={classes.disclosure}
-            aria-expanded={showWithdrawn}
-            onClick={() => setShowWithdrawn((v) => !v)}
-          >
-            <ChevronDown size={13} strokeWidth={1.75} aria-hidden="true" className={classes.disclosureChevron} />
-            <span>
-              {withdrawn.length} withdrawn
-            </span>
-          </button>
-          {showWithdrawn ? (
-            <div className={classes.scroller}>
-              <table className={classes.table}>
-                <tbody>
-                  {withdrawn.map((leg) => (
-                    <Row key={leg.key} leg={leg} withdrawn />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </>
+        <button
+          type="button"
+          className={classes.disclosure}
+          aria-expanded={showWithdrawn}
+          onClick={() => setShowWithdrawn((v) => !v)}
+        >
+          <ChevronDown size={13} strokeWidth={1.75} aria-hidden="true" className={classes.disclosureChevron} />
+          <span>{withdrawn.length} withdrawn</span>
+        </button>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * The column widths, stated once and away from the headings.
+ *
+ * `table-layout: fixed` takes its geometry from the first row it can find unless a `<colgroup>`
+ * tells it otherwise, which made the widths a property of the header cells and so of whichever
+ * `<tbody>` happened to be rendered. Here they are a property of the table.
+ */
+function Columns() {
+  return (
+    <colgroup>
+      <col style={{ width: '22%' }} />
+      <col style={{ width: '13%' }} />
+      <col style={{ width: '13%' }} />
+      <col style={{ width: '17%' }} />
+      <col style={{ width: '17%' }} />
+      <col style={{ width: '12%' }} />
+      <col style={{ width: '6%' }} />
+    </colgroup>
   );
 }
 
