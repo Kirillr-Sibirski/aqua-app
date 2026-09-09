@@ -1,0 +1,122 @@
+/*
+ * Motion for the chart, and the short list of things that get any.
+ *
+ * There are four moments and each one carries information a still frame cannot:
+ *
+ *   the pill under the segmented control SLIDES, which says the three views are one thing you move
+ *   along rather than three buttons; the caption CROSS-FADES, so a switch reads as one line being
+ *   replaced rather than a word changing under the eye; a series WIPES IN from the left, along its
+ *   own x axis, so the direction the shape grows in is the first thing seen; and the arrow at the
+ *   reserve point MARCHES the way a fill moves it, which is the one fact on the price view that a
+ *   static picture genuinely cannot state.
+ *
+ * Nothing else moves. There is no hover lift, no scroll reveal and no decorative pulse: a desk tool
+ * that moves when nothing has happened teaches a reader to stop looking.
+ *
+ * The design tokens reserve 140-200ms for STATE CHANGES: a hover, a press, a pill swapping sides.
+ * Two of the four above are not state changes — a shape being drawn has to be slow enough to
+ * follow, and a direction being shown is a loop rather than a transition — so this file declares
+ * two durations of its own, and no component hard-codes one. The other two use the shared tokens
+ * through Tailwind's `transition-state` utility.
+ *
+ * REDUCED MOTION is handled once, globally: `globals.css` sets `animation-duration: 1ms` and
+ * `animation-iteration-count: 1` on every element under `prefers-reduced-motion: reduce`. Every
+ * animation here therefore lands on its final frame instantly, which is why each one is written as
+ * `from` -> the resting state rather than as a loop that only looks right while it is running.
+ */
+
+.chart {
+  /* A shape being drawn. Long enough to read the direction it grows in, short enough that a view
+     switch still feels instant. */
+  --duration-draw: 460ms;
+  /* One pass of the arrow that says which way a fill moves the reserve point. */
+  --duration-march: 2600ms;
+}
+
+/*
+ * The series reveal: a left-to-right wipe.
+ *
+ * `clip-path` on the group, so no stroke is scaled and no dash pattern stretched — the geometry
+ * that reaches the screen is the geometry that was measured, and the only thing moving is the
+ * window it is seen through. The wipe runs along the x axis in every view: days waited on the
+ * premium view, spot on the payoff, reserves still unsold on the price.
+ *
+ * It runs on mount and never again. A resize or a refetch updates attributes on the same node, so
+ * the animation does not restart and a chart that repolls every thirty seconds does not blink.
+ */
+.wipe {
+  animation: wipe var(--duration-draw) var(--ease-out-quart) both;
+}
+
+@keyframes wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/*
+ * Labels, markers and the axis names fade in behind the wipe rather than wiping with it: a label
+ * that arrives by sliding reads as a second series. The delay is half the draw, so the shape is
+ * already legible when its name appears.
+ */
+.fade {
+  animation: fade calc(var(--duration-draw) * 0.6) var(--ease-out-quart) both;
+  animation-delay: calc(var(--duration-draw) * 0.45);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * The direction a fill moves the reserve point, marching along the curve.
+ *
+ * `stroke-dashoffset` only, so the arrow's geometry is the curve's geometry and the motion is the
+ * dash pattern travelling along it. Under reduced motion the offset lands on 0 and the arrow is a
+ * static dashed segment with a head on it, which still says which way.
+ */
+.march {
+  animation: march var(--duration-march) linear infinite;
+}
+
+@keyframes march {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/*
+ * The precise term, first line of the note.
+ *
+ * `Explain` owns the popover — it is the ticket's affordance, shared rather than rebuilt — and its
+ * body styles every paragraph as prose. This one is not prose: it is the options term for the plot,
+ * set in mono so a reader who already knows it can find it and skip the three sentences under it.
+ */
+.noteTerm {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  letter-spacing: normal;
+  color: var(--ink-3);
+}
+
+/*
+ * The caption under the control, on a view change.
+ *
+ * Keyed on the view, so switching tabs remounts it and the line cross-fades instead of swapping
+ * mid-word. No vertical movement: it sits above the plot and a caption that slides would push the
+ * eye away from the chart it is naming.
+ */
+.caption {
+  animation: fade var(--duration-base) var(--ease-out-quart) both;
+}

@@ -61,7 +61,7 @@ export function Crosshair({ geometry, x, dots = [], label }: CrosshairProps) {
             cy={round(clamp(dot.y, inner.y - 2, inner.y + inner.height + 2))}
             r={3.5}
             fill={color(dot.color)}
-            stroke={color('surface')}
+            stroke={color('bg')}
             strokeWidth={1.5}
           />
         ) : null,
@@ -93,29 +93,5 @@ export function Crosshair({ geometry, x, dots = [], label }: CrosshairProps) {
         </g>
       ) : null}
     </g>
-  );
-}
-
-/**
- * The x axis's unit, once, under its right end.
- *
- * A tick that reads `2,600` is a number until something says what of. Repeating `USDC` on every
- * tick would be five copies of one fact and a wider margin to hold them; the y axis gets the same
- * treatment from `Axis`'s own `label`, at the other corner.
- */
-export function UnitTag({ geometry, children }: { geometry: ChartGeometry; children: string }) {
-  const { inner } = geometry;
-  return (
-    <text
-      x={inner.x + inner.width}
-      y={inner.y + inner.height + 26}
-      dy="0.71em"
-      textAnchor="end"
-      fontSize={12}
-      fill={color('ink-3')}
-      aria-hidden="true"
-    >
-      {children}
-    </text>
   );
 }
