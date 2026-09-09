@@ -22,7 +22,7 @@ import { useState, type ReactNode } from 'react';
 import { scaleLinear } from 'd3-scale';
 import type { Address } from 'viem';
 import type { SupportedChainId } from '@/lib/chain';
-import { color, colorMix } from '@/lib/ui/tokens';
+import { color, colorMix, FONT_STACK } from '@/lib/ui/tokens';
 import { Axis } from '../Axis';
 import { CurveLine } from '../CurveLine';
 import { Grid } from '../Grid';
@@ -145,12 +145,18 @@ export function PayoffView({
      figures standing in the strip above an empty box. */
   const readout: ReadoutItem[] = anchors && resolved === 'ready' ? readoutAt(at, anchors) : [];
 
-  const legend: LegendItem[] = [
-    { id: 'position', color: 'accent' },
-    { id: 'hold', color: 'ink-2', dash: 'dashed' },
-    { id: 'premium', color: 'pos', kind: 'area' },
-    { id: 'given up', color: 'neg', kind: 'area' },
-  ];
+  /* A legend names the marks on the plot. With nothing drawn there are no marks, so a refusal or an
+     error would otherwise advertise a series that is not there. Loading keeps it: the marks are
+     about to exist and the strip should not reflow when they arrive. */
+  const legend: LegendItem[] =
+    resolved !== 'ready' && resolved !== 'loading'
+      ? []
+      : [
+          { id: 'position', color: 'accent' },
+          { id: 'hold', color: 'ink-2', dash: 'dashed' },
+          { id: 'premium', color: 'pos', kind: 'area' },
+          { id: 'given up', color: 'neg', kind: 'area' },
+        ];
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
@@ -192,15 +198,22 @@ export function PayoffView({
           const compact = geometry.inner.width < 460;
 
           /*
-           * A cheap leg puts the strike and the cap within a few dollars of each other, which on a
-           * thousand-pixel axis is two rules one pixel apart carrying two labels that touch. The
-           * cap is the one that answers the question -- it is the strike plus what the wait pays --
-           * so when they collide the strike keeps its rule and loses its label.
+           * The strike and the cap are a few dollars apart on a leg this cheap, and the gap between
+           * them IS the premium: `cap = K + earned/x`, which is the one place on this plot where
+           * the number the ticket prints is a visible distance rather than an invisible area.
+           *
+           * So both labels stay. They used to collide, and the fix was to drop the strike's — which
+           * left one labelled rule and an unlabelled twin beside it, and took the premium off the
+           * picture entirely. `MarkerLayer` already slides overlapping labels apart and draws a
+           * leader from each back to its own rule; letting it do that is the whole fix.
            */
-          const labelWidth = estimateMonoTextWidth(`cap ${money(anchors.capSpot)}`, 12);
-          const crowded =
-            Math.abs(xFor(anchors.capSpot, domain, geometry) - xFor(anchors.strike, domain, geometry)) <
-            labelWidth;
+          /* Which side of the kink the premium label goes on, so it never leaves the plot. */
+          const kinkAtRight =
+            xFor(anchors.capSpot, domain, geometry) >
+            geometry.inner.x +
+              geometry.inner.width -
+              estimateMonoTextWidth(`premium ${money(anchors.earned, 'always')}`, 12) -
+              12;
 
           const forgonePath = polygon(forgonePoints(anchors, domain), x, y);
           const premiumPath = polygon(premiumPoints(anchors, domain), x, y);
@@ -209,7 +222,7 @@ export function PayoffView({
             {
               id: 'strike',
               value: anchors.strike,
-              label: compact || crowded ? undefined : `K ${money(anchors.strike)}`,
+              label: compact ? undefined : `K ${money(anchors.strike)}`,
               stroke: 'ink-3',
               labelColor: 'ink-2',
             },
@@ -238,10 +251,14 @@ export function PayoffView({
             <>
               <Grid geometry={geometry} yScale={y} yCount={4} />
               <PlotArea geometry={geometry}>
-                {forgonePath ? <path d={forgonePath} fill={colorMix('neg', 16)} stroke="none" /> : null}
+                {forgonePath ? (
+                  <path d={forgonePath} fill={colorMix('neg', 16)} stroke="none" />
+                ) : null}
                 {/* Drawn under the lines, like the wedge: it is bounded by the hold line above the
                     strike and by the cap, and both of those are strokes that must stay readable. */}
-                {premiumPath ? <path d={premiumPath} fill={colorMix('pos', 20)} stroke="none" /> : null}
+                {premiumPath ? (
+                  <path d={premiumPath} fill={colorMix('pos', 20)} stroke="none" />
+                ) : null}
                 <CurveLine
                   points={positionPoints(anchors, domain)}
                   xScale={x}
@@ -270,18 +287,63 @@ export function PayoffView({
                   stroke={color('surface')}
                   strokeWidth={1.5}
                 />
+                {/*
+                  * The premium, printed at the point it is realised.
+                  *
+                  * The triangle above is `earned` tall at the strike, and `earned` is fifty-nine
+                  * USDC on a position worth twenty-six thousand: three pixels on a three-hundred-
+                  * pixel axis. Every honest way of drawing it is invisible, and the dishonest way —
+                  * lifting the position line by the premium — would claim this instrument pays up
+                  * front, which it does not. So the region is drawn where it truly is and the
+                  * figure is written beside the kink, in the money colour, in the same two places
+                  * and under the same word the ticket uses.
+                  */}
+                {!compact ? (
+                  <text
+                    x={round(x(anchors.capSpot)) + (kinkAtRight ? -8 : 8)}
+                    y={round(y(anchors.cap)) + 18}
+                    textAnchor={kinkAtRight ? 'end' : 'start'}
+                    fontFamily={FONT_STACK.mono}
+                    fontSize={12}
+                    fill={color('pos')}
+                    stroke={color('bg')}
+                    strokeWidth={4}
+                    strokeLinejoin="round"
+                    paintOrder="stroke"
+                    style={{ fontVariantNumeric: 'tabular-nums slashed-zero' }}
+                  >
+                    {`premium ${money(anchors.earned, 'always')}`}
+                  </text>
+                ) : null}
               </PlotArea>
               <Axis geometry={geometry} scale={x} orientation="bottom" count={compact ? 3 : 5} />
               <UnitTag geometry={geometry}>{`${stable.symbol}/${risky.symbol}`}</UnitTag>
-              <Axis geometry={geometry} scale={y} orientation="left" count={4} label={stable.symbol} />
-              <MarkerLayer geometry={geometry} scale={x} items={markers} labelSide="start" />
+              <Axis
+                geometry={geometry}
+                scale={y}
+                orientation="left"
+                count={4}
+                label={stable.symbol}
+              />
+              {/* 12px between labels rather than the default 8: `K 2,600.00` and `cap 2,605.68`
+                  are dodged apart from rules five dollars apart, and at 8px the two figures read
+                  as one string. */}
+              <MarkerLayer geometry={geometry} scale={x} items={markers} labelSide="start" gap={12} />
               {index !== null ? (
                 <Crosshair
                   geometry={geometry}
                   x={x(at)}
                   dots={[
-                    { id: 'hold', y: y(holdValue(at, anchors)), color: 'ink-2' },
-                    { id: 'position', y: y(positionValue(at, anchors)), color: 'accent' },
+                    {
+                      id: 'hold',
+                      y: y(holdValue(at, anchors)),
+                      color: 'ink-2',
+                    },
+                    {
+                      id: 'position',
+                      y: y(positionValue(at, anchors)),
+                      color: 'accent',
+                    },
                   ]}
                   label={money(at)}
                 />
@@ -324,20 +386,29 @@ function money(value: number, sign: 'auto' | 'always' = 'auto'): string {
 /**
  * The five figures, at one spot. Same shape whether the cursor is down or resting.
  *
- * `premium` does not move with the cursor, and that is the point of putting it here: it is the one
- * figure on the chart that is a property of the offer rather than of where the pointer is, it is
- * the same `earned` the ticket prints under the same word, and without it the readout said
- * `vs hold +0.00` while the ticket three hundred pixels away said `Premium +146.13`.
+ * The last two name the two shaded regions, so every colour on the plot has a number beside it and
+ * neither region is a mood. `premium` is a property of the offer rather than of the pointer — the
+ * same `earned` the ticket prints under the same word, from the same `stableFor` — and `given up`
+ * is what the red wedge is worth at this spot, which is zero everywhere below the cap.
+ *
+ * It used to read `vs hold`, which is `position - hold` and is the same quantity negated. That was
+ * a worse name for two reasons: it printed `+0.00` at rest, three hundred pixels from the ticket's
+ * `Premium +59.08`, so the product's headline benefit appeared to be nothing and its cost appeared
+ * to be the only thing on the chart; and it named neither of the two regions actually drawn.
  */
 function readoutAt(at: number, a: PayoffAnchors): ReadoutItem[] {
   const position = positionValue(at, a);
   const hold = holdValue(at, a);
-  const delta = position - hold;
+  const givenUp = Math.max(0, hold - position);
   return [
     { label: 'spot', value: money(at) },
     { label: 'position', value: money(position), tone: 'accent' },
     { label: 'hold', value: money(hold), tone: 'ink-2' },
     { label: 'premium', value: money(a.earned, 'always'), tone: 'pos' },
-    { label: 'vs hold', value: money(delta, 'always'), tone: delta < 0 ? 'neg' : 'ink-2' },
+    {
+      label: 'given up',
+      value: money(givenUp),
+      tone: givenUp > 0 ? 'neg' : 'ink-2',
+    },
   ];
 }
