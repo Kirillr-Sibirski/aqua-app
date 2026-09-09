@@ -39,45 +39,57 @@ underneath. There is no navigation, because there is nowhere to go.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ ◇ strikeline   ⬡ WETH/USDC 2,442.43 -2.15% 3d   0x70…79C8                │  56px
+│ ◇ strikeline  ⬡ WETH/USDC 2,442.43 -2.15% 3d   ● 50,946,647   0x70…79C8  │  56px
 ├────────────────────────────────────────────┬─────────────────────────────┤
-│  [ payoff | curve | decay ]                │  SELL                 10.4  │
-│                                            │  ⬡ WETH  [ 10.4      ]  MAX │
-│   payoff at expiry against                 │  STRIKE                     │
-│   holding; the live curve with             │  ⬡ USDC  [ 2,600     ] +6.5%│
-│   its reserve point; the decay             │  EXPIRY                  8d │
-│   band widening over time —                │  [ 18 Sep ]  [1w] [2w] [1m] │
-│   all three sampled from the               │  ─────────────────────────  │
-│   router, none of them a model             │  Premium     +101.77 USDC   │
-│                                            │  Capped at    2,609.79 USDC │
-│                                            │  IV                24.0 %   │
+│  [ decay | payoff | curve ]                │  SELL          MAX 10.4000  │
+│                                            │  ⬡ WETH  [ 10.4          ]  │
+│   the decay band widening over             │  STRIKE                     │
+│   time; payoff at expiry against           │  ⬡ USDC  [ 2,600    ] +6.5% │
+│   holding; the live curve with             │  EXPIRY                  8d │
+│   its reserve point — all three            │  [ 18 Sep ]  [1w] [2w] [1m] │
+│   sampled from the router, none            │  IV               REAL 21.2 │
+│   of them a model                          │  [ 21.2 %          ]  − +   │
+│                                            │  ─────────────────────────  │
+│                                            │  PREMIUM      +59.08 USDC   │
+│                                            │  CAPPED AT   2,605.68 USDC  │
 │                                            │  ┌───────────────────────┐  │
 │                                            │  │     Publish offer     │  │
 │                                            │  └───────────────────────┘  │
 ├────────────────────────────────────────────┴─────────────────────────────┤
-│ POSITIONS            PROMISED 30.74 / 10.4 WETH 2.96×                    │
-│ ⬡ 9.9251 WETH  3,000  16 Sep  9.9251 open  0  ▓▓▓▓▓▓▓▓▓  ×               │
-│ ⬡ 9.4551 WETH  2,800  16 Sep  9.4551 open  0  ▓▓▓▓▓▓▓▓▓  ×               │
+│ POSITIONS                    PROMISED 30.7400 / 10.4000 WETH 2.96×       │
+│      SIZE      STRIKE   EXPIRY      EARNED      BACKING                  │
+│ ⬡C  9.9251 WETH  3,000.00  16 Sep 6d  0.00 USDC  ▓▓▓▓▓▓▓▓▓ 100%   ×      │
+│ ⬡C  9.4551 WETH  2,800.00  16 Sep 6d  0.00 USDC  ▓▓▓▓▓▓▓▓▓ 100%   ×      │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-The three controls arrive pre-filled from the chain, so a person who agrees with the defaults
+The four controls arrive pre-filled from the chain, so a person who agrees with the defaults
 publishes in **one click** with a wallet already attached, three from cold. Every figure is a chain
 read: the amount from a `balanceOf` multicall, the strike from the Chainlink feed the manifest
-names, the date from the block clock rather than the browser's, and the premium from
-`StrikelineViews.stableFor` asked twice in one multicall — once at the offer's own date and once
-with the date set to zero, where the curve degenerates to the constant-sum order it becomes at
-expiry. The ticket quotes before a wallet is connected, because those are view calls and need no
-signer.
+names, the date from the block clock rather than the browser's, the volatility from the trailing
+realised move on that same feed, and the premium from `StrikelineViews.stableFor` asked twice in one
+multicall — once at the offer's own date and once with the date set to zero, where the curve
+degenerates to the constant-sum order it becomes at expiry. The ticket quotes before a wallet is
+connected, because those are view calls and need no signer.
+
+`decay` is the landing view because it is the one of the three that draws a curve. The payoff at
+expiry of a covered call written with no cash up front is two straight segments — the position IS
+the hold until the assignment point, and flat after it — and the premium on it is fifty-nine USDC
+against a position worth twenty-six thousand, which is three pixels. So the payoff view names the
+figure beside the kink rather than pretending the region is legible, and the decay view, where the
+band genuinely widens, is what the screen opens on.
 
 Everything on the screen is read at one block, and that block is printed in the bar. That is what
 lets a fill land on one offer and shrink what the others can deliver in the same commit, rather than
 as four figures drifting into place as their own pollers fire.
 
-`PROMISED 30.74 / 10.4` is the number no other venue can print: 30.74 WETH written across four
-offers against the 10.4 WETH actually in the wallet, none of which ever moved. The meter on each row
+`PROMISED 30.7400 / 10.4000` is the number no other venue can print: 30.74 WETH written across four
+offers against the 10.4 WETH actually in the wallet, none of which ever moved. `BACKING` on each row
 is how much of what that offer advertises its wallet could hand over right now — the bound the
-`Coverage` guard itself reported when the offer was probed for the whole of it.
+`Coverage` guard itself reported when the offer was probed for the whole of it — so it reads 100%
+on an untouched book and shrinks on every sibling the moment one of them is filled. There is no
+separate `OPEN` column, because `open` is `SIZE × BACKING` by construction and two columns for one
+quantity is not density.
 
 There is one route. `next build` prints three entries and two of them are not pages:
 
@@ -91,8 +103,8 @@ Route (app)
 The read layer and the markout study used to be `/surface` and `/receipt`. They demonstrate what the
 contracts publish rather than how an offer is written, so they are documented below and in
 `contracts/test` and `scripts/markout` — the code, the queries and the measured numbers all survive;
-only the two screens are gone. A footer link to them put a second product, at a different density,
-one click from the terminal.
+only the two screens are gone, and so is the footer link that used to reach them: it put a second
+product, at a different type scale and density, one click from the terminal.
 
 ## The two custom SwapVM instructions
 
@@ -405,9 +417,8 @@ make story-setup && make story-1   # four live offers from anvil account #1
 make web           # the app, on http://localhost:3000
 ```
 
-`make web` serves exactly the five product screens above. The diagnostics pages are named
-`page.dev.tsx` and only exist as routes under `make web-dev-routes`; a production build cannot ship
-them.
+`make web` serves exactly the one screen above. The diagnostics pages are named `page.dev.tsx` and
+only exist as routes under `make web-dev-routes`; a production build cannot ship them.
 
 ## Honest limits
 

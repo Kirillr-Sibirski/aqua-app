@@ -6,7 +6,7 @@ The maker's screen. Next.js 16 / React 19 / wagmi 3, dark only, every number rea
 npm ci
 npm run dev            # http://localhost:3000. Reads /deployments/local.json, written by `make bootstrap`
 npm run build          # production build, and the typecheck that goes with it
-npm test               # 335 vitest tests. The four fork suites skip when no anvil is listening
+npm test               # 299 vitest tests. The four fork suites skip when no anvil is listening
 node scripts/contrast.mjs   # all 36 design-token pairs against their contrast floor
 ```
 
@@ -20,7 +20,7 @@ One. `next build` prints `/`, `/_not-found` and `/icon.svg`, and two of those ar
 
 | | |
 |---|---|
-| `/` | **The terminal, and the whole app.** A 56px bar naming the pair and the block; a chart beside a 380px ticket; the positions strip underneath, one row per live offer with what can still be taken, what it has earned and how much of the shared balance it would consume. Every figure pinned to one block |
+| `/` | **The terminal, and the whole app.** A 56px bar naming the pair and the block; a chart beside a 380px ticket; the positions strip underneath, one row per live offer with its size, its terms, what it has earned and what fraction of what it promises the shared balance can still deliver. Every figure pinned to one block |
 | `/dev` | Plain-HTML diagnostics for the wallet and contract plumbing. Not product UI, and not a route unless `DEV_ROUTES=1` |
 
 The read-layer market screen and the markout study used to be `/surface` and `/receipt`. Both were
