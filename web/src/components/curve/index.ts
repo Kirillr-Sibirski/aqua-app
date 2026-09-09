@@ -1,8 +1,17 @@
 /**
- * The leg: its bytes, its curve, and the chain reads that describe it.
+ * The leg: its bytes and its curve.
  *
- * Shared by the writer (which compiles a leg) and the leg detail screen (which reads one back), so
- * the two can never disagree about what a Strikeline program is.
+ * `buildLegProgram` compiles one and `decodeRmmSwapArgs` reads one back, so the ticket that ships a
+ * leg and the positions strip that decodes one can never disagree about what a Strikeline program
+ * is.
+ *
+ * `program.ts` is deliberately NOT re-exported here. It disassembles a compiled program, and its
+ * only remaining caller is the test that asserts `buildLegProgram` emits Deadline . Coverage .
+ * RmmSwap . Salt in that order, wraps the curve in the guard, carries no fee instruction and
+ * accounts for every byte. Those are invariants of the encoder rather than something a screen
+ * renders — the screen that rendered them was the offer detail page, and there is no offer detail
+ * page. The per-leg chain reads that lived beside it went the same way: nothing imported one once
+ * the app became a single screen whose reads are all owned by `useBook`.
  */
 export {
   ASSIGNMENT_WINDOW_SECONDS,
@@ -37,16 +46,3 @@ export {
   toRawReserve,
 } from './rmm';
 export type { CoverageArgs, LegKind, LegProgramArgs, RmmArgs } from './rmm';
-
-export { explainProgram, findRmmArgs } from './program';
-export type { DecodedField, DecodedInstruction } from './program';
-
-export {
-  readLegLedger,
-  useCoverage,
-  useDebounced,
-  useLegFills,
-  useTauNow,
-  useThetaBand,
-} from './useLegChain';
-export type { LegFill, LegLedger, ThetaBand } from './useLegChain';
