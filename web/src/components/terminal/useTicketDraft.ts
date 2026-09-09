@@ -13,7 +13,7 @@
  * `liquidityForRisky`, and `y` is `StrikelineViews.stableFor` read from the router. This file adds
  * defaults and validation and nothing else. There is no option maths in it.
  */
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { Address } from 'viem';
 import {
   dateStringFor,
@@ -29,9 +29,10 @@ import {
   type OfferPair,
   type SizedOffer,
 } from '@/components/sell';
+import { tokenFractionDigits } from '@/components/token';
 import { aquaFork } from '@/lib/chain';
 import type { Deployments } from '@/lib/contracts';
-import { parseDecimalInput, toDecimalString } from '@/lib/ui';
+import { formatUnits, parseDecimalInput, toDecimalString } from '@/lib/ui';
 
 /** How far above today's price the ticket opens. A price below it would be taken immediately. */
 const DEFAULT_OVER_SPOT = 0.05;
@@ -66,6 +67,15 @@ export interface TicketDraft {
 
   /** The balance floored at the eighth place: what MAX sets and what the quote is clamped to. */
   maxAmount?: string;
+  /**
+   * The same balance at the token's own display precision, for the one place it is printed.
+   *
+   * `maxAmount` is what the field is set to and is deliberately deep — eight places, so nothing is
+   * rounded up into a quote the wallet cannot cover. Printing that string put `10.4` on screen
+   * beside `10.4000` in the positions column and `10.40` in the promised ratio: four conventions
+   * for one asset. Every WETH figure on this screen now comes from `tokenFractionDigits`.
+   */
+  maxAmountLabel?: string;
   /** True when more was typed than the wallet holds. The quote is clamped; the button refuses. */
   overBalance: boolean;
   /** True when the strike is at or under the feed's answer, where the offer is taken instantly. */
@@ -76,6 +86,12 @@ export interface TicketDraft {
   maturity?: number;
   /** True while the IV field is showing a measurement rather than the maker's own number. */
   volIsMeasured: boolean;
+  /**
+   * The feed's own trailing realised volatility, as the field's percentage string, when the chain
+   * served enough history to measure one. The IV legend prints it and adopts it on click — the
+   * chain's number as the affordance, the way the SELL legend prints the balance.
+   */
+  measuredVol?: string;
   /** Why there is no measurement, when there is none. */
   volUnavailable?: string;
   volSpanSeconds?: number;
@@ -107,6 +123,14 @@ export function useTicketDraft({
 
   const maxAmount =
     riskyBalance !== undefined && pair ? roundedDown(riskyBalance, pair.risky.decimals) : undefined;
+  const maxAmountLabel =
+    riskyBalance !== undefined && pair
+      ? formatUnits(riskyBalance, pair.risky.decimals, {
+          significantDigits: 18,
+          minFractionDigits: tokenFractionDigits(pair.risky.symbol),
+          maxFractionDigits: tokenFractionDigits(pair.risky.symbol),
+        })
+      : undefined;
   const maxRaw =
     maxAmount !== undefined && pair
       ? (parseDecimalInput(maxAmount, pair.risky.decimals) ?? BigInt(0))
@@ -164,6 +188,10 @@ export function useTicketDraft({
   });
 
   const publisher = usePublishOffer();
+  const { isRunning: publishing, reset: resetPublisher } = publisher;
+  const resetSteps = useCallback(() => {
+    if (!publishing) resetPublisher();
+  }, [publishing, resetPublisher]);
 
   const blocked = ((): string | undefined => {
     if (!hydrated || !deployments) return 'Loading';
@@ -186,17 +214,37 @@ export function useTicketDraft({
     date,
     vol,
     /* Mantine groups the digits for reading; `parseDecimalInput` takes a decimal string. The
-       separator is stripped on the way in so the two never disagree about what was typed. */
-    setAmount: (next: string) => setAmountDraft(ungroup(next)),
-    setStrike: (next: string) => setStrikeDraft(ungroup(next)),
-    setDate: setDateDraft,
-    setVol: setVolDraft,
+       separator is stripped on the way in so the two never disagree about what was typed.
+
+       Each setter clears the last run's step strip. That strip is the receipt of a publish that has
+       already landed, and the moment a maker starts typing the next offer it is three stale rows
+       between the figures and the button — on a 900px screen, three rows the ticket has to be
+       scrolled past to reach its own primary action. The row it wrote is still lit in the strip
+       below, which is where a landed offer belongs. */
+    setAmount: (next: string) => {
+      resetSteps();
+      setAmountDraft(ungroup(next));
+    },
+    setStrike: (next: string) => {
+      resetSteps();
+      setStrikeDraft(ungroup(next));
+    },
+    setDate: (next: string | null) => {
+      resetSteps();
+      setDateDraft(next);
+    },
+    setVol: (next: string) => {
+      resetSteps();
+      setVolDraft(next);
+    },
     maxAmount,
+    maxAmountLabel,
     overBalance,
     belowSpot,
     moneyness,
     maturity,
     volIsMeasured: volDraft === undefined && measuredVol !== undefined,
+    measuredVol,
     volUnavailable: realised.unavailable,
     volSpanSeconds: realised.vol?.spanSeconds,
     offer: sizing.offer,

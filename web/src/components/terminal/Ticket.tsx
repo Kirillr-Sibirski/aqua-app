@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The ticket. Three controls, three figures, one button, and not one sentence.
+ * The ticket. Four controls, three figures, one button, and not one sentence.
  *
  * This is `sell/OfferCard` with the teaching removed. What it does not do has not changed: the
  * amount is what ships as the risky reserve, the strike and the date are arguments to the curve,
@@ -12,15 +12,24 @@
  *   amount     the wallet's balance, floored at the eighth place   `useTokenBalances`
  *   strike     5% over the feed's answer, rounded                  the Chainlink feed
  *   expiry     the next Friday, 08:00 UTC                          the chain's block clock
+ *   IV         trailing realised vol off the feed, or the maker's  `useRealisedVol`
  *   premium    `stableFor` at the date, minus at settlement        `StrikelineViews`
  *   capped at  strike + premium / amount                           — as above
- *   IV         trailing realised vol off the feed, or the maker's  `useRealisedVol`
+ *
+ * IV is the fourth control, and LAYOUT.md's "three controls" is now three plus it. It was drawn as
+ * a bare 21px figure that grew a rule on hover, on the theory that a spec saying three should not
+ * grow a fourth; the result was that the one number on this ticket the chain cannot supply — the
+ * one PRODUCT.md says makers want to be theirs — was the only input on the screen a person could
+ * not see was an input, and it failed the 24px target size on a phone, where there is no hover to
+ * reveal it with. It gets the same well the other three have.
  */
+import { useEffect, useRef } from 'react';
 import { Loader, NumberInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { dateStringFor, daysUntil, maturityAt, type OfferPair } from '@/components/sell';
+import { Minus, Plus } from 'lucide-react';
+import { dateStringFor, maturityAt, type OfferPair } from '@/components/sell';
 import { TokenAmount, TokenIcon } from '@/components/token';
-import { explainError } from '@/lib/ui';
+import { explainError, formatTenor } from '@/lib/ui';
 import { Bar, FigureRow } from './bits';
 import classes from './terminal.module.css';
 import type { TicketDraft } from './useTicketDraft';
@@ -33,6 +42,8 @@ const TENORS = [
 ] as const;
 
 export interface TicketProps {
+  /** The skip link's target: this element is the grid item, so it is what gets the id. */
+  id?: string;
   draft: TicketDraft;
   pair?: OfferPair;
   /** The chain's clock, seconds, from the block every other figure was read at. */
@@ -50,6 +61,7 @@ export interface TicketProps {
 }
 
 export function Ticket({
+  id,
   draft,
   pair,
   nowSeconds,
@@ -65,6 +77,7 @@ export function Ticket({
   const { publisher } = draft;
   const running = publisher.isRunning;
   const active = publisher.steps.find((s) => s.status === 'signing' || s.status === 'pending');
+  const steps = useStepsInView(publisher.steps.length);
 
   const label = (() => {
     if (!hydrated) return 'Publish offer';
@@ -76,14 +89,35 @@ export function Ticket({
   })();
 
   return (
-    <aside className={classes.ticket} aria-label="Write a covered call">
+    <aside id={id} className={classes.ticket} aria-label="Write a covered call">
       {/* --- amount ------------------------------------------------------- */}
       <div className={classes.group}>
         <div className={classes.legend}>
           <span>Sell</span>
-          <span className={classes.legendFigure} title="Your balance, floored at the eighth place.">
-            {draft.maxAmount ?? (hydrated && address ? <Bar width={44} /> : '—')}
-          </span>
+          {/*
+            * The balance, once, and it is the button that fills the field with it.
+            *
+            * It used to be printed twice: here as a readout and again 45px below as the field's
+            * value the moment MAX was pressed — and the readout printed the deep eight-place string
+            * trimmed, so `10.4` sat above `10.4000` in the positions column and `10.40` in the
+            * promised ratio. One figure now, at this token's own four places like every other WETH
+            * figure on the screen, and the affordance is the figure rather than a separate chip:
+            * the balance IS what MAX means.
+            */}
+          {draft.maxAmount === undefined ? (
+            <span className={classes.legendFigure}>
+              {hydrated && address ? <Bar width={56} /> : '—'}
+            </span>
+          ) : (
+            <button
+              type="button"
+              className={classes.maxButton}
+              onClick={() => draft.setAmount(draft.maxAmount ?? '')}
+            >
+              Max
+              <span className={classes.maxFigure}>{draft.maxAmountLabel ?? draft.maxAmount}</span>
+            </button>
+          )}
         </div>
         <div className={classes.well} data-invalid={draft.overBalance || undefined}>
           <span className={classes.wellUnit}>
@@ -105,15 +139,6 @@ export function Ticket({
             decimalScale={pair?.risky.decimals ?? 18}
             style={{ flex: '1 1 auto', minWidth: 0 }}
           />
-          {draft.maxAmount !== undefined ? (
-            <button
-              type="button"
-              className={classes.maxButton}
-              onClick={() => draft.setAmount(draft.maxAmount ?? '')}
-            >
-              MAX
-            </button>
-          ) : null}
         </div>
       </div>
 
@@ -161,12 +186,12 @@ export function Ticket({
           <span>Expiry</span>
           <span className={classes.legendFigure} title="08:00 UTC, on the chain's clock.">
             {draft.maturity !== undefined && nowSeconds !== undefined
-              ? `${daysUntil(draft.maturity, nowSeconds)}d`
+              ? formatTenor(draft.maturity - nowSeconds)
               : '—'}
           </span>
         </div>
         <div className={classes.expiryRow}>
-          <div className={classes.dateWell}>
+          <div className={`${classes.well} ${classes.wellDate}`}>
             <DatePickerInput
               aria-label="Expiry date"
               variant="unstyled"
@@ -202,69 +227,133 @@ export function Ticket({
         </div>
       </div>
 
+      {/* --- implied volatility -------------------------------------------- */}
+      {/*
+        * The fourth control, and the only number on this ticket the chain cannot supply.
+        *
+        * The legend carries the feed's own trailing realised vol as the affordance, exactly the way
+        * SELL carries the balance: the chain's number is a button, the well holds what the maker
+        * decided, and pressing the button adopts the measurement. Symmetric with the row three
+        * groups above it, which is the point — a maker learns one gesture, not two.
+        */}
+      <div className={classes.group}>
+        <div className={classes.legend}>
+          <span>IV</span>
+          {draft.measuredVol === undefined ? (
+            <span className={classes.legendFigure}>{hydrated ? <Bar width={56} /> : '—'}</span>
+          ) : (
+            <button
+              type="button"
+              className={classes.maxButton}
+              disabled={draft.vol === draft.measuredVol}
+              title={
+                draft.volSpanSeconds
+                  ? `Trailing realised volatility from the feed, over ${formatTenor(draft.volSpanSeconds)}.`
+                  : undefined
+              }
+              onClick={() => draft.setVol(draft.measuredVol ?? '')}
+            >
+              Real
+              <span className={classes.maxFigure}>{draft.measuredVol}</span>
+            </button>
+          )}
+        </div>
+        <div className={classes.well}>
+          <NumberInput
+            aria-label="Implied volatility, percent"
+            variant="unstyled"
+            classNames={{ input: classes.input }}
+            value={draft.vol}
+            onChange={(next) => draft.setVol(String(next))}
+            placeholder="0"
+            min={0}
+            max={400}
+            step={5}
+            hideControls
+            allowNegative={false}
+            decimalScale={1}
+            style={{ flex: '1 1 auto', minWidth: 0 }}
+          />
+          <span className={classes.wellEnd}>%</span>
+          <span className={classes.stepper}>
+            <button
+              type="button"
+              aria-label="Lower implied volatility"
+              onClick={() => draft.setVol(stepVol(draft.vol, -5))}
+            >
+              <Minus size={13} strokeWidth={2} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label="Raise implied volatility"
+              onClick={() => draft.setVol(stepVol(draft.vol, 5))}
+            >
+              <Plus size={13} strokeWidth={2} aria-hidden="true" />
+            </button>
+          </span>
+        </div>
+      </div>
+
       {/* --- the figures -------------------------------------------------- */}
       {/*
-        * Dimmed when the amount typed is more than the wallet holds.
+        * Dimmed whenever the field above them has been refused.
         *
-        * The quote below is clamped to the balance, so in that state these three figures describe
+        * Two cases, one treatment. Over the balance, the quote below is clamped, so these describe
         * the largest offer that could actually be published rather than the number in the field.
-        * The old card said so in a sentence; here the field is red, the button names the maximum,
-        * and the figures step back — which is the same three facts without the sentence.
+        * Below spot, they describe an offer that would be taken the instant it was published — the
+        * router prices it happily, because the arithmetic is real, but the button will not ship it
+        * and the chart refuses to draw it. Leaving `Premium +1.82` and `Capped at 1.18` in full ink
+        * beside a disabled button reading `Strike below spot` was the ticket contradicting itself.
         */}
-      <div className={classes.figures} data-clamped={draft.overBalance || undefined}>
-        <FigureRow label="Premium">
+      <div
+        className={classes.figures}
+        data-clamped={draft.overBalance || draft.belowSpot || undefined}
+      >
+        <FigureRow label="Premium" unit={draft.offer ? stableSymbol : undefined}>
           {draft.offer && stableSymbol ? (
             <TokenAmount
               value={draft.offer.earnedWad}
               decimals={18}
               symbol={stableSymbol}
               icon={false}
+              unit="none"
               sign="always"
               tone="money"
-              className={classes.figureValue}
             />
           ) : (
             <Bar width={96} />
           )}
         </FigureRow>
 
-        <FigureRow label="Capped at">
+        <FigureRow label="Capped at" unit={draft.offer ? stableSymbol : undefined}>
           {draft.offer && stableSymbol ? (
             <TokenAmount
               value={draft.offer.effectivePriceWad}
               decimals={18}
               symbol={stableSymbol}
               icon={false}
-              className={classes.figureValue}
+              unit="none"
             />
           ) : (
             <Bar width={96} />
           )}
         </FigureRow>
-
-        <FigureRow label="IV">
-          <span className={classes.figureValue}>
-            <input
-              aria-label="Implied volatility, percent"
-              className={classes.ivInput}
-              inputMode="decimal"
-              value={draft.vol}
-              onChange={(event) => draft.setVol(event.target.value.replace(/[^0-9.]/g, ''))}
-              title={
-                draft.volIsMeasured
-                  ? `Trailing realised volatility from the feed, over ${Math.round((draft.volSpanSeconds ?? 0) / 3600)}h.`
-                  : draft.volUnavailable
-              }
-            />
-            <span className={classes.figureUnit}>%</span>
-          </span>
-        </FigureRow>
       </div>
 
+      {/*
+        * The primary action, and it reports on itself.
+        *
+        * It used to stay enabled, keep its label and expose no `aria-busy` for the whole nineteen
+        * seconds a publish takes on a fork — the offer landed and the only sign of it was a new row
+        * appearing in the strip below. A run now disables the button (there is nothing a second
+        * click can do but confuse the flow), names the step that is actually in flight, and says so
+        * to assistive technology.
+        */}
       <button
         type="button"
         className={classes.action}
-        disabled={!running && hydrated && !!address && !wrongNetwork && !!draft.blocked}
+        aria-busy={running || undefined}
+        disabled={running || (hydrated && !!address && !wrongNetwork && !!draft.blocked)}
         onClick={() => {
           if (running) return;
           if (!address) {
@@ -281,16 +370,25 @@ export function Ticket({
           void draft.publish().then(() => onPublished?.());
         }}
       >
-        {running ? <Loader size={16} color="var(--accent-ink)" /> : null}
+        {running ? <Loader size={16} color="var(--ink-3)" /> : null}
         {label}
       </button>
 
+      {/*
+        * The steps, and the reason this is a live region rather than a list that appears.
+        *
+        * Each `<li>` wears its own status — idle, running, done, failed — so a plan whose two
+        * approvals were skipped and whose ship is still in flight does not draw three identical
+        * markers. The strip is announced politely as those statuses change, which is the only
+        * running commentary this screen has and the only one it needs.
+        */}
       {publisher.steps.length > 0 ? (
-        <ol className={classes.steps}>
+        <ol ref={steps} className={classes.steps} aria-live="polite">
           {publisher.steps.map((step) => (
             <li key={step.id} className={classes.step} data-state={stateOf(step.status)}>
               <span className={classes.stepBar} />
               <span>{step.label}</span>
+              <span className={classes.stepState}>{STEP_STATE_LABEL[stateOf(step.status)]}</span>
             </li>
           ))}
         </ol>
@@ -311,9 +409,47 @@ export function Ticket({
   );
 }
 
-function stateOf(status: string): string {
+/**
+ * Bring the step strip into view the moment it exists.
+ *
+ * The ticket is a 380px column bounded by the grid row, so anything a publish adds to it scrolls
+ * inside the ticket rather than growing the page — which is what keeps the chart and the book from
+ * moving mid-transaction. The cost of that is this: on a 900px window the column is already full,
+ * so the three rows a run appends land below the fold and the primary action reports on itself
+ * somewhere the person who pressed it cannot see. On a local fork the whole plan settles in about
+ * three hundred milliseconds, which made a correct, disabled, relabelled, `aria-busy` button look
+ * from the outside exactly like a button that does nothing.
+ *
+ * `block: 'nearest'` scrolls the ticket's own scroller and no ancestor, so the page does not move.
+ */
+function useStepsInView(count: number) {
+  const ref = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    if (count > 0) ref.current?.scrollIntoView({ block: 'nearest' });
+  }, [count]);
+  return ref;
+}
+
+type StepState = 'idle' | 'running' | 'done' | 'failed';
+
+function stateOf(status: string): StepState {
   if (status === 'signing' || status === 'pending') return 'running';
   if (status === 'success' || status === 'skipped') return 'done';
   if (status === 'reverted' || status === 'error') return 'failed';
   return 'idle';
+}
+
+/** One word per marker, so the strip is legible without reading a colour. */
+const STEP_STATE_LABEL: Record<StepState, string> = {
+  idle: 'queued',
+  running: 'signing',
+  done: 'done',
+  failed: 'failed',
+};
+
+/** One step of the IV field, clamped and kept at one decimal place so the well never jitters. */
+function stepVol(current: string, delta: number): string {
+  const parsed = Number.parseFloat(current);
+  const next = (Number.isFinite(parsed) ? parsed : 0) + delta;
+  return Math.min(400, Math.max(0, Math.round(next * 10) / 10)).toFixed(1);
 }

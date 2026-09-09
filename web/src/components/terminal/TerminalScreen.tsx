@@ -167,23 +167,26 @@ export function TerminalScreen() {
             />
           </section>
 
-          <div id="ticket">
-            <Ticket
-              draft={draft}
-              pair={pair}
-              nowSeconds={nowSeconds}
-              address={address}
-              wrongNetwork={wrongNetwork}
-              hydrated={hydrated}
-              onPublished={() => book.refetch()}
-              onConnect={() => setConnectOpen(true)}
-              onSwitchNetwork={
-                deployment.isConfigured
-                  ? () => switchChain({ chainId: deployment.chainId as SupportedChainId })
-                  : undefined
-              }
-            />
-          </div>
+          {/* The `aside` is the grid item itself. It used to sit inside a plain wrapper `div`, which
+              is the sort of detail that costs nothing until it costs everything: the wrapper was
+              the item the row sized and stretched, the ticket inside it kept its own content height,
+              and the three rows a publish adds grew the grid row anyway. */}
+          <Ticket
+            id="ticket"
+            draft={draft}
+            pair={pair}
+            nowSeconds={nowSeconds}
+            address={address}
+            wrongNetwork={wrongNetwork}
+            hydrated={hydrated}
+            onPublished={() => book.refetch()}
+            onConnect={() => setConnectOpen(true)}
+            onSwitchNetwork={
+              deployment.isConfigured
+                ? () => switchChain({ chainId: deployment.chainId as SupportedChainId })
+                : undefined
+            }
+          />
         </div>
 
         <Positions book={book} connected={hydrated && !!address} hydrated={hydrated} />
