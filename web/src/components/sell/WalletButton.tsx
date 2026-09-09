@@ -17,6 +17,7 @@ import { useState, type ReactNode } from 'react';
 import { useConnect, useConnection, useConnectors, useDisconnect, useSwitchChain } from 'wagmi';
 import { useDeploymentChain, useIsHydrated } from '@/components/shell';
 import { BURNER_CONNECTOR_ID, type SupportedChainId } from '@/lib/chain';
+import { Reveal } from '@/lib/motion';
 import { truncateAddress } from '@/lib/ui';
 import classes from './sell.module.css';
 
@@ -30,20 +31,35 @@ export function WalletButton({ size = 'sm' }: WalletButtonProps) {
   const { address } = useConnection();
   const [opened, { open, close }] = useDisclosure(false);
 
-  if (!hydrated) return <Skeleton height={32} width={132} radius="md" />;
-
-  if (!address) {
-    return (
-      <>
-        <Button variant="default" size={size} radius="md" onClick={open}>
-          Connect wallet
-        </Button>
-        <ConnectModal opened={opened} onClose={close} />
-      </>
-    );
-  }
-
-  return <AddressPill address={address} size={size} />;
+  /*
+   * Three states, one slot, and it fades between them.
+   *
+   * This is the largest placeholder on the bar and the only one whose replacement is a different
+   * width, so it was also the loudest pop on the screen: 132px of shimmer became `Connect wallet`
+   * between two frames, and on a returning wallet became an address a frame after that. `Reveal`
+   * keys on which of the three is showing, so the transition runs exactly on those two changes and
+   * never on the renders wagmi causes in between — and the wrapper is `inline-flex`, so the bar it
+   * sits in is the same height it was.
+   */
+  return (
+    <Reveal
+      token={!hydrated ? 'pending' : address ? 'account' : 'connect'}
+      className={classes.walletSlot}
+    >
+      {!hydrated ? (
+        <Skeleton height={32} width={132} radius="md" />
+      ) : address ? (
+        <AddressPill address={address} size={size} />
+      ) : (
+        <>
+          <Button variant="default" size={size} radius="md" onClick={open}>
+            Connect wallet
+          </Button>
+          <ConnectModal opened={opened} onClose={close} />
+        </>
+      )}
+    </Reveal>
+  );
 }
 
 /** The connected account, and the two things anyone ever wants to do with it. */

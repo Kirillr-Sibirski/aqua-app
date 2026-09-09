@@ -10,6 +10,7 @@
 import { WalletButton } from '@/components/sell';
 import { WordmarkMark } from '@/components/shell';
 import { TokenPair } from '@/components/token';
+import { Reveal } from '@/lib/motion';
 import { formatCount } from '@/lib/ui';
 import { Bar } from './bits';
 import classes from './terminal.module.css';
@@ -51,24 +52,35 @@ export function TerminalHeader({ base, quote, spot, window: spotWindow, blockNum
           <span className={classes.pairSlash}>/</span>
           {quote}
         </span>
-        <span className={classes.spot}>{spot ?? <Bar width={64} />}</span>
+        {/* The skeleton and the figure are one slot, and the figure fades up into it rather than
+            replacing it between frames. `Reveal` keys on which of the two is showing, so the
+            transition runs once, when the read settles — never on the many renders the mark makes
+            while it is streaming. */}
+        <span className={classes.spot}>
+          <Reveal token={spot === undefined ? 'pending' : 'settled'}>{spot ?? <Bar width={64} />}</Reveal>
+        </span>
         <span className={classes.delta} data-tone={tone}>
-          {spotWindow ? (
-            <>
-              <span>
-                {spotWindow.change >= 0 ? '+' : '−'}
-                {(Math.abs(spotWindow.change) * 100).toFixed(2)}%
-              </span>
-              <span
-                className={classes.deltaSpan}
-                title={`Measured against the oldest price this chain will serve, ${formatSpan(spotWindow.spanSeconds)} back.`}
-              >
-                {formatSpan(spotWindow.spanSeconds)}
-              </span>
-            </>
-          ) : (
-            <Bar width={52} />
-          )}
+          <Reveal
+            token={spotWindow === undefined ? 'pending' : 'settled'}
+            className={classes.deltaBody}
+          >
+            {spotWindow ? (
+              <>
+                <span>
+                  {spotWindow.change >= 0 ? '+' : '−'}
+                  {(Math.abs(spotWindow.change) * 100).toFixed(2)}%
+                </span>
+                <span
+                  className={classes.deltaSpan}
+                  title={`Measured against the oldest price this chain will serve, ${formatSpan(spotWindow.spanSeconds)} back.`}
+                >
+                  {formatSpan(spotWindow.spanSeconds)}
+                </span>
+              </>
+            ) : (
+              <Bar width={52} />
+            )}
+          </Reveal>
         </span>
       </div>
 

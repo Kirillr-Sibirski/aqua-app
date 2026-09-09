@@ -29,6 +29,7 @@ import { TokenIcon } from '@/components/token';
 import { useBook } from '@/hooks/useBook';
 import { useDeployments, useOraclePrice, useTokenBalances } from '@/hooks';
 import { aquaFork, type SupportedChainId } from '@/lib/chain';
+import { useTweenedBigInt } from '@/lib/motion';
 import { addressLt } from '@/lib/swapvm';
 import { formatUnits } from '@/lib/ui';
 import { TerminalFooter } from './Footer';
@@ -67,14 +68,24 @@ export function TerminalScreen() {
 
   const oracle = useOraclePrice(pair?.feed, { chainId: aquaFork.id });
   const spot = oracle.price?.price;
-  /* Grouped and two-placed from the feed's own integer answer, not from the float beside it. */
-  const spotLabel = oracle.price
-    ? formatUnits(oracle.price.answer, oracle.price.decimals, {
-        significantDigits: 14,
-        maxFractionDigits: 2,
-        minFractionDigits: 2,
-      })
-    : undefined;
+  /*
+   * The mark, and the one figure on the bar that moves.
+   *
+   * Grouped and two-placed from the feed's own integer answer, not from the float beside it — and
+   * the integer is what is tweened, so every frame between two readings is a real answer in the
+   * feed's own units and the last one is the answer itself. Tweening the label would have meant
+   * tweening a float parsed back out of a string; tweening the answer means `formatUnits` prints
+   * the same way it always did and the only thing that changed is which integer it was handed.
+   */
+  const spotAnswer = useTweenedBigInt(oracle.price?.answer);
+  const spotLabel =
+    oracle.price && spotAnswer !== undefined
+      ? formatUnits(spotAnswer, oracle.price.decimals, {
+          significantDigits: 14,
+          maxFractionDigits: 2,
+          minFractionDigits: 2,
+        })
+      : undefined;
 
   const spotWindow = useSpotWindow({
     feed: pair?.feed,
@@ -133,7 +144,11 @@ export function TerminalScreen() {
 
       <div className={classes.body}>
         <div className={classes.top}>
-          <section className={classes.chartPane} aria-label="Payoff, curve and decay">
+          {/* Named for what the region is, not for the three views inside it. The label used to
+              list them — "Payoff, curve and decay" — which meant renaming a view silently made the
+              accessible name of this landmark wrong, and a landmark whose name is a stale list is
+              worse than one with a plain name. */}
+          <section className={classes.chartPane} aria-label="The offer, drawn">
             <TerminalChart
               router={deployments?.router}
               leg={leg}

@@ -72,3 +72,15 @@
     display: inline;
   }
 }
+
+/*
+ * The wallet corner is one slot with three states in it, and this is what keeps it one.
+ *
+ * `inline-flex`, so the element `Reveal` adds is the same box the button it holds already was: the
+ * bar is a flex row, and a plain inline wrapper would be blockified into a flex item with a line
+ * box of its own and take the row two pixels taller. Nothing here paints; it exists only so the
+ * cross-fade between the skeleton, `Connect wallet` and the address does not move the row it is in.
+ */
+.walletSlot {
+  display: inline-flex;
+}
