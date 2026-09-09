@@ -45,7 +45,7 @@ export function Segmented({ value, onChange, panelId, idPrefix }: SegmentedProps
     <div
       role="tablist"
       aria-label="chart view"
-      className="flex shrink-0 items-center gap-px rounded-control border border-line bg-surface-2 p-px"
+      className="flex shrink-0 items-center gap-px rounded-control border border-line bg-surface-2 p-0.5"
     >
       {TERMINAL_VIEWS.map((view) => {
         const selected = view === value;
@@ -69,7 +69,15 @@ export function Segmented({ value, onChange, panelId, idPrefix }: SegmentedProps
               }
             }}
             className={cn(
-              'transition-state rounded-[7px] px-2.5 py-1 text-micro lowercase',
+              /* `--radius-chip` is the concentric inner corner of the `--radius-control` track
+                 above minus its 2px padding, and it is the same radius the ticket's tenor chips
+                 wear inside their own track: one arithmetic, done once, in a token.
+
+                 No `lowercase` transform. The labels are lowercase strings, so the rule changed
+                 nothing but made the tabs the only `text-transform: lowercase` in the app — and
+                 uppercasing them instead would have made them the only shouting label inside a
+                 strip whose legend and readout beside them are lowercase by nature. */
+              'transition-state rounded-chip px-2.5 py-1 text-micro',
               selected
                 ? 'bg-surface-3 text-ink'
                 : 'text-ink-3 hover:bg-surface-3/60 hover:text-ink-2',

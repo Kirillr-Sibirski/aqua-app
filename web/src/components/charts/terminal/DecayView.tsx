@@ -24,13 +24,15 @@ import { useState, type ReactNode } from 'react';
 import { scaleLinear } from 'd3-scale';
 import type { Address } from 'viem';
 import type { SupportedChainId } from '@/lib/chain';
+import { formatTenor } from '@/lib/ui/format';
 import { color } from '@/lib/ui/tokens';
 import { Axis } from '../Axis';
 import { AreaFill } from '../AreaFill';
 import { CurveLine } from '../CurveLine';
 import { Grid } from '../Grid';
-import { formatChartNumber } from '../format';
+import { formatChartNumber, formatChartToken } from '../format';
 import type { ChartGeometry, ChartPoint } from '../types';
+import { tokenFractionDigits } from '@/components/token';
 import { Crosshair } from './Crosshair';
 import { Strip, type LegendItem, type ReadoutItem } from './chrome';
 import { terminalError } from './errors';
@@ -102,42 +104,60 @@ export function DecayView({
 
   /** With no cursor the readout stands at expiry — the end of the wait, and the largest figure. */
   const shown: DecayPoint | null =
-    points.length === 0 ? null : (index === null ? points[points.length - 1] : points[Math.min(index, points.length - 1)]);
+    points.length === 0
+      ? null
+      : index === null
+        ? points[points.length - 1]
+        : points[Math.min(index, points.length - 1)];
 
   const readout: ReadoutItem[] =
     shown && resolved === 'ready'
       ? [
-        { label: 'after', value: `${formatChartNumber(shown.days, { significantDigits: 3 })} d` },
-        {
-          label: stable.symbol,
-          icon: stable.icon,
-          // Significant digits, not a fixed two: one series sweeps four orders of magnitude
-          // between the first minute and the tau floor, and `+0.01` at the near end is not a
-          // reading of anything.
-          value: formatChartNumber(shown.stable, {
-            significantDigits: 4,
-            maxFractionDigits: 4,
-            sign: 'always',
-          }),
-          tone: 'accent',
-        },
-        {
-          label: risky.symbol,
-          icon: risky.icon,
-          value: formatChartNumber(shown.risky, {
-            significantDigits: 4,
-            maxFractionDigits: 6,
-            sign: 'always',
-          }),
-          tone: 'ink-2',
-        },
-      ]
-    : [];
+          // One tenor format in the app: `8d` here is the `8d` the ticket's expiry legend prints and
+          // the `8d` in the positions row, from `formatTenor`. It used to read `after 8.69 d`.
+          { label: 'after', value: formatTenor(shown.days * 86_400) },
+          {
+            label: stable.symbol,
+            icon: stable.icon,
+            // The token's own two places, and `<0.01` rather than `0.00` where the band is still
+            // thinner than a cent. The series sweeps four orders of magnitude and that shape is the
+            // chart's job; the readout is a figure, and this app prints a USDC figure one way.
+            value: formatChartToken(shown.stable, tokenFractionDigits(stable.symbol), {
+              sign: 'always',
+            }),
+            tone: 'accent',
+          },
+          {
+            label: risky.symbol,
+            icon: risky.icon,
+            value: formatChartToken(shown.risky, tokenFractionDigits(risky.symbol), {
+              sign: 'always',
+            }),
+            tone: 'ink-2',
+          },
+        ]
+      : [];
 
-  const legend: LegendItem[] = [
-    { id: stable.symbol, label: <LegendToken token={stable} />, color: 'accent', kind: 'area' },
-    { id: risky.symbol, label: <LegendToken token={risky} />, color: 'ink-2', dash: 'dashed' },
-  ];
+  /* A legend names the marks on the plot. With nothing drawn there are no marks, so a refusal or an
+     error would otherwise advertise a series that is not there. Loading keeps it: the marks are
+     about to exist and the strip should not reflow when they arrive. */
+  const legend: LegendItem[] =
+    resolved !== 'ready' && resolved !== 'loading'
+      ? []
+      : [
+          {
+            id: stable.symbol,
+            label: <LegendToken token={stable} />,
+            color: 'accent',
+            kind: 'area',
+          },
+          {
+            id: risky.symbol,
+            label: <LegendToken token={risky} />,
+            color: 'ink-2',
+            dash: 'dashed',
+          },
+        ];
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
@@ -178,8 +198,14 @@ export function DecayView({
             .domain([0, (riskyMax || 1) * 1.08])
             .range([geometry.inner.y + geometry.inner.height, geometry.inner.y]);
 
-          const stablePoints: ChartPoint[] = points.map((p) => ({ x: p.days, y: p.stable }));
-          const riskyPoints: ChartPoint[] = points.map((p) => ({ x: p.days, y: p.risky }));
+          const stablePoints: ChartPoint[] = points.map((p) => ({
+            x: p.days,
+            y: p.stable,
+          }));
+          const riskyPoints: ChartPoint[] = points.map((p) => ({
+            x: p.days,
+            y: p.risky,
+          }));
 
           return (
             <>
@@ -250,7 +276,7 @@ export function DecayView({
                     { id: 'risky', y: yRisky(shown.risky), color: 'ink-2' },
                     { id: 'stable', y: yStable(shown.stable), color: 'accent' },
                   ]}
-                  label={`${formatChartNumber(shown.days, { significantDigits: 3 })}d`}
+                  label={formatTenor(shown.days * 86_400)}
                 />
               ) : null}
             </>

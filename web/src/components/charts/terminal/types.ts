@@ -18,14 +18,24 @@ import type { SupportedChainId } from '@/lib/chain';
 /** The three views behind the segmented control. */
 export type TerminalView = 'payoff' | 'curve' | 'decay';
 
-/** Order of the segmented control, and the order the arrow keys walk. */
-export const TERMINAL_VIEWS = ['payoff', 'curve', 'decay'] as const satisfies readonly TerminalView[];
+/**
+ * Order of the segmented control, the order the arrow keys walk, and the order a maker reads.
+ *
+ * `decay` leads, and it is the landing view. LAYOUT.md's sketch put `payoff` first, and the payoff
+ * at expiry of a covered call drawn honestly is two straight segments and a kink: on a live leg the
+ * premium is two parts in a thousand of the position's value, so six hundred pixels of chart carry
+ * a shape a reader already knew. Decay is the one view whose curve has to be measured to be drawn —
+ * twenty-five `bandFor` reads sweeping four orders of magnitude — and it is the one that shows what
+ * the product actually does, which is pay a maker who did nothing. What you give up is one click
+ * away, and it is the second tab because it is the second question.
+ */
+export const TERMINAL_VIEWS = ['decay', 'payoff', 'curve'] as const satisfies readonly TerminalView[];
 
 /** One-word labels. A segmented control is not the place for a sentence. */
 export const TERMINAL_VIEW_LABEL: Record<TerminalView, string> = {
+  decay: 'decay',
   payoff: 'payoff',
   curve: 'curve',
-  decay: 'decay',
 };
 
 /**

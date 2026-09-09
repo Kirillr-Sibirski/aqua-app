@@ -508,3 +508,27 @@ export function formatRelativeTime(
   const date = `${d.getDate()} ${MONTHS[d.getMonth()]}`;
   return sameYear ? date : `${date} ${d.getFullYear()}`;
 }
+
+/**
+ * How long is left, in one unit and at most four characters: `8d`, `18h`, `44m`, `now`, `done`.
+ *
+ * Deliberately not {@link formatRelativeTime}, which says `in 8d` — correct English and the wrong
+ * thing in a column, where the preposition is width that repeats on every row and carries nothing.
+ * Past the instant it reads `done` rather than a negative, because the thing has stopped counting.
+ *
+ * **There is one tenor format in this app and this is it.** The ticket's `8d`, the positions row's
+ * `8d` and the decay readout's `8d` are the same string from the same function; they used to be
+ * three call sites printing `8d`, `8d` and `after 8.69 d` for one number.
+ *
+ * @param secondsLeft on the chain's clock, never the browser's.
+ */
+export function formatTenor(secondsLeft: number): string {
+  if (!Number.isFinite(secondsLeft)) return '—';
+  if (secondsLeft <= 0) return 'done';
+  const days = Math.floor(secondsLeft / 86_400);
+  if (days >= 1) return `${days}d`;
+  const hours = Math.floor(secondsLeft / 3_600);
+  if (hours >= 1) return `${hours}h`;
+  const minutes = Math.floor(secondsLeft / 60);
+  return minutes >= 1 ? `${minutes}m` : 'now';
+}

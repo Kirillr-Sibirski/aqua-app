@@ -107,6 +107,42 @@ export function formatChartNumber(value: number, opts: ChartNumberOptions = {}):
 }
 
 /**
+ * A float a chart read produced, printed the way this app prints that token everywhere else.
+ *
+ * There is one decimal convention per token and it comes from `components/token/registry`: USDC is
+ * always two places, WETH always four. A chart readout is a figure, not a column, so it used to
+ * spend a significant-digit budget instead — which put `10.4`, `10.40`, `10.4000` and `+0.01588` on
+ * one screen for one asset. It takes the token's own digits here, and a non-zero value that rounds
+ * away renders `<0.0001` rather than `0.0000`, which is the same contract `TokenAmount` honours: the
+ * shape of a series that sweeps four orders of magnitude is the chart's job, not the readout's.
+ *
+ * @example formatChartToken(0.0000123, 4) // '<0.0001'
+ * @example formatChartToken(12.3, 4)      // '12.3000'
+ */
+export function formatChartToken(
+  value: number,
+  fractionDigits: number,
+  opts: { sign?: SignDisplay } = {},
+): string {
+  const { sign = 'auto' } = opts;
+  if (!Number.isFinite(value)) return '';
+  if (Math.abs(value) >= TO_FIXED_LIMIT) {
+    return formatChartCompact(value, { significantDigits: 3, sign });
+  }
+  // Convert deep, print shallow: rounding the float to the display precision first would turn a
+  // sub-precision value into an exact zero and the dust marker would never fire.
+  const scale = Math.min(MAX_DECIMALS, Math.max(fractionDigits, 8));
+  const fixed = parseDecimalInput(value.toFixed(scale), scale);
+  if (fixed === null) return '';
+  return formatUnits(fixed, scale, {
+    significantDigits: 18,
+    minFractionDigits: fractionDigits,
+    maxFractionDigits: fractionDigits,
+    sign,
+  });
+}
+
+/**
  * `K`/`M`/`B`/`T` notation for an axis whose values are too wide to spell out.
  *
  * @example formatChartCompact(31204.77) // '31.2K'

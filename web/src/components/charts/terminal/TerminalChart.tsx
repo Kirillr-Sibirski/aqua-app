@@ -34,7 +34,7 @@ export function TerminalChart({
   spot,
   nowSeconds,
   view,
-  defaultView = 'payoff',
+  defaultView = 'decay',
   onViewChange,
   state = 'ready',
   errorMessage,
