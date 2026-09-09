@@ -1,26 +1,23 @@
-'use client';
+import type { Metadata } from 'next';
+import { TerminalScreen } from '@/components/terminal';
+
+export const metadata: Metadata = {
+  title: 'WETH/USDC',
+  description:
+    'Write covered calls as price curves inside 1inch Aqua. The collateral never leaves the wallet, several offers stand behind one balance, and every figure is read from the router at one block.',
+};
 
 /**
- * The front door: one card, centred, and nothing else.
+ * The only route.
  *
- * What used to be here was a page title, three paragraphs of purpose, an inventory row and a table
- * of offers — the shape of a terminal, and the shape a blind comprehension study bounced off in
- * about forty seconds. The operator's verdict and the study's landed in the same place: a person
- * holding ETH should arrive already inside the action, the way they do on a swap page, and be
- * decided in under a minute by something that reads like English.
+ * There is no `/offers`, no `/offer/[hash]`, no `/write` and no `/book`: the positions view is the
+ * strip at the bottom of this screen, the offer detail is a row on it, and the ticket is beside the
+ * chart the way it is on every trading terminal. `/surface` and `/receipt` still exist as read-layer
+ * artifacts and are reachable only from the one line in the footer.
  *
- * So the whole screen is `Sell 10.4 WETH · if it reaches 2,600 · by Fri 11 Sep`, pre-filled from
- * the wallet's balance, the price feed and the chain's clock, with two lines under it saying what
- * that earns and what it gives up and one button that publishes it. The positions view still
- * exists, still matters, and is a second tab that appears once there is something in it.
+ * The route entry stays on the server so the title lives in the route rather than in an effect;
+ * everything below it reads a wallet and a chain, so it is a client module.
  */
-import { OfferCard } from '@/components/sell';
-import { AppChrome } from '@/components/shell';
-
-export default function SellPage() {
-  return (
-    <AppChrome layout="card">
-      <OfferCard />
-    </AppChrome>
-  );
+export default function TerminalPage() {
+  return <TerminalScreen />;
 }

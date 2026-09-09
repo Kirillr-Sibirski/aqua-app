@@ -1,0 +1,878 @@
+/*
+ * The terminal. One screen, three regions, no page.
+ *
+ * A CSS module rather than utilities, for the same structural reason `sell.module.css` is one: a
+ * module's rules are unlayered, so they outrank Mantine's `@layer mantine` without a specificity
+ * fight, and the two Mantine controls that survive here (the amount field and the date picker) are
+ * rendered `variant="unstyled"` and dressed entirely from this file.
+ *
+ * Every value below is a token or a length from LAYOUT.md: 56px header, 380px ticket, 36px rows,
+ * 12px cell padding. Nothing here names a colour.
+ */
+
+/* --- the shell ------------------------------------------------------------ */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--bg);
+}
+
+.skip {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip:focus {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: var(--z-tooltip);
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  clip-path: none;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: var(--text-meta);
+  color: var(--ink);
+}
+
+/* --- the bar -------------------------------------------------------------- */
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-app-bar);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  height: var(--header-h);
+  padding: 0 0.75rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-right: 0.25rem;
+  border-radius: var(--radius-control);
+}
+
+.brandText {
+  font-size: var(--text-meta);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+/* The instrument: icons, pair, spot, delta. The only place the pair is named. */
+.instrument {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+  height: 100%;
+  padding-left: 1rem;
+  border-left: 1px solid var(--line);
+}
+
+.pair {
+  font-size: var(--text-meta);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.spot {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-lead);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.delta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-mini);
+}
+
+.delta[data-tone='pos'] {
+  color: var(--pos);
+}
+.delta[data-tone='neg'] {
+  color: var(--neg);
+}
+.delta[data-tone='flat'] {
+  color: var(--ink-3);
+}
+
+.deltaSpan {
+  color: var(--ink-3);
+}
+
+.barEnd {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* The block every figure on the screen was read at. The proof of simultaneity. */
+.block {
+  display: none;
+  align-items: center;
+  gap: 0.4375rem;
+  padding: 0.1875rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-mini);
+  color: var(--ink-2);
+}
+
+.blockDot {
+  width: 0.3125rem;
+  height: 0.3125rem;
+  border-radius: var(--radius-pill);
+  background: var(--pos);
+}
+
+@media (min-width: 64rem) {
+  .block {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 30rem) {
+  .bar {
+    gap: 0.625rem;
+    padding: 0 0.625rem;
+  }
+
+  .brandText {
+    display: none;
+  }
+
+  .instrument {
+    gap: 0.5rem;
+    padding-left: 0.625rem;
+  }
+
+  .pair {
+    display: none;
+  }
+}
+
+/* --- the two-column body -------------------------------------------------- */
+
+.body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.chartPane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 22.5rem;
+  border-right: 1px solid var(--line);
+}
+
+.ticket {
+  display: flex;
+  flex-direction: column;
+  width: 380px;
+  padding: 0.875rem 1rem 1rem;
+}
+
+@media (max-width: 60rem) {
+  .top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chartPane {
+    min-height: 18rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .ticket {
+    width: auto;
+    max-width: 30rem;
+  }
+}
+
+/* --- the ticket ----------------------------------------------------------- */
+
+/* A section label: one or two words, 11px, never a sentence. */
+.legend {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.375rem;
+  font-size: var(--text-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.legendFigure {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-mini);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-3);
+}
+
+.group + .group {
+  margin-top: 0.75rem;
+}
+
+/* The input well. One height, one radius, one focus treatment, three uses. */
+.well {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.75rem;
+  padding: 0 0.5rem 0 0.625rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  transition:
+    border-color var(--duration-fast) var(--ease-out-quart),
+    background-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.well:hover {
+  border-color: var(--line-strong);
+}
+
+.well:focus-within {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+.well[data-invalid='true'] {
+  border-color: var(--neg);
+}
+
+.wellUnit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex: 0 0 auto;
+  font-size: var(--text-meta);
+  color: var(--ink-2);
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-lead);
+  letter-spacing: -0.01em;
+  text-align: right;
+  color: var(--ink);
+}
+
+.input::placeholder {
+  color: var(--ink-3);
+}
+
+/* A ten-character amount at 16px still fits 380px; a twenty-character one does not. */
+.input[data-len='l'] {
+  font-size: var(--text-body);
+}
+.input[data-len='xl'] {
+  font-size: var(--text-meta);
+}
+
+/* Sits to the right of the number inside the same well: MAX, or the percent readout. */
+.wellEnd {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-mini);
+  color: var(--ink-3);
+}
+
+.maxButton {
+  flex: 0 0 auto;
+  padding: 0.1875rem 0.375rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-size: var(--text-micro);
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: var(--duration-fast) var(--ease-out-quart);
+  transition-property: color, border-color, background-color;
+}
+
+.maxButton:hover {
+  border-color: var(--accent-dim);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* --- the expiry row ------------------------------------------------------- */
+
+.expiryRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+}
+
+.dateWell {
+  display: flex;
+  align-items: center;
+  height: 2.75rem;
+  padding: 0 0.25rem 0 0.625rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  transition: border-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.dateWell:hover {
+  border-color: var(--line-strong);
+}
+
+.dateWell:focus-within {
+  border-color: var(--accent);
+}
+
+.dateInput {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-body);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.chip {
+  min-width: 2.25rem;
+  height: 2rem;
+  padding: 0 0.375rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-mini);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: var(--duration-fast) var(--ease-out-quart);
+  transition-property: color, background-color;
+}
+
+.chip:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* --- the figures ---------------------------------------------------------- */
+
+.figures {
+  margin: 0.875rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.figure {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 1.75rem;
+}
+
+.figureLabel {
+  font-size: var(--text-meta);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.figureValue {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-body);
+  text-align: right;
+  color: var(--ink);
+}
+
+.figureValue[data-tone='pos'] {
+  color: var(--pos);
+}
+
+.figureUnit {
+  margin-left: 0.375rem;
+  font-size: var(--text-mini);
+  color: var(--ink-3);
+}
+
+/*
+ * The implied volatility is a figure AND the maker's one remaining discretionary input, so it is
+ * drawn as a figure and behaves as a control: no chrome until it is hovered or focused. Removing it
+ * entirely would take the only number on the ticket the chain cannot supply out of the maker's
+ * hands; giving it a labelled input row would put a fourth control on a ticket the spec says has
+ * three.
+ */
+.ivInput {
+  width: 4.5rem;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-body);
+  text-align: right;
+  color: var(--ink);
+  transition: border-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.ivInput:hover {
+  border-bottom-color: var(--line-strong);
+}
+
+.ivInput:focus {
+  border-bottom-color: var(--accent);
+  outline: none;
+}
+
+.ivRow[data-measured='false'] .ivInput {
+  color: var(--ink);
+}
+
+/* --- the action ----------------------------------------------------------- */
+
+.action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  height: 2.75rem;
+  margin-top: 0.75rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--accent);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--accent-ink);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.action:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.action:disabled {
+  background: var(--surface-2);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.625rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-mini);
+  color: var(--ink-3);
+}
+
+.stepBar {
+  width: 1.25rem;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+}
+
+.step[data-state='running'] .stepBar {
+  background: var(--accent);
+}
+.step[data-state='running'] {
+  color: var(--ink-2);
+}
+.step[data-state='done'] .stepBar {
+  background: var(--pos);
+}
+.step[data-state='failed'] .stepBar {
+  background: var(--neg);
+}
+.step[data-state='failed'] {
+  color: var(--neg);
+}
+
+.error {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-mini);
+  line-height: 1.35;
+  color: var(--neg);
+}
+
+/* --- the positions strip -------------------------------------------------- */
+
+.positions {
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.positionsHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  height: 2.25rem;
+  padding: 0 0.75rem;
+}
+
+.positionsTitle {
+  font-size: var(--text-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* The signature figure: what the wallet has promised, over what it actually holds. */
+.promised {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: var(--text-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.promisedFigure {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-meta);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.promisedOver {
+  color: var(--ink-3);
+}
+
+.promisedMultiple {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-mini);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--warn);
+}
+
+.scroller {
+  max-height: 15.5rem;
+  overflow: auto;
+  border-top: 1px solid var(--line);
+}
+
+.table {
+  width: 100%;
+  min-width: 44rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table th,
+.table td {
+  padding: 0 0.75rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  height: 1.75rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  font-size: var(--text-micro);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.table tbody tr {
+  height: 2.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.row {
+  transition: background-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.row:hover {
+  background: var(--surface);
+}
+
+.row[data-dim='true'] {
+  color: var(--ink-3);
+}
+
+.cellStart {
+  text-align: left !important;
+}
+
+.asset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-meta);
+  color: var(--ink);
+}
+
+.numDim {
+  color: var(--ink-3);
+}
+
+.numPos {
+  color: var(--pos);
+}
+
+.unit {
+  margin-left: 0.3125rem;
+  font-size: var(--text-mini);
+  color: var(--ink-3);
+}
+
+/* The backing meter: nine cells, filled in proportion to what this offer can actually deliver. */
+.meter {
+  display: inline-flex;
+  gap: 2px;
+  vertical-align: middle;
+}
+
+.meterCell {
+  width: 5px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--surface-3);
+}
+
+.meterCell[data-on='true'] {
+  background: var(--accent);
+}
+
+.meter[data-short='true'] .meterCell[data-on='true'] {
+  background: var(--warn);
+}
+
+.withdraw {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: var(--duration-fast) var(--ease-out-quart);
+  transition-property: color, background-color;
+}
+
+.withdraw:hover:not(:disabled) {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+.withdraw:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.emptyRow {
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  font-size: var(--text-meta);
+  color: var(--ink-3);
+}
+
+.disclosure {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  font-size: var(--text-mini);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out-quart);
+}
+
+.disclosure:hover {
+  color: var(--ink-2);
+}
+
+.disclosureChevron {
+  transition: transform var(--duration-fast) var(--ease-out-quart);
+}
+
+.disclosure[aria-expanded='false'] .disclosureChevron {
+  transform: rotate(-90deg);
+}
+
+/* --- the footer ----------------------------------------------------------- */
+
+/*
+ * One line, 24px, at the bottom of the one screen. `/surface` and `/receipt` are submission
+ * artifacts rather than product screens, and this is the only way to reach either of them.
+ */
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.375rem 1rem;
+  padding: 0.4375rem 0.75rem;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-mini);
+  color: var(--ink-3);
+}
+
+.footLink {
+  color: var(--ink-3);
+  transition: color var(--duration-fast) var(--ease-out-quart);
+}
+
+.footLink:hover {
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.footEnd {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.375rem 0.875rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* --- skeletons ------------------------------------------------------------ */
+
+/*
+ * "Loading is a skeleton of the right width, never a word." One animation, one colour pair, and it
+ * collapses to a flat block under `prefers-reduced-motion` through the duration tokens.
+ */
+.skeleton {
+  display: inline-block;
+  height: 0.75em;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 0%,
+    var(--surface-3) 50%,
+    var(--surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s var(--ease-out-quart) infinite;
+  vertical-align: middle;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* The chart fills whatever the ticket beside it leaves. It measures itself; this only gives it a
+   box that can shrink, which a grid child cannot do without an explicit `min-height: 0`. */
+.chart {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Rows are 13px: the density LAYOUT.md asks for, and the size `TokenAmount` inherits. */
+.table tbody td {
+  font-size: var(--text-meta);
+}
