@@ -16,6 +16,7 @@ import {
   payoffDomain,
   positionPoints,
   positionValue,
+  premiumPoints,
   wadToNumber,
 } from '../payoff';
 
@@ -79,6 +80,9 @@ describe('the two lines', () => {
     const domain = payoffDomain(a, 2442.43);
     expect(domain[0]).toBeLessThan(a.capSpot);
     expect(domain[1]).toBeGreaterThan(a.capSpot);
+    // Every mark the view draws is framed, with air on both sides.
+    expect(domain[0]).toBeLessThan(2442.43);
+    expect(domain[1]).toBeGreaterThan(a.capSpot);
 
     const points = positionPoints(a, domain);
     expect(points).toHaveLength(3);
@@ -91,6 +95,54 @@ describe('the two lines', () => {
   it('shades nothing when the whole domain sits below the cap', () => {
     expect(forgonePoints(a, [1000, 2000])).toHaveLength(0);
     expect(forgonePoints(a, payoffDomain(a, 2442.43))).toHaveLength(3);
+  });
+
+  it('draws the premium as a triangle exactly `earned` tall at the strike', () => {
+    const domain = payoffDomain(a, 2442.43);
+    const points = premiumPoints(a, domain);
+    expect(points).toHaveLength(3);
+
+    // Left edge: from the hold line up to the ceiling, at the strike.
+    expect(points[0].x).toBeCloseTo(a.strike, 9);
+    expect(points[1].x).toBeCloseTo(a.strike, 9);
+    expect(points[1].y - points[0].y).toBeCloseTo(a.earned, 9);
+
+    // It closes where the hold line reaches the ceiling, and its width is the premium per unit.
+    expect(points[2].x).toBeCloseTo(a.capSpot, 9);
+    expect(points[2].x - points[0].x).toBeCloseTo(a.earned / a.x, 9);
+    expect(points[2].y).toBeCloseTo(a.cap, 9);
+  });
+
+  it('has nothing to draw when the strike is off the right of the domain', () => {
+    expect(premiumPoints(a, [1000, 2000])).toHaveLength(0);
+  });
+});
+
+describe('payoffDomain', () => {
+  const a = payoffAnchors(MEASURED)!;
+
+  it('scales its padding to the spread between the marks, not to the price', () => {
+    const [lo, hi] = payoffDomain(a, 2442.43);
+    // spot -> capSpot is 303.70; the pad is 1.2x that on each side.
+    expect(lo).toBeCloseTo(2442.43 - 1.2 * (a.capSpot - 2442.43), 6);
+    expect(hi).toBeCloseTo(a.capSpot + 1.2 * (a.capSpot - 2442.43), 6);
+  });
+
+  it('does not collapse when spot, strike and cap almost coincide', () => {
+    const [lo, hi] = payoffDomain(a, a.capSpot);
+    expect(hi - lo).toBeGreaterThan(0.1 * a.capSpot);
+  });
+
+  it('never runs below zero, however cheap the asset is', () => {
+    const cheap = payoffAnchors({
+      xWad: WAD,
+      yWad: BigInt(0),
+      capWad: WAD,
+      settlementWad: WAD / BigInt(2),
+      strikeWad: WAD / BigInt(2),
+    })!;
+    expect(cheap.capSpot).toBeCloseTo(1, 12);
+    expect(payoffDomain(cheap, 0.6)[0]).toBe(0);
   });
 });
 

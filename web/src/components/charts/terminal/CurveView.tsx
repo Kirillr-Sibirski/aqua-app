@@ -48,6 +48,7 @@ export interface CurveViewProps {
   stable: TerminalToken;
   state: TerminalState;
   errorMessage?: string;
+  refusedMessage?: string;
 }
 
 const MARGIN = { top: 24, right: 16, bottom: 42, left: 62 };
@@ -66,6 +67,7 @@ export function CurveView({
   stable,
   state,
   errorMessage,
+  refusedMessage,
 }: CurveViewProps) {
   const [index, setIndex] = useState<number | null>(null);
 
@@ -120,8 +122,9 @@ export function CurveView({
   const at = index === null ? null : points[Math.min(index, points.length - 1)];
   const shown = at ?? (reserve && points.length ? reserve : null);
 
-  const readout: ReadoutItem[] = shown
-    ? [
+  const readout: ReadoutItem[] =
+    shown && resolved === 'ready'
+      ? [
         {
           label: risky.symbol,
           icon: risky.icon,
@@ -176,6 +179,7 @@ export function CurveView({
         panelId={panelId}
         panelLabelledBy={tabId}
         state={resolved}
+        refusedMessage={refusedMessage}
         emptyMessage="no curve"
         errorMessage={errorMessage ?? terminalError(error)}
         cursor={{
@@ -194,10 +198,14 @@ export function CurveView({
 
           const compact = geometry.inner.width < 460;
           const x = xScaleFor(geometry, points, settlement);
+          /* `.nice()` rather than a 4% pad: the domain then ends on a tick, so the topmost gridline
+             label is the top of the plot instead of `20,000` floating two thirds of the way up a
+             chart whose data reaches 26,000. */
           const yMax = Math.max(settlement[0].y, points[0].y);
           const y = scaleLinear()
-            .domain([0, yMax * 1.04])
-            .range([geometry.inner.y + geometry.inner.height, geometry.inner.y]);
+            .domain([0, yMax])
+            .range([geometry.inner.y + geometry.inner.height, geometry.inner.y])
+            .nice(4);
 
           // The lens between the two curves: out along the live samples, back along the straight
           // settlement line. Both edges are measured, so the region between them is measured too.

@@ -102,15 +102,22 @@ export function positionValue(spot: number, a: PayoffAnchors): number {
 /**
  * The spot range the picture is drawn over.
  *
- * Wide enough that the kink is not on the frame and both markers have air around them, narrow
- * enough that the two lines separate visibly. The lower bound is pulled further than the upper
- * because the interesting half of a covered call is above the strike.
+ * Padded by a multiple of the span between the anchors rather than by a percentage of the price,
+ * which is what it used to be. A flat -20%/+16% of the level is four standard deviations for an
+ * eight-day leg: two thirds of the axis went to prices that cannot happen before expiry, and
+ * everything worth looking at — the strike, the cap, the wedge, the premium — was squeezed into the
+ * middle third. Scaling the pad to the distance between the marks instead keeps the same three
+ * marks framed at any tenor and any volatility, and gives a short-dated leg a readable axis.
+ *
+ * The floor matters for the at-the-money case: when spot, strike and cap almost coincide the span
+ * collapses, and a domain of a few dollars either side would be a picture of nothing.
  */
 export function payoffDomain(a: PayoffAnchors, spot?: number): [number, number] {
   const points = [a.capSpot, a.strike, ...(spot !== undefined && spot > 0 ? [spot] : [])];
   const lo = Math.min(...points);
   const hi = Math.max(...points);
-  return [Math.max(0, lo * 0.8), hi * 1.16];
+  const pad = 1.2 * Math.max(hi - lo, 0.05 * hi);
+  return [Math.max(0, lo - pad), hi + pad];
 }
 
 /** A polyline, in domain units, for the value of the position across `domain`. */
@@ -156,5 +163,45 @@ export function forgonePoints(
     { x: kink, y: a.cap },
     { x: hi, y: holdValue(hi, a) },
     { x: hi, y: a.cap },
+  ];
+}
+
+/**
+ * The premium, as a region — the other half of the picture, and the reason to write the offer.
+ *
+ * There was a real complaint about the payoff view: it drew a large red wedge and nothing else, so
+ * a vol-selling terminal's headline chart sold only the downside. `Premium +146.13 USDC` sat in the
+ * ticket while `vs hold +0.00` sat in the chart's own readout, three hundred pixels apart, and both
+ * were right.
+ *
+ * They were right because this instrument pays no premium up front. The maker posts `x` risky; the
+ * reserve point moves, and the money arrives, only when somebody trades against the curve. So at
+ * expiry, with nothing having traded, the position IS the hold below the assignment point — and
+ * shifting the line up to draw a premium that has not been paid would be a lie about the one number
+ * the whole product is judged on.
+ *
+ * The premium is nonetheless on this chart, exactly, and it is a triangle:
+ *
+ *     (K,        hold(K))     the hold line at the strike
+ *     (K,        cap)         the ceiling, above it by `cap - y - K*x = settlement - y = earned`
+ *     (capSpot,  cap)         where the hold line reaches the ceiling and the two close
+ *
+ * Its left edge is `earned` tall — the same wei `stableFor` returned and the same figure the ticket
+ * prints — and its width is `earned/x`, which is how far above the strike a taker actually has to
+ * pay to be assigned. Nothing is modelled and nothing is shifted: the triangle is bounded below by
+ * the hold line that was already drawn and above by the cap that was already drawn.
+ */
+export function premiumPoints(
+  a: PayoffAnchors,
+  domain: readonly [number, number],
+): { x: number; y: number }[] {
+  const [lo, hi] = domain;
+  const left = Math.max(a.strike, lo);
+  const right = Math.min(a.capSpot, hi);
+  if (!(right > left)) return [];
+  return [
+    { x: left, y: holdValue(left, a) },
+    { x: left, y: a.cap },
+    { x: right, y: a.cap },
   ];
 }

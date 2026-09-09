@@ -159,6 +159,10 @@ export function TerminalScreen() {
                       : 'empty'
               }
               errorMessage={draft.sizing.error?.name}
+              /* The router will happily price a strike under spot — it is a view, and the arithmetic
+                 is real. The offer is not: it would be taken the instant it was published, and the
+                 button says so. The chart says the same thing rather than plotting it. */
+              refusedMessage={draft.belowSpot ? 'strike below spot' : undefined}
               className={classes.chart}
             />
           </section>

@@ -50,6 +50,7 @@ export interface DecayViewProps {
   nowSeconds?: number;
   state: TerminalState;
   errorMessage?: string;
+  refusedMessage?: string;
 }
 
 /** The right margin carries a second axis, so it is as wide as the left one. */
@@ -70,6 +71,7 @@ export function DecayView({
   nowSeconds,
   state,
   errorMessage,
+  refusedMessage,
 }: DecayViewProps) {
   const [index, setIndex] = useState<number | null>(null);
 
@@ -102,8 +104,9 @@ export function DecayView({
   const shown: DecayPoint | null =
     points.length === 0 ? null : (index === null ? points[points.length - 1] : points[Math.min(index, points.length - 1)]);
 
-  const readout: ReadoutItem[] = shown
-    ? [
+  const readout: ReadoutItem[] =
+    shown && resolved === 'ready'
+      ? [
         { label: 'after', value: `${formatChartNumber(shown.days, { significantDigits: 3 })} d` },
         {
           label: stable.symbol,
@@ -146,6 +149,7 @@ export function DecayView({
         panelId={panelId}
         panelLabelledBy={tabId}
         state={resolved}
+        refusedMessage={refusedMessage}
         emptyMessage="no time left"
         errorMessage={errorMessage ?? terminalError(band.error)}
         cursor={{

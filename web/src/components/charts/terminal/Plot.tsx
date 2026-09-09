@@ -71,6 +71,8 @@ export interface PlotProps {
   emptyMessage?: string;
   /** The decoded custom error name, with its arguments. Never a raw hex blob. */
   errorMessage?: string;
+  /** Two or three words naming what the ticket refused. Shown in place of the plot. */
+  refusedMessage?: string;
   cursor?: PlotCursor;
   /** `id` for the box, so the segmented control above it can point a `tabpanel` relation at it. */
   panelId?: string;
@@ -90,6 +92,7 @@ export function Plot({
   state = 'ready',
   emptyMessage = 'no position',
   errorMessage,
+  refusedMessage,
   cursor,
   panelId,
   panelLabelledBy,
@@ -230,6 +233,9 @@ export function Plot({
 
       {state === 'empty' ? <PlotMessage body={emptyMessage} /> : null}
       {state === 'error' ? <PlotMessage body={errorMessage ?? 'read failed'} tone="error" /> : null}
+      {state === 'refused' ? (
+        <PlotMessage body={refusedMessage ?? 'cannot be published'} tone="refused" />
+      ) : null}
     </div>
   );
 }
@@ -278,17 +284,23 @@ function PlotSkeleton({ title, margin }: { title: string; margin: ChartMargin })
   );
 }
 
-/** Empty and error share one layout: a glyph, two words, centred, in mono. */
-function PlotMessage({ body, tone = 'neutral' }: { body: string; tone?: 'neutral' | 'error' }) {
+/** Empty, refused and error share one layout: a glyph, two words, centred, in mono. */
+function PlotMessage({
+  body,
+  tone = 'neutral',
+}: {
+  body: string;
+  tone?: 'neutral' | 'error' | 'refused';
+}) {
   return (
     <div className="absolute inset-0 flex items-center justify-center">
       <p
         className={cn(
           'flex items-center gap-1.5 font-mono text-mini tnum',
-          tone === 'error' ? 'text-neg' : 'text-ink-3',
+          tone === 'error' ? 'text-neg' : tone === 'refused' ? 'text-warn' : 'text-ink-3',
         )}
       >
-        {tone === 'error' ? <AlertGlyph /> : null}
+        {tone === 'neutral' ? null : <AlertGlyph />}
         {body}
       </p>
     </div>

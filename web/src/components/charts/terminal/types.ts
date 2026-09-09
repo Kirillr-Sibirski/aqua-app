@@ -65,8 +65,17 @@ export interface TerminalLeg {
   yWad: bigint;
 }
 
-/** The five states a data surface ships. `empty` means there is no leg to draw yet. */
-export type TerminalState = 'ready' | 'loading' | 'empty' | 'error';
+/**
+ * The five states a data surface ships.
+ *
+ * `empty` means there is no leg to draw yet. `refused` is the one that is not about a read: the
+ * ticket has rejected what was typed, so the leg the router priced describes a configuration that
+ * cannot be published, and drawing it would be a picture of an offer nobody can make. It exists
+ * because the chart used to plot a strike of 1 against a spot of 2,442 — four identical `10.4M`
+ * gridline labels, a cap annotation colliding with the axis title, a readout of ten million — while
+ * the ticket beside it correctly refused with `Strike below spot`. Refuse rather than lie.
+ */
+export type TerminalState = 'ready' | 'loading' | 'empty' | 'error' | 'refused';
 
 export interface TerminalChartProps {
   /** The Strikeline router. `StrikelineViews` is a mixin on it, not a separate contract. */
@@ -86,10 +95,16 @@ export interface TerminalChartProps {
   onViewChange?: (view: TerminalView) => void;
   /**
    * The caller's own state. `loading` while the ticket is still pricing the leg; `error` with
-   * `errorMessage` when its read refused. The chart adds its own reads' states on top.
+   * `errorMessage` when its read refused; `refused` when the ticket has rejected the input. The
+   * chart adds its own reads' states on top, and never overrides a state the caller set.
    */
   state?: TerminalState;
   /** A decoded custom error name from the caller's read. Never a raw hex blob. */
   errorMessage?: string;
+  /**
+   * Why the ticket is refusing what was typed, in two or three words — the same string the publish
+   * button is wearing. Set it and every view draws nothing but that word.
+   */
+  refusedMessage?: string;
   className?: string;
 }

@@ -38,6 +38,7 @@ export function TerminalChart({
   onViewChange,
   state = 'ready',
   errorMessage,
+  refusedMessage,
   className,
 }: TerminalChartProps) {
   const idPrefix = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -66,8 +67,11 @@ export function TerminalChart({
     leg,
     risky,
     stable,
-    state,
+    /* A refusal outranks everything the views could say about their own reads: the leg the router
+       priced is real, but it describes an offer the ticket will not publish. */
+    state: refusedMessage ? ('refused' as const) : state,
     errorMessage,
+    refusedMessage,
   };
 
   return (

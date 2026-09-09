@@ -179,12 +179,27 @@ export interface TickFormatterOptions extends Pick<ChartNumberOptions, 'sign' | 
   maxFractionDigits?: number;
 }
 
+/** Most significant figures a compact axis label will spend before giving up on compact. */
+const MAX_COMPACT_DIGITS = 6;
+
+/** True when every entry is different from every other. */
+function allDistinct(labels: readonly string[]): boolean {
+  return new Set(labels).size === labels.length;
+}
+
 /**
  * A formatter for one axis, derived from that axis's own tick values.
  *
  * Every tick gets the same number of fraction digits, chosen as the most any single tick needs, so
  * the labels form a column that lines up under `tabular-nums` instead of a ragged mix of `2,400`
  * and `2,450.5`. Trailing zeros are kept for the same reason.
+ *
+ * **The labels must also be distinct**, and that is not automatic. Compact notation spends three
+ * significant figures, so an axis whose four ticks sit inside one part in a thousand of each other
+ * — which is exactly what a degenerate domain produces — printed `10.4M` four times, as four
+ * separate gridline labels on one chart. This walks the significant-figure budget up until the
+ * labels differ, and falls back to spelling the numbers out when even six figures cannot separate
+ * them, because a repeated label is worse than a wide one.
  */
 export function tickFormatter(
   ticks: readonly number[],
@@ -197,7 +212,10 @@ export function tickFormatter(
   const useCompact = compact ?? largest >= COMPACT_THRESHOLD;
 
   if (useCompact) {
-    return (value) => formatChartCompact(value, { significantDigits: 3, sign, unit });
+    for (let digits = 3; digits <= MAX_COMPACT_DIGITS; digits += 1) {
+      const at = (value: number) => formatChartCompact(value, { significantDigits: digits, sign, unit });
+      if (finite.length < 2 || allDistinct(finite.map(at))) return at;
+    }
   }
 
   const places = finite.reduce((max, t) => Math.max(max, neededDecimals(t, maxFractionDigits)), 0);

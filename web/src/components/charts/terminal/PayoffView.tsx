@@ -3,10 +3,16 @@
 /**
  * PAYOFF AT EXPIRY — the view a first-time visitor reads.
  *
- * Two lines. Holding the same reserves, and writing this leg against them. They are the same line
- * until spot passes the point where assignment becomes worth doing, and past it the position is
- * flat while holding keeps climbing. The wedge between them is what the maker hands over, and it is
- * shaded because it is the only thing on this screen that costs money in a state nobody chose.
+ * Two lines and two regions. Holding the same reserves, and writing this leg against them: the two
+ * lines are the same line until spot passes the point where assignment becomes worth doing, and
+ * past it the position is flat while holding keeps climbing.
+ *
+ * The red wedge above the kink is what the maker hands over. The green triangle below it, between
+ * the strike and that kink, is what they are paid for it — `earned` tall at the strike and
+ * `earned/x` wide, both from the same `stableFor` reads the ticket prints `Premium` from. The view
+ * used to draw only the wedge, which made a vol-selling terminal's headline chart a picture of the
+ * downside alone while the ticket beside it advertised the premium. Both regions are bounded by
+ * lines that were already on the chart; nothing is shifted and nothing is modelled.
  *
  * Every constant the two lines are pinned to is a chain read at a matured maturity, where the
  * router's own trading function is the closed form `Y = K*(L - X)` and no Gaussian is evaluated at
@@ -35,6 +41,7 @@ import {
   payoffDomain,
   positionPoints,
   positionValue,
+  premiumPoints,
   type PayoffAnchors,
 } from './payoff';
 import { Plot, PlotArea } from './Plot';
@@ -53,6 +60,7 @@ export interface PayoffViewProps {
   spot?: number;
   state: TerminalState;
   errorMessage?: string;
+  refusedMessage?: string;
 }
 
 /** Room for four-digit ticks on the left, the unit tag and marker labels along the top. */
@@ -94,6 +102,7 @@ export function PayoffView({
   spot,
   state,
   errorMessage,
+  refusedMessage,
 }: PayoffViewProps) {
   const [index, setIndex] = useState<number | null>(null);
 
@@ -132,11 +141,14 @@ export function PayoffView({
   const restSpot = anchors ? (spot !== undefined && spot > 0 ? spot : anchors.capSpot) : 0;
   const at = anchors ? (index === null ? restSpot : spotAt(index, domain)) : 0;
 
-  const readout: ReadoutItem[] = anchors ? readoutAt(at, anchors) : [];
+  /* Nothing is read out of a plot that is not being drawn: a refusal must not leave last frame's
+     figures standing in the strip above an empty box. */
+  const readout: ReadoutItem[] = anchors && resolved === 'ready' ? readoutAt(at, anchors) : [];
 
   const legend: LegendItem[] = [
     { id: 'position', color: 'accent' },
     { id: 'hold', color: 'ink-2', dash: 'dashed' },
+    { id: 'premium', color: 'pos', kind: 'area' },
     { id: 'given up', color: 'neg', kind: 'area' },
   ];
 
@@ -150,6 +162,7 @@ export function PayoffView({
         panelId={panelId}
         panelLabelledBy={tabId}
         state={resolved}
+        refusedMessage={refusedMessage}
         emptyMessage="no position"
         errorMessage={errorMessage ?? terminalError(settlement.error)}
         cursor={{
@@ -184,35 +197,26 @@ export function PayoffView({
            * cap is the one that answers the question -- it is the strike plus what the wait pays --
            * so when they collide the strike keeps its rule and loses its label.
            */
-          const labelWidth = estimateMonoTextWidth(
-            `cap ${formatChartNumber(anchors.capSpot, { significantDigits: 6 })}`,
-            12,
-          );
+          const labelWidth = estimateMonoTextWidth(`cap ${money(anchors.capSpot)}`, 12);
           const crowded =
             Math.abs(xFor(anchors.capSpot, domain, geometry) - xFor(anchors.strike, domain, geometry)) <
             labelWidth;
 
-          const forgone = forgonePoints(anchors, domain);
-          const forgonePath =
-            forgone.length === 3
-              ? `M${forgone.map((p) => `${round(x(p.x))},${round(y(p.y))}`).join('L')}Z`
-              : null;
+          const forgonePath = polygon(forgonePoints(anchors, domain), x, y);
+          const premiumPath = polygon(premiumPoints(anchors, domain), x, y);
 
           const markers: MarkerSpec[] = [
             {
               id: 'strike',
               value: anchors.strike,
-              label:
-                compact || crowded
-                  ? undefined
-                  : `K ${formatChartNumber(anchors.strike, { significantDigits: 6 })}`,
+              label: compact || crowded ? undefined : `K ${money(anchors.strike)}`,
               stroke: 'ink-3',
               labelColor: 'ink-2',
             },
             {
               id: 'cap',
               value: anchors.capSpot,
-              label: compact ? undefined : `cap ${formatChartNumber(anchors.capSpot, { significantDigits: 6 })}`,
+              label: compact ? undefined : `cap ${money(anchors.capSpot)}`,
               stroke: 'accent-dim',
               labelColor: 'ink',
             },
@@ -221,7 +225,7 @@ export function PayoffView({
                   {
                     id: 'spot',
                     value: spot,
-                    label: compact ? undefined : `spot ${formatChartNumber(spot, { significantDigits: 6 })}`,
+                    label: compact ? undefined : `spot ${money(spot)}`,
                     stroke: 'ink-2' as const,
                     labelColor: 'ink-2' as const,
                     dash: 'solid' as const,
@@ -235,6 +239,9 @@ export function PayoffView({
               <Grid geometry={geometry} yScale={y} yCount={4} />
               <PlotArea geometry={geometry}>
                 {forgonePath ? <path d={forgonePath} fill={colorMix('neg', 16)} stroke="none" /> : null}
+                {/* Drawn under the lines, like the wedge: it is bounded by the hold line above the
+                    strike and by the cap, and both of those are strokes that must stay readable. */}
+                {premiumPath ? <path d={premiumPath} fill={colorMix('pos', 20)} stroke="none" /> : null}
                 <CurveLine
                   points={positionPoints(anchors, domain)}
                   xScale={x}
@@ -276,7 +283,7 @@ export function PayoffView({
                     { id: 'hold', y: y(holdValue(at, anchors)), color: 'ink-2' },
                     { id: 'position', y: y(positionValue(at, anchors)), color: 'accent' },
                   ]}
-                  label={formatChartNumber(at, { significantDigits: 6 })}
+                  label={money(at)}
                 />
               ) : null}
             </>
@@ -285,6 +292,16 @@ export function PayoffView({
       </Plot>
     </div>
   );
+}
+
+/** A closed path from domain points, or null when there is nothing to close. */
+function polygon(
+  points: readonly { x: number; y: number }[],
+  x: (v: number) => number,
+  y: (v: number) => number,
+): string | null {
+  if (points.length < 3) return null;
+  return `M${points.map((p) => `${round(x(p.x))},${round(y(p.y))}`).join('L')}Z`;
 }
 
 /** Where a domain value lands in px, without building the scale twice. */
@@ -304,15 +321,23 @@ function money(value: number, sign: 'auto' | 'always' = 'auto'): string {
   });
 }
 
-/** The four figures, at one spot. Same shape whether the cursor is down or resting. */
+/**
+ * The five figures, at one spot. Same shape whether the cursor is down or resting.
+ *
+ * `premium` does not move with the cursor, and that is the point of putting it here: it is the one
+ * figure on the chart that is a property of the offer rather than of where the pointer is, it is
+ * the same `earned` the ticket prints under the same word, and without it the readout said
+ * `vs hold +0.00` while the ticket three hundred pixels away said `Premium +146.13`.
+ */
 function readoutAt(at: number, a: PayoffAnchors): ReadoutItem[] {
   const position = positionValue(at, a);
   const hold = holdValue(at, a);
   const delta = position - hold;
   return [
-    { label: 'spot', value: formatChartNumber(at, { significantDigits: 6, minFractionDigits: 2 }) },
+    { label: 'spot', value: money(at) },
     { label: 'position', value: money(position), tone: 'accent' },
     { label: 'hold', value: money(hold), tone: 'ink-2' },
+    { label: 'premium', value: money(a.earned, 'always'), tone: 'pos' },
     { label: 'vs hold', value: money(delta, 'always'), tone: delta < 0 ? 'neg' : 'ink-2' },
   ];
 }
