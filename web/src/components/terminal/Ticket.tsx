@@ -101,6 +101,7 @@ export function Ticket({
             min={0}
             hideControls
             allowNegative={false}
+            thousandSeparator=","
             decimalScale={pair?.risky.decimals ?? 18}
             style={{ flex: '1 1 auto', minWidth: 0 }}
           />
@@ -136,6 +137,7 @@ export function Ticket({
             min={0}
             hideControls
             allowNegative={false}
+            thousandSeparator=","
             decimalScale={2}
             style={{ flex: '1 1 auto', minWidth: 0 }}
           />
@@ -201,7 +203,15 @@ export function Ticket({
       </div>
 
       {/* --- the figures -------------------------------------------------- */}
-      <div className={classes.figures}>
+      {/*
+        * Dimmed when the amount typed is more than the wallet holds.
+        *
+        * The quote below is clamped to the balance, so in that state these three figures describe
+        * the largest offer that could actually be published rather than the number in the field.
+        * The old card said so in a sentence; here the field is red, the button names the maximum,
+        * and the figures step back — which is the same three facts without the sentence.
+        */}
+      <div className={classes.figures} data-clamped={draft.overBalance || undefined}>
         <FigureRow label="Premium">
           {draft.offer && stableSymbol ? (
             <TokenAmount

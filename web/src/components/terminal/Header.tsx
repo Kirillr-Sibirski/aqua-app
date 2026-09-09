@@ -41,7 +41,15 @@ export function TerminalHeader({ base, quote, spot, window: spotWindow, blockNum
       </span>
 
       <div className={classes.instrument}>
-        <TokenPair base={base} quote={quote} size={20} className={classes.pair} />
+        {/* The marks always; the names only where there is room for them. A pair with no icons is
+            the one thing the layout rule forbids, so the two are separate elements rather than
+            `TokenPair`'s own `showSymbols`, which a media query cannot reach. */}
+        <TokenPair base={base} quote={quote} size={20} showSymbols={false} />
+        <span className={classes.pair}>
+          {base}
+          <span className={classes.pairSlash}>/</span>
+          {quote}
+        </span>
         <span className={classes.spot}>{spot ?? <Bar width={64} />}</span>
         <span className={classes.delta} data-tone={tone}>
           {spotWindow ? (

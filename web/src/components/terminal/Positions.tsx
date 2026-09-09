@@ -25,6 +25,7 @@ import { useDock } from '@/hooks';
 import type { BookLeg, UseBookReturn } from '@/hooks/useBook';
 import { TokenAmount, TokenAmountSkeleton } from '@/components/token';
 import { formatUnits } from '@/lib/ui';
+import { backingRatio } from './backing';
 import { Bar, Meter, Num } from './bits';
 import classes from './terminal.module.css';
 
@@ -194,7 +195,7 @@ function Row({
   // The guard's own number wins when it gave one: same quantity, straight from the enforcer.
   const open = leg.probe.bound ?? leg.depth.amount;
   const written = leg.depth.written;
-  const backing = written > ZERO ? Number((open * BigInt(10_000)) / written) / 10_000 : 0;
+  const backing = backingRatio(open, written);
 
   const theta = leg.theta;
   const earned =

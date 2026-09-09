@@ -185,8 +185,10 @@ export function useTicketDraft({
     strike,
     date,
     vol,
-    setAmount: setAmountDraft,
-    setStrike: setStrikeDraft,
+    /* Mantine groups the digits for reading; `parseDecimalInput` takes a decimal string. The
+       separator is stripped on the way in so the two never disagree about what was typed. */
+    setAmount: (next: string) => setAmountDraft(ungroup(next)),
+    setStrike: (next: string) => setStrikeDraft(ungroup(next)),
     setDate: setDateDraft,
     setVol: setVolDraft,
     maxAmount,
@@ -216,6 +218,11 @@ export function useTicketDraft({
       }
     },
   };
+}
+
+/** Drops the thousands separators a grouped input hands back. */
+function ungroup(value: string): string {
+  return value.replace(/,/g, '');
 }
 
 /**

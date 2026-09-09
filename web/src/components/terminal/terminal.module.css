@@ -19,6 +19,21 @@
   background: var(--bg);
 }
 
+/*
+ * On a desk, the whole tool fits the window and nothing scrolls: the chart, the ticket and the
+ * positions are one instrument, and having to scroll to see whether an offer is still covered is
+ * the failure this layout exists to fix. The chart takes whatever the other two leave, floored by
+ * `.chartPane`'s own min-height. Below the two-column breakpoint this is off and the page scrolls
+ * like a page, because 390x844 cannot hold three regions at once and pretending otherwise is how a
+ * phone ends up with three nested scrollers.
+ */
+@media (min-width: 60rem) {
+  .shell {
+    height: 100dvh;
+    overflow: hidden;
+  }
+}
+
 .skip {
   position: absolute;
   width: 1px;
@@ -89,11 +104,15 @@
 }
 
 .pair {
-  font-size: var(--text-meta);
-  font-weight: 500;
+  font-size: var(--text-body);
   letter-spacing: 0.01em;
   white-space: nowrap;
   color: var(--ink);
+}
+
+.pairSlash {
+  margin: 0 1px;
+  color: var(--ink-3);
 }
 
 .spot {
@@ -210,6 +229,9 @@
   flex-direction: column;
   width: 380px;
   padding: 0.875rem 1rem 1rem;
+  /* The publish strip can add three rows and an error line under a ticket that already fills its
+     column; it scrolls rather than pushing the positions off the bottom of the window. */
+  overflow-y: auto;
 }
 
 @media (max-width: 60rem) {
@@ -428,6 +450,12 @@
   margin: 0.875rem 0 0;
   padding-top: 0.75rem;
   border-top: 1px solid var(--line);
+  transition: opacity var(--duration-base) var(--ease-out-quart);
+}
+
+/* The quote is clamped to the balance, so these describe a smaller offer than the field does. */
+.figures[data-clamped] {
+  opacity: 0.45;
 }
 
 .figure {
@@ -576,6 +604,8 @@
 /* --- the positions strip -------------------------------------------------- */
 
 .positions {
+  flex: 0 1 auto;
+  min-height: 0;
   border-top: 1px solid var(--line);
   background: var(--bg);
 }
@@ -630,7 +660,7 @@
 }
 
 .scroller {
-  max-height: 15.5rem;
+  max-height: 18rem;
   overflow: auto;
   border-top: 1px solid var(--line);
 }
@@ -715,7 +745,15 @@
   color: var(--ink-3);
 }
 
-/* The backing meter: nine cells, filled in proportion to what this offer can actually deliver. */
+/*
+ * The backing meter: nine cells, filled in proportion to what this offer can actually hand over.
+ *
+ * Quiet at full and loud below it, which is the opposite of how a progress bar usually behaves and
+ * the right way round here. Full is the normal state of a covered book and wants no attention;
+ * anything less means a fill on a sibling offer has eaten into the one balance behind all of them,
+ * and that is the only thing on this row worth interrupting for. Hence `--accent-dim` rather than
+ * `--accent`: nine bright bars on every row would be decoration, and the accent is spoken for.
+ */
 .meter {
   display: inline-flex;
   gap: 2px;
@@ -730,7 +768,7 @@
 }
 
 .meterCell[data-on='true'] {
-  background: var(--accent);
+  background: var(--accent-dim);
 }
 
 .meter[data-short='true'] .meterCell[data-on='true'] {
@@ -765,6 +803,7 @@
 .emptyRow {
   height: 2.25rem;
   padding: 0 0.75rem;
+  text-align: left !important;
   font-size: var(--text-meta);
   color: var(--ink-3);
 }

@@ -40,7 +40,7 @@ export function SiteFooter({ wide = false }: SiteFooterProps) {
           Market
         </Link>
         <Link href="/receipt" className={classes.footerLink}>
-          Was it worth it
+          Markout
         </Link>
         <a href={REPO_URL} target="_blank" rel="noreferrer" className={classes.footerLink}>
           Source

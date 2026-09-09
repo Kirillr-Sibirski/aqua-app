@@ -18,5 +18,7 @@ export type { PositionsProps } from './Positions';
 export { useTicketDraft } from './useTicketDraft';
 export type { TicketDraft, UseTicketDraftParams } from './useTicketDraft';
 
+export { backingRatio } from './backing';
+
 export { useSpotWindow, formatSpan } from './useSpotWindow';
 export type { SpotWindow, UseSpotWindowParams, UseSpotWindowResult } from './useSpotWindow';
