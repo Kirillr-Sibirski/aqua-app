@@ -801,8 +801,42 @@
 
 /* --- the action ----------------------------------------------------------- */
 
+/*
+ * The primary action, and why it states its flex.
+ *
+ * The ticket is a flex column with `overflow-y: auto`, and every child defaulted to
+ * `flex-shrink: 1`. That is inert on the four control groups and on the figures, because each of
+ * them is packed with fixed-height wells and rows, so their automatic minimum size is their content
+ * and there is nothing to give. This button is the exception: its content is one 20px line box
+ * inside a 44px box, so it is the only child on the ticket that *can* shrink — and a flex line that
+ * is short by any amount takes all of it out of the one item that will yield.
+ *
+ * Measured at the window LAYOUT.md and the README both draw: at 1440x900 the ticket had 448px and
+ * wanted 461, and the whole 13px came out of here. The primary action rendered 20px tall — half a
+ * tap target, under a 44px `Connect wallet` in the same slot one state earlier. At 1280x800 it was
+ * 20px again with 113px of scroll below it. At 1440x1100, where nothing is short, it is 44.
+ *
+ * This is the same trap the bar at the top of this file already documents, on the one element that
+ * should be the last to give rather than the first. `flex: 0 0 auto` sends the shortfall to the
+ * scroller the `aside` already has, which is what a scroller is for.
+ *
+ * What this does NOT do is dock the button against the ticket's bottom edge, and that was tried
+ * before it was ruled out. `position: sticky` on the action gives it its full 44px at every window,
+ * but on a short one it then parks on top of `CAPPED AT` — hiding one of the two figures the button
+ * is about, at rest, in order to be visible itself. Clipping the button is bad; occluding the quote
+ * it publishes is worse, so the ticket goes on scrolling and the reader gets a scrollbar.
+ *
+ * The residual is worth naming rather than papering over: the ticket's content is 485px and every
+ * one of those pixels is a decision this file argues for — 44px controls, one control height, one
+ * radius, four groups. At a 1440x900 window the grid row can hand it at most 448, because the
+ * strip below is capped at `18rem` of scroller plus its head and disclosure. So a full book on a
+ * 900px window clips the last 37px, and there are exactly two honest ways out: fewer visible rows
+ * in the strip (`.scroller`'s `max-height`), or a tighter rhythm in here. Both are a change to the
+ * balance between two regions rather than a bug, so neither is made silently.
+ */
 .action {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
@@ -1425,6 +1459,33 @@
   position: relative;
   color: var(--ink-3);
   transition: color var(--duration-fast) var(--ease-out-quart);
+}
+
+/*
+ * The footer's links, made touchable without being made bigger.
+ *
+ * `position: relative` was already here and nothing used it. These are 11px links in a 20px line —
+ * `Source` measures 39x20 on a phone — which is under half the 44px a finger needs and the last
+ * targets on the screen still short of it, now that the ⓘ carries its own expansion. Same trick as
+ * `.explain` and the `tap-44` utility: the box does not move, an invisible `::after` takes the taps.
+ *
+ * The row gap opens with it, and that is not decoration. The footer wraps to three lines at 390px,
+ * so expanding each link by 12px above and below without opening the gap would let two stacked
+ * links' hit areas overlap — a finger aimed at one line landing on the line under it, which is a
+ * worse bug than the small target it was fixing.
+ */
+@media (pointer: coarse) {
+  .foot {
+    row-gap: 1.5rem;
+  }
+
+  .footLink::after {
+    content: '';
+    position: absolute;
+    /* 20px of link plus 12 top and bottom is 44; the 8px sides stay inside the 16px column gap, so
+       two links on one line touch at most and never overlap. */
+    inset: -12px -8px;
+  }
 }
 
 /* 12px type in a 30px bar is a 39x20 target. The links keep their size and gain a thumb. */
