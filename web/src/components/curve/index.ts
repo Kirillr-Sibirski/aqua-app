@@ -41,11 +41,6 @@ export type { CoverageArgs, LegKind, LegProgramArgs, RmmArgs } from './rmm';
 export { explainProgram, findRmmArgs } from './program';
 export type { DecodedField, DecodedInstruction } from './program';
 
-export { ProgramInspector } from './ProgramInspector';
-export type { ProgramInspectorProps } from './ProgramInspector';
-
-export { formatDuration } from './duration';
-
 export {
   readLegLedger,
   useCoverage,

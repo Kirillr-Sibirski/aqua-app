@@ -1,32 +1,13 @@
 /**
- * The frame, and the mark.
+ * The mark, the chain, and the two hooks the one screen needs before it can render.
  *
- * The app is one screen and draws its own bar; `AppChrome` is what wraps the two read-layer
- * artifacts the footer links to. `SiteFooter` is the app's only navigation, on purpose.
+ * There is no app chrome here any more, because there is no second route to wrap: the terminal
+ * draws its own 56px bar and its own footer line, and both of those belong to it — the pair, the
+ * spot and the block they were read at cannot be carried by a shared frame.
  */
-export { AppChrome } from './AppChrome';
-export type { AppChromeProps } from './AppChrome';
+export { WordmarkMark } from './Wordmark';
 
-export { SiteFooter } from './SiteFooter';
-export type { SiteFooterProps } from './SiteFooter';
-
-export { PageHeader } from './PageHeader';
-export type { PageHeaderProps } from './PageHeader';
-
-export { Wordmark, WordmarkMark } from './Wordmark';
-export type { WordmarkProps } from './Wordmark';
-
-export {
-  explorerFor,
-  isForkOfBase,
-  addressUrl,
-  txUrl,
-  tokenUrl,
-  blockUrl,
-  commitUrl,
-  REPO_URL,
-  COMMIT_SHA,
-} from './explorer';
+export { explorerFor, isForkOfBase, addressUrl, commitUrl, REPO_URL, COMMIT_SHA } from './explorer';
 export type { Explorer } from './explorer';
 
 export { useDeploymentChain } from './useDeploymentChain';

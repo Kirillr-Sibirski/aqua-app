@@ -32,8 +32,8 @@ export const metadata: Metadata = {
   /* The terminal names its own instrument, so a tab reads `WETH/USDC · Strikeline` — the pair
      first, because that is what someone with nine tabs open is scanning for, and the product after
      it, because a tab with only a pair in it could be anybody's. The default carries the category
-     for the two read-layer routes and for anything that renders without a title of its own; it is
-     one string to change when the name does. The icon beside it is `icon.svg`, with `favicon.ico`
+     for anything that renders without a title of its own — the not-found page — and is one string
+     to change when the name does. The icon beside it is `icon.svg`, with `favicon.ico`
      redrawn from the same file by `scripts/favicon.mjs` for everything that still asks for one. */
   title: {
     default: "Strikeline — covered calls",

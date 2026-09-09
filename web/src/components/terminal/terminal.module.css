@@ -839,8 +839,8 @@
 /* --- the footer ----------------------------------------------------------- */
 
 /*
- * One line, 24px, at the bottom of the one screen. `/surface` and `/receipt` are submission
- * artifacts rather than product screens, and this is the only way to reach either of them.
+ * One line, 24px, at the bottom of the one screen: the chain, the router, the commit. Not
+ * navigation — there is one route and this is it.
  */
 .foot {
   display: flex;

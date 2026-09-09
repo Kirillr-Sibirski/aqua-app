@@ -12,20 +12,22 @@ node scripts/contrast.mjs   # all 36 design-token pairs against their contrast f
 
 The app needs a local Base fork to show anything: `make fork && make bootstrap` from the repo root.
 Without one it renders its disconnected and empty states, which is deliberate — see DESIGN.md.
-One optional variable: `NEXT_PUBLIC_SUBGRAPH_URL` points `/surface` at a deployed subgraph; unset,
-it reads the same events through viem and says so on screen ([how to deploy one](../subgraph/README.md)).
+No variables are required.
 
 ## Routes
 
-The app is one screen. `/surface` and `/receipt` are read-layer artifacts rather than steps in
-writing an offer, so nothing on the terminal links to them and they are reached from the footer.
+One. `next build` prints `/`, `/_not-found` and `/icon.svg`, and two of those are not pages.
 
 | | |
 |---|---|
-| `/` | **The terminal, and the whole app.** A 56px bar naming the pair and the block; a chart beside a 380px ticket; the positions strip underneath, one row per live offer with what can still be taken, what it has earned and a backing meter. Every figure pinned to one block |
-| `/surface` | **Market.** Every offer anyone has made on this router, with the best bid across all makers, rebuilt from the chain's log. Needs no wallet |
-| `/receipt` | **Markout.** One week of real Base prices replayed through the shipped contracts, marked against holding and against a constant-product pool. Labelled a simulation everywhere it appears |
+| `/` | **The terminal, and the whole app.** A 56px bar naming the pair and the block; a chart beside a 380px ticket; the positions strip underneath, one row per live offer with what can still be taken, what it has earned and how much of the shared balance it would consume. Every figure pinned to one block |
 | `/dev` | Plain-HTML diagnostics for the wallet and contract plumbing. Not product UI, and not a route unless `DEV_ROUTES=1` |
+
+The read-layer market screen and the markout study used to be `/surface` and `/receipt`. Both were
+submission artifacts rather than steps in writing an offer, and both were a second product — a
+different type scale, a different density — one footer click from the terminal. The decoders, the
+queries, the tests and the measured numbers are all still in the repo; the two screens are not. See
+the root README.
 
 ## Where things live
 
@@ -35,7 +37,6 @@ writing an offer, so nothing on the terminal links to them and they are reached 
 | `src/lib/contracts/` | The deployment manifest, typed and validated. `deployments.server.ts` is server-only |
 | `src/hooks/` | Chain reads: balances, shipped strategies, quotes, ships, docks, decoded custom errors |
 | `src/components/curve/` | The RMM-01 curve in TypeScript, and `buildLegProgram` |
-| `src/components/surface/` | The three-source read path: The Graph, then the logs, then `SurfaceLens`. `ReadLayer` is the panel that says which of them answered and prints the query |
 | `src/components/terminal/` | The one screen: the bar, the ticket, the positions strip, and the draft both the chart and the ticket read |
 | `src/components/charts/terminal/` | `TerminalChart`: payoff, curve and decay, each sampled from the router rather than modelled |
 | `src/components/token/` | The token marks, the pair, and `TokenAmount` — the one way this app prints a quantity |

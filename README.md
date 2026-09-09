@@ -79,16 +79,20 @@ offers against the 10.4 WETH actually in the wallet, none of which ever moved. T
 is how much of what that offer advertises its wallet could hand over right now — the bound the
 `Coverage` guard itself reported when the offer was probed for the whole of it.
 
-There is one route and two artifacts.
+There is one route. `next build` prints three entries and two of them are not pages:
 
-| Route | What it is | Reachable from |
-|---|---|---|
-| `/` | the terminal: chart, ticket, positions | — |
-| `/surface` | every offer any wallet has made, rebuilt from the log. Needs no wallet | footer |
-| `/receipt` | the markout study: one week of real Base prices, replayed | footer |
+```
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+└ ○ /icon.svg
+```
 
-`/surface` and `/receipt` are demonstrations of the read layer rather than steps in writing an
-offer, so they are reached from a quiet footer line and nothing on the terminal links to them.
+The read layer and the markout study used to be `/surface` and `/receipt`. They demonstrate what the
+contracts publish rather than how an offer is written, so they are documented below and in
+`contracts/test` and `scripts/markout` — the code, the queries and the measured numbers all survive;
+only the two screens are gone. A footer link to them put a second product, at a different density,
+one click from the terminal.
 
 ## The two custom SwapVM instructions
 
@@ -199,19 +203,16 @@ This is the read that matters to a solver: one call returns the deliverable dept
 actually honour on every leg at once, which is the number an order book would publish and Aqua does
 not have.
 
-### `web/src/app/(app)/surface` — the screen, which needs no wallet ([src](web/src/app/(app)/surface/page.tsx))
+### Three ways to read the same surface, and they cross-check each other
 
-Every offer anyone has made, with the best bid across all makers at the top, because that is the
-quote the registry structurally lacks. Underneath it sits a panel that names its own sources: which
-path answered this page load, how far behind the index is, and the query above with the strike and
-expiry currently on screen substituted in, ready to paste into a playground.
+Every offer anyone has made can be reconstructed with nothing connected, because it is all in a
+public log. Three independent paths decode it: the subgraph mappings, the same `Shipped` events
+pulled straight through viem with the same byte offsets, and — when the lens is not deployed —- the
+lens contract's own init code run inside one `eth_call`. If any two of them disagreed about a price,
+one would be wrong; `make test-surface` is what asserts they do not.
 
-It reads a public log, so it works with nothing connected; a wallet only marks which offers are
-yours. If the subgraph is not running it pulls the same `Shipped` events straight through viem and
-decodes them with the same byte offsets, and says so on screen. If the lens is not deployed it runs
-the contract's own init code inside one `eth_call`. The demo never waits on external infrastructure
-— and the two decode paths are a cross-check on each other: if they disagreed about a price, one of
-them would be wrong.
+The screen that used to render this is deleted. The reads are not: they are the same decoders
+`useBook` runs on the terminal's positions strip, and the tests below exercise the whole path.
 
 ```bash
 make subgraph        # graph codegen && graph build
@@ -320,10 +321,10 @@ make markout                                         # tape check, replay, publi
 cd contracts && forge test --match-path 'test/markout/*' -vv
 ```
 
-The screen at [`/receipt`](web/src/app/(app)/receipt) plots the three paths, the tape they were
-replayed against, and the ETH the wallet actually held hour by hour. It renders only what that command
-writes, and it says *simulation* in its title block, its banner, every chart caption and its page
-description.
+`make markout` writes the three paths, the tape they were replayed against, and the ETH the wallet
+actually held hour by hour. It is a simulation over a captured tape and it is reported here rather
+than in the app: the terminal renders chain reads only, and a replayed study drawn in the same
+chrome as a live quote is the one thing a trading screen must not do.
 
 ## Proven, not asserted
 
@@ -384,7 +385,7 @@ web/                Next.js 16 / React 19 / Mantine 9 / wagmi 3, light theme, on
                     Verified TypeScript SwapVM encoder. No option maths anywhere in it:
                     every curve value and preview number is a router call.
 scripts/fork/       anvil Base fork, bootstrap, oracle mock, time warp, smoke test.
-scripts/markout/    the replay tape, and the check that the receipt screen is not stale.
+scripts/markout/    the replay tape, and the check that the published markout is not stale.
 docs/               ARCHITECTURE.md, CONCEPT.md, OPCODES.md, research, AI-usage disclosure.
 ```
 

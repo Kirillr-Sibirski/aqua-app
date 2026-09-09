@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { cn } from '@/lib/ui';
 
 /**
@@ -37,37 +36,5 @@ export function WordmarkMark({ size = 20, className }: { size?: number; classNam
       {/* The strike price, marked where the payoff turns. */}
       <circle cx="11" cy="9" r="1.9" fill="var(--bg)" stroke="var(--accent)" strokeWidth="1.75" />
     </svg>
-  );
-}
-
-export interface WordmarkProps {
-  className?: string;
-  /** Wraps the mark in a link to the overview. Pass `''` for a static mark. */
-  href?: string;
-}
-
-export function Wordmark({ className, href = '/' }: WordmarkProps) {
-  const content = (
-    <>
-      <WordmarkMark />
-      <span className="text-lead font-semibold tracking-[-0.012em] text-ink">Strikeline</span>
-    </>
-  );
-
-  if (!href) {
-    return <span className={cn('inline-flex items-center gap-2.5', className)}>{content}</span>;
-  }
-
-  return (
-    <Link
-      href={href}
-      aria-label="Strikeline, overview"
-      className={cn(
-        'inline-flex items-center gap-2.5 rounded-control transition-state hover:opacity-80',
-        className,
-      )}
-    >
-      {content}
-    </Link>
   );
 }

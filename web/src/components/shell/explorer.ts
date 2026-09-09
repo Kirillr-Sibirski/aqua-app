@@ -37,14 +37,6 @@ export function addressUrl(explorer: Explorer, address: string): string {
   return `${explorer.url}/address/${address}`;
 }
 
-export function txUrl(explorer: Explorer, hash: string): string {
-  return `${explorer.url}/tx/${hash}`;
-}
-
-export function tokenUrl(explorer: Explorer, address: string): string {
-  return `${explorer.url}/token/${address}`;
-}
-
 /** The project's source, linked from the footer and from the commit tag. */
 export const REPO_URL = 'https://github.com/Kirillr-Sibirski/aqua-app';
 
@@ -57,8 +49,4 @@ export const COMMIT_SHA: string | undefined =
 
 export function commitUrl(sha: string): string {
   return `${REPO_URL}/commit/${sha}`;
-}
-
-export function blockUrl(explorer: Explorer, blockNumber: number | bigint): string {
-  return `${explorer.url}/block/${blockNumber.toString()}`;
 }

@@ -5,8 +5,9 @@
  *
  * One route, three regions: a 56px bar naming the instrument, a chart beside a 380px ticket, and
  * the positions underneath. There is no navigation because there is nowhere to go — the offer
- * detail is the row, the positions view is the strip, and the two read-layer surfaces are one line
- * at the bottom.
+ * detail is the row and the positions view is the strip. The read-layer study and the markout
+ * receipt that used to be `/surface` and `/receipt` are in the README; they were submission
+ * artifacts, and a footer link to them put a second product one click from the terminal.
  *
  * **Every read on this screen is owned here**, and that is the point rather than a convenience.
  * `useBook` pins its two multicall rounds and the fill replay to the watched block; the oracle, the
@@ -23,13 +24,14 @@ import { useMemo, useState } from 'react';
 import { useBlock, useConnection, useSwitchChain } from 'wagmi';
 import { TerminalChart } from '@/components/charts/terminal';
 import { ConnectModal, type OfferPair } from '@/components/sell';
-import { SiteFooter, useDeploymentChain, useIsHydrated } from '@/components/shell';
+import { useDeploymentChain, useIsHydrated } from '@/components/shell';
 import { TokenIcon } from '@/components/token';
 import { useBook } from '@/hooks/useBook';
 import { useDeployments, useOraclePrice, useTokenBalances } from '@/hooks';
 import { aquaFork, type SupportedChainId } from '@/lib/chain';
 import { addressLt } from '@/lib/swapvm';
 import { formatUnits } from '@/lib/ui';
+import { TerminalFooter } from './Footer';
 import { TerminalHeader } from './Header';
 import { Positions } from './Positions';
 import classes from './terminal.module.css';
@@ -183,7 +185,7 @@ export function TerminalScreen() {
         <Positions book={book} connected={hydrated && !!address} hydrated={hydrated} />
       </div>
 
-      <SiteFooter wide />
+      <TerminalFooter />
 
       <ConnectModal opened={connectOpen} onClose={() => setConnectOpen(false)} />
     </div>
