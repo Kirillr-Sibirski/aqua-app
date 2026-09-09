@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <title>Strikeline</title>
+  <!--
+    The wordmark at favicon scale: a covered call's payoff, rising with spot until the strike and
+    flat above it. The white leg is the inventory the maker keeps; the cyan leg is the strike, which
+    is the strikeline. The wordmark also marks the kink with a ring; at 16px that ring fills in, so
+    the favicon is the two strokes alone — same silhouette, one less thing to mush.
+
+    Colours are the palette resolved to sRGB, because a static asset cannot read a custom property:
+    #0a0d0f is --bg, #f1f4f6 is --ink, #4ed5d5 is --accent. The ground is opaque so the mark holds
+    on a light tab strip as well as a dark one.
+
+    Swapping the mark is editing this file and re-running `node scripts/favicon.mjs`, which redraws
+    favicon.ico from it.
+  -->
+  <rect width="32" height="32" rx="7" fill="#0a0d0f"/>
+  <path d="M6.16 21.74 14.91 10.26" fill="none" stroke="#f1f4f6" stroke-width="3.6" stroke-linecap="round"/>
+  <path d="M14.91 10.26H25.84" fill="none" stroke="#4ed5d5" stroke-width="3.6" stroke-linecap="round"/>
+</svg>
