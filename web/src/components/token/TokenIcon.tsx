@@ -6,6 +6,7 @@
  * is deliberately trivial to reach for — one symbol, one size, no token list, no async.
  */
 import type { CSSProperties } from 'react';
+import { cn } from '@/lib/ui';
 import { CbBtcMark, EthereumMark, UnknownMark, UsdcMark } from './marks';
 import { tokenMeta } from './registry';
 
@@ -23,19 +24,29 @@ export interface TokenIconProps {
    * keeps a screen reader from saying "WETH WETH".
    */
   label?: string;
+  /**
+   * Fade the mark with the row it sits in.
+   *
+   * A withdrawn position drops its text to `--ink-3`, and a mark drawn in the brand's own blue does
+   * not follow — so a dead row ended up with the brightest icons on the screen, which is exactly
+   * backwards. The neutral mark needs none of this because it is `currentColor` throughout; the
+   * brand marks are faded instead, which is the only honest way to dim a colour you do not own.
+   */
+  dim?: boolean;
 }
 
-export function TokenIcon({ symbol, size = 20, className, style, label }: TokenIconProps) {
+export function TokenIcon({ symbol, size = 20, className, style, label, dim }: TokenIconProps) {
   const meta = tokenMeta(symbol);
+  const cls = cn(dim && 'opacity-55', className);
   const mark =
     meta.mark === 'ethereum' ? (
-      <EthereumMark size={size} className={className} style={style} />
+      <EthereumMark size={size} className={cls} style={style} />
     ) : meta.mark === 'usdc' ? (
-      <UsdcMark size={size} className={className} style={style} />
+      <UsdcMark size={size} className={cls} style={style} />
     ) : meta.mark === 'cbbtc' ? (
-      <CbBtcMark size={size} className={className} style={style} />
+      <CbBtcMark size={size} className={cls} style={style} />
     ) : (
-      <UnknownMark size={size} className={className} style={style} symbol={symbol} />
+      <UnknownMark size={size} className={cls} style={style} symbol={symbol} />
     );
 
   if (!label) return mark;

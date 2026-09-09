@@ -91,7 +91,7 @@ export function TokenAmount({
       className={cn('inline-flex items-center gap-1.5 whitespace-nowrap', className)}
       title={`${toDecimalString(value, decimals)} ${meta.symbol}`.trim()}
     >
-      {icon ? <TokenIcon symbol={symbol} size={size} /> : null}
+      {icon ? <TokenIcon symbol={symbol} size={size} dim={tone === 'muted'} /> : null}
       <span className={cn('font-mono tnum leading-num', toneClass)}>{text}</span>
       {unit === 'after' && meta.symbol ? (
         <span className="font-mono text-ink-3 leading-num">{meta.symbol}</span>

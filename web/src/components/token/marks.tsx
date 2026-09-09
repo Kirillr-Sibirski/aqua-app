@@ -6,8 +6,9 @@
  *   - **No request, no flash.** A token list's logo URL is a network round trip on first paint and
  *     an empty square until it lands. A row of positions that pops its icons in one by one is the
  *     single most demo-like thing a trading screen can do.
- *   - **currentColor where it belongs.** The neutral mark inherits the text colour of whatever it
- *     sits beside, so a dimmed row dims its icon with it.
+ *   - **currentColor where it belongs.** The neutral mark is drawn entirely in `currentColor`, so it
+ *     takes the text colour of whatever it sits beside. A brand mark cannot do that — its colour is
+ *     the brand's — so `TokenIcon`'s `dim` prop is what fades those with the row they are in.
  *   - **Crisp at 16.** Geometry authored against a 24 grid, with stroke widths chosen so nothing
  *     lands on a half pixel at either shipped size.
  *   - **One theme's worth of contrast, checked.** These are the only saturated colours in the app
@@ -108,6 +109,12 @@ export function UsdcMark({ size, className, style }: MarkProps) {
  * it apart from bitcoin orange at a glance, which is the distinction that matters when a screen can
  * show both. Two bowls and four ticks, stroked, so the counters stay open at 16px where a filled
  * glyph would close up.
+ *
+ * The group is scaled about the disc's centre rather than redrawn at the larger numbers. Set beside
+ * the other two at the same `size`, the ₿ drawn to its own natural proportions read visibly smaller
+ * and lighter than the ETH diamond: it is a tall narrow glyph made of strokes where the diamond is
+ * a wide solid. 1.12 is what put the three on the same optical weight, and taking it as a transform
+ * carries the stroke widths up with it, which is half of what was missing.
  */
 export function CbBtcMark({ size, className, style }: MarkProps) {
   return (
@@ -121,7 +128,12 @@ export function CbBtcMark({ size, className, style }: MarkProps) {
       style={style}
     >
       <circle cx="12" cy="12" r="12" fill="#0052FF" />
-      <g fill="none" stroke="#FFFFFF" strokeLinecap="butt">
+      <g
+        fill="none"
+        stroke="#FFFFFF"
+        strokeLinecap="butt"
+        transform="translate(12 12) scale(1.12) translate(-12.02 -12)"
+      >
         {/* The two strokes that make a B a ₿. */}
         <path d="M10.9 6.05v2.1M12.6 6.05v2.1M10.9 15.85v2.1M12.6 15.85v2.1" strokeWidth="1.4" />
         {/* Stem, upper bowl, lower bowl. */}
