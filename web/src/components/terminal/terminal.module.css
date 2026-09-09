@@ -68,6 +68,132 @@
   color: var(--ink);
 }
 
+/* --- the explain affordance ----------------------------------------------- *
+ *
+ * Shared by the ticket and the positions strip, which is why it sits above both.
+ *
+ * The ⓘ is deliberately the quietest interactive thing on the screen: 13px of `--ink-3` stroke in
+ * an 18px round target, no border, no ground until it is hovered or open. It has to be findable by
+ * a reader who wants it and invisible to a reader scanning figures, because the figures are the
+ * product and this is the footnote.
+ *
+ * The target is 18px drawn and 44px on a coarse pointer, through the same `::after` trick
+ * `globals.css` calls `tap-44` — inlined rather than composed because a CSS module cannot reach a
+ * Tailwind `@utility`, and because these sit inside `align-items: baseline` rows where a wrapper
+ * element would change the alignment it is supposed to preserve.
+ */
+
+.labelled {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.explain {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex: 0 0 auto;
+  width: 1.125rem;
+  height: 1.125rem;
+  padding: 0;
+  border: 0;
+  /* A circular target around a circular glyph, which is the same concentric argument that gives a
+     chip its own radius. Nothing else on the terminal is round except the token marks. */
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-3);
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
+  transition: var(--duration-fast) var(--ease-out-quart);
+  transition-property: color, background-color;
+}
+
+.explain:hover,
+.explain[aria-expanded='true'] {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+@media (pointer: coarse) {
+  .explain::after {
+    content: '';
+    position: absolute;
+    inset: -13px;
+  }
+}
+
+/* The one place on this screen a sentence is allowed, and it is not on the screen until asked for. */
+.explainPop {
+  max-width: calc(100vw - 1.5rem);
+  padding: 0.625rem 0.75rem 0.6875rem;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.explainArrow {
+  border-color: var(--line);
+  background: var(--surface-2);
+}
+
+.explainTerm {
+  margin: 0 0 0.3125rem;
+  font-size: var(--text-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.explainBody {
+  font-size: var(--text-mini);
+  line-height: var(--leading-prose);
+  color: var(--ink-2);
+}
+
+.explainBody p {
+  margin: 0;
+}
+
+.explainBody p + p {
+  margin-top: 0.5rem;
+}
+
+/* A word quoted from the screen, so a sentence can point at a control by name without describing
+   where it is. Medium and full ink, not bold: this is a reference, not an emphasis. */
+.explainBody b {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/*
+ * The one rule that keeps an ⓘ from moving the thing it explains: it never sits on the rail.
+ *
+ * Six of the seven headings in the positions table are right-aligned words whose last letter lands
+ * on the same x as the last digit of every figure under it — that rail is the whole reason the
+ * table is legible at 13px. Adding an ⓘ *after* `DELIVERABLE` put an 18px box and a 4px gap between
+ * the word and the rail, so the one heading with an explainer sat twenty pixels left of the other
+ * six. It was measured, not guessed: `thTextRight` 1368 against a `valueRight` of 1388, where
+ * SIZE, STRIKE, IV, EXPIRY and EARNED all matched their columns to the tenth of a pixel. (An
+ * earlier −2px pull here was aimed at the icon's own optical padding and could not have helped: the
+ * icon plus its gap is 22px of rail, not two.)
+ *
+ * So in a right-aligned label the icon goes on the far side of the word. `row-reverse` does it in
+ * the flex box rather than in the markup, which matters: the DOM order stays label-then-button, so
+ * a screen reader still reads "Deliverable, About Deliverable button" and Tab still arrives after
+ * the heading it belongs to. The word's right edge becomes the box's right edge, which is the rail.
+ *
+ * The ticket's figure rows are the mirror image — their labels are left-aligned, so there the icon
+ * trails the word for the same reason. One rule, two directions: the ⓘ hangs off the outside.
+ */
+.headLabel {
+  flex-direction: row-reverse;
+  /* A column header is 11px uppercase; the icon beside it should not be the tallest thing in the
+     cell. It rides the cap height rather than the line box. */
+  vertical-align: middle;
+}
+
 /* --- the bar -------------------------------------------------------------- */
 
 .bar {
@@ -153,6 +279,14 @@
   color: var(--ink-3);
 }
 
+/* The move and the span it was measured over, as one slot: `Reveal` wraps both so the pair fades
+   up together when the read settles, and this class puts the gap back that the wrapper took. */
+.deltaBody {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+}
+
 .deltaSpan {
   color: var(--ink-3);
 }
@@ -210,13 +344,24 @@
     padding: 0 0.5rem;
   }
 
-  .brandText {
+  /*
+   * The wordmark goes, not just its name.
+   *
+   * LAYOUT.md already says the wordmark is what gives way at this width; only the text was giving
+   * way, and the 18px mark plus its gap stayed. That was survivable while the account was a 80px
+   * address pill and stopped being survivable in the state a first-time visitor actually arrives
+   * in: `Connect wallet` is 115px against the pill's 80, which put the bar 25px over and painted
+   * `−2.09%` on top of `50,946,729`. Twenty-two pixels of logo is the cheapest 22px on this row,
+   * and with it gone the divider it was dividing goes too.
+   */
+  .brand {
     display: none;
   }
 
   .instrument {
     gap: 0.375rem;
-    padding-left: 0.5rem;
+    padding-left: 0;
+    border-left: 0;
   }
 
   .pair {
@@ -239,9 +384,24 @@
     gap: 0.375rem;
   }
 
+  /* The border is what makes this a pill, and a pill needs 14px of horizontal room to be one. At
+     390px the digits are the figure and the box around them is decoration. */
   .block {
-    padding: 0.1875rem 0.375rem;
+    padding: 0.1875rem 0.25rem;
+    border-color: transparent;
     font-size: var(--text-micro);
+  }
+
+  /*
+   * The backstop, and it is deliberately a clip rather than a fold.
+   *
+   * Everything above buys 45px, which fits 390 and 375 with room. Below that something has to give,
+   * and the failure mode has to be chosen rather than discovered: a nowrap flex row that cannot
+   * shrink does not clip, it overlaps, and two figures drawn on top of each other are worse than
+   * one figure with its tail cut off. This says which.
+   */
+  .instrument {
+    overflow: hidden;
   }
 }
 
@@ -265,7 +425,10 @@
  */
 .top {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  /* The one 380px in the app, from the token `globals.css` already declares for it. The column and
+     the panel that sits in it were two separate literals; a ticket 380px wide inside a 384px column
+     is a four-pixel gutter nobody put there on purpose. */
+  grid-template-columns: minmax(0, 1fr) var(--card-w);
   grid-template-rows: minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
@@ -287,7 +450,7 @@
 .ticket {
   display: flex;
   flex-direction: column;
-  width: 380px;
+  width: var(--card-w);
   /* A grid item's automatic minimum size is its content, so without this the three publish rows
      grew the row they sit in, which pushed the positions strip down and took fifty pixels off the
      chart mid-transaction. Zero lets the column be exactly as tall as the grid gave it and absorb
@@ -495,6 +658,12 @@
   color: var(--ink-3);
 }
 
+/* The strike is at or under spot, where the offer would be taken the instant it was published. The
+   well is already outlined in `--neg`; the readout that says why joins it. */
+.wellEnd[data-tone='neg'] {
+  color: var(--neg);
+}
+
 /* The volatility field's step control: two 20px targets inside the well, one gesture each. */
 .stepper {
   display: inline-flex;
@@ -670,12 +839,36 @@
   list-style: none;
 }
 
+/*
+ * A row of the plan, and the two ways it is allowed to move.
+ *
+ * It arrives: the plan is built as the run starts, so each `<li>` is mounted at the moment the step
+ * becomes real and the enter runs exactly once. The lift is `transform`, which paints outside flow,
+ * so the rows already in the list do not shift under it.
+ *
+ * It changes state: queued -> signing -> done is a colour on the marker and a word beside it, and
+ * both cross now instead of cutting. `prefers-reduced-motion` collapses the enter to one frame and
+ * the crossings to a step, through the duration tokens; the strip still says the same thing.
+ */
 .step {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: var(--text-mini);
   color: var(--ink-3);
+  animation: step-in var(--duration-base) var(--ease-out-quart) both;
+  transition: color var(--duration-fast) var(--ease-out-quart);
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* The status in a word, so the strip is legible without reading a colour. */
@@ -684,6 +877,7 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums slashed-zero;
   color: var(--ink-3);
+  transition: color var(--duration-fast) var(--ease-out-quart);
 }
 
 .step[data-state='running'] .stepState {
@@ -701,6 +895,7 @@
   height: 2px;
   border-radius: var(--radius-pill);
   background: var(--line);
+  transition: background-color var(--duration-fast) var(--ease-out-quart);
 }
 
 .step[data-state='running'] .stepBar {
@@ -738,6 +933,10 @@
  */
 .positions {
   container: positions / inline-size;
+  /* The 36px row LAYOUT.md fixes, stated once. It was written out three times — the body row, the
+     empty row, and the height an empty strip has to hold to stop the chart above it moving — and
+     three copies of one constant is how a strip ends up 34px out of step with itself. */
+  --row-h: 2.25rem;
   flex: 0 0 auto;
   min-height: 0;
   border-top: 1px solid var(--line);
@@ -762,9 +961,22 @@
  * width on this row that carries nothing.
  */
 @media (max-width: 30rem) {
+  /*
+   * On the phone the two stack, and the ⓘ is why.
+   *
+   * `POSITIONS` plus `PROMISED 166.2512 / 10.7116 WETH 15.52x` came to 386 of the 390 available —
+   * four pixels of headroom, which the 22px the explain affordance costs immediately spent: the
+   * document grew to 418px wide and the whole page gained a horizontal scrollbar, which on a phone
+   * means every swipe on the chart can drift the screen sideways. Cutting the gaps again would buy
+   * eight pixels and leave the same problem one figure later. Two lines of 22px instead of one line
+   * of 36 costs the strip eight pixels of height and cannot overflow at any figure width.
+   */
   .positionsHead {
-    gap: 0.5rem;
-    padding: 0 0.5rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.125rem;
+    min-height: 0;
+    padding: 0.25rem 0.5rem 0.375rem;
   }
 
   .promised {
@@ -806,6 +1018,13 @@
    on the rendered pixels at the old ink ramp — a slash is two strokes and antialiasing eats both. */
 .promisedOver {
   color: var(--ink-2);
+}
+
+/* The unit both halves of the ratio are counted in. Dimmer than the digits, like every other unit
+   on the screen — as a class, because a colour set from a `style` prop is a colour the stylesheet
+   cannot audit, restate at a breakpoint, or transition. */
+.promisedSymbol {
+  color: var(--ink-3);
 }
 
 .promisedMultiple {
@@ -904,7 +1123,7 @@
 }
 
 .table tbody tr {
-  height: 2.25rem;
+  height: var(--row-h);
   border-bottom: 1px solid var(--line);
 }
 
@@ -912,8 +1131,27 @@
   border-bottom: 0;
 }
 
+/*
+ * A row, and the two moments it is allowed to move.
+ *
+ * `row-in` is the cross-fade between the skeleton and the figures. The strip holds its shape across
+ * a read — as many placeholder rows as it last had, at the widths the columns will need — so the
+ * only thing left to change is which glyphs are in the space already reserved, and they fade up
+ * into it rather than cutting. There is no stagger and no travel: a row does not slide in from
+ * anywhere, because it was already there as an outline.
+ */
 .row {
   transition: background-color var(--duration-fast) var(--ease-out-quart);
+  animation: row-in var(--duration-base) var(--ease-out-quart) both;
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .row:hover {
@@ -943,6 +1181,36 @@
 }
 
 /*
+ * The row somebody just took. The product's signature moment, and until now it was silent.
+ *
+ * A fill lands on one offer and, because every offer here is written against a balance that never
+ * moved, it shrinks what the siblings can deliver in the same commit. Both halves of that show on
+ * this strip — EARNED on the leg that was swept, BACKING on every leg beside it — and both used to
+ * arrive as different digits on the next read, which on fifteen rows is indistinguishable from
+ * nothing having happened. The row says so once: green, because money moved and that is the only
+ * thing green means on this screen, and green rather than the accent because the accent is spoken
+ * for by the primary action and the row it just wrote.
+ *
+ * It is a **held state in two stages, not an animation**, for the reason `data-new` above it is
+ * one. `prefers-reduced-motion` neutralises every animation on the page, so an @keyframes decay
+ * would be switched off entirely and take the confirmation with it; two attributes on two timers
+ * survive that, and only the easing between them collapses to a step. The tint appears, holds,
+ * halves, and goes — a decay a reader can follow without anything on the row moving.
+ *
+ * After `:hover`, deliberately: at equal specificity the last rule wins, and a fill landing under
+ * the pointer is more worth saying than the fact that the pointer is there.
+ */
+.row[data-filled='on'],
+.row[data-filled='on'] .cellStart {
+  background: var(--pos-soft);
+}
+
+.row[data-filled='fade'],
+.row[data-filled='fade'] .cellStart {
+  background: color-mix(in oklch, var(--pos-soft) 45%, var(--bg));
+}
+
+/*
  * The leading cell: the token's mark and the side, and nothing else.
  *
  * SIZE used to be `text-align: left` inside a table whose other six columns are right-aligned,
@@ -961,6 +1229,9 @@
   padding-right: 0 !important;
   text-align: left !important;
   background: var(--bg);
+  /* It is opaque and it sits over the row's own ground, so a tint the row takes has to be taken
+     here too — and eased on the same clock, or the sticky column steps while the rest fades. */
+  transition: background-color var(--duration-fast) var(--ease-out-quart);
 }
 
 .row:hover .cellStart {
@@ -1037,11 +1308,18 @@
   vertical-align: middle;
 }
 
+/*
+ * A cell lights or goes out as the tweened ratio sweeps past it, so the meter retracts from the tip
+ * rather than redrawing at a new length. The transition is the crossing of one cell; the order the
+ * cells cross in is the tween, which is what makes the direction right without the meter being told
+ * which way it is going.
+ */
 .meterCell {
   width: 5px;
   height: 12px;
   border-radius: 1px;
   background: var(--surface-3);
+  transition: background-color var(--duration-fast) var(--ease-out-quart);
 }
 
 .meterCell[data-on='true'] {
@@ -1072,25 +1350,37 @@
   color: var(--neg);
 }
 
+/* Armed: one more click and the strategy hash is dead for good. It is the same treatment hover
+   gives, held, so the second click lands on a target that already looks like what it does. */
+.withdraw[data-armed] {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
 .withdraw:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
+/* The height is set on the element, from the row count the strip was already holding. */
 .emptyRow {
-  height: 2.25rem;
+  height: var(--row-h);
   padding: 0 0.75rem;
   text-align: left !important;
+  vertical-align: middle;
   font-size: var(--text-meta);
   color: var(--ink-3);
 }
 
+/* The strip's own last row, and so the strip's own row height: it used to be 32px under a stack of
+   36px rows, four pixels of rhythm broken by the only line in the section that had no reason to
+   break it. */
 .disclosure {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   width: 100%;
-  height: 2rem;
+  height: var(--row-h);
   padding: 0 0.75rem;
   border: 0;
   border-top: 1px solid var(--line);
@@ -1132,8 +1422,18 @@
 }
 
 .footLink {
+  position: relative;
   color: var(--ink-3);
   transition: color var(--duration-fast) var(--ease-out-quart);
+}
+
+/* 12px type in a 30px bar is a 39x20 target. The links keep their size and gain a thumb. */
+@media (pointer: coarse) {
+  .footLink::after {
+    content: '';
+    position: absolute;
+    inset: -12px -4px;
+  }
 }
 
 .footLink:hover {
@@ -1192,4 +1492,78 @@
 /* Rows are 13px: the density LAYOUT.md asks for, and the size `TokenAmount` inherits. */
 .table tbody td {
   font-size: var(--text-meta);
+}
+
+/* --- coarse pointers ------------------------------------------------------ *
+ *
+ * Every target on this screen that is drawn smaller than a thumb, given a thumb-sized hit area.
+ *
+ * The drawn size is right: a 24px stepper beside a 16px figure is the weight that control should
+ * carry, and inflating it to 44px of visible chrome would make the ticket look like a settings
+ * page. So nothing here moves a pixel that is painted — each rule extends the hit rectangle with a
+ * pseudo-element, the way `globals.css` does it in `tap-44`, and only where the pointer is coarse.
+ * On a mouse a 44px invisible rectangle around a 24px button steals clicks from whatever is beside
+ * it, which on a 36px table row is the row above.
+ *
+ * The insets are per-control rather than a single `-11px`, because two of these sit in pairs: the
+ * stepper's minus and plus are 2px apart, and one uniform inset would have each of them swallowing
+ * eighteen pixels of the other.
+ */
+@media (pointer: coarse) {
+  .maxButton {
+    position: relative;
+  }
+
+  .maxButton::after {
+    content: '';
+    position: absolute;
+    inset: -13px 0;
+  }
+
+  /* 32 x 44 each, growing away from each other rather than into each other. */
+  .stepper button {
+    position: relative;
+  }
+
+  .stepper button::after {
+    content: '';
+    position: absolute;
+    inset: -10px 0;
+  }
+
+  .stepper button:first-child::after {
+    left: -8px;
+  }
+
+  .stepper button:last-child::after {
+    right: -8px;
+  }
+
+  /* The chips already sit in a 44px track; they take all of it, and stop 2px short of each other. */
+  .chip::after {
+    content: '';
+    position: absolute;
+    inset: -6px -1px;
+  }
+
+  .chip {
+    position: relative;
+  }
+
+  /* 44 wide, and as tall as the row it is in — the neighbouring rows' buttons are 36px away and
+     must keep their own. */
+  .withdraw::after {
+    content: '';
+    position: absolute;
+    inset: -6px -10px;
+  }
+
+  .withdraw {
+    position: relative;
+  }
+
+  /* A full-width row: it has nothing to overlap, so it simply gets taller. */
+  .disclosure {
+    height: 2.75rem;
+  }
 }

@@ -29,7 +29,7 @@ import {
   type OfferPair,
   type SizedOffer,
 } from '@/components/sell';
-import { tokenFractionDigits } from '@/components/token';
+import { floorToTokenDigits, tokenFractionDigits } from '@/components/token';
 import { aquaFork } from '@/lib/chain';
 import type { Deployments } from '@/lib/contracts';
 import { formatUnits, parseDecimalInput, toDecimalString } from '@/lib/ui';
@@ -121,16 +121,55 @@ export function useTicketDraft({
   const [dateDraft, setDateDraft] = useState<string | null>();
   const [volDraft, setVolDraft] = useState<string>();
 
-  const maxAmount =
-    riskyBalance !== undefined && pair ? roundedDown(riskyBalance, pair.risky.decimals) : undefined;
-  const maxAmountLabel =
-    riskyBalance !== undefined && pair
-      ? formatUnits(riskyBalance, pair.risky.decimals, {
-          significantDigits: 18,
-          minFractionDigits: tokenFractionDigits(pair.risky.symbol),
-          maxFractionDigits: tokenFractionDigits(pair.risky.symbol),
-        })
-      : undefined;
+  /*
+   * MAX, and the field it fills, at the precision this token is printed to everywhere else.
+   *
+   * It used to truncate at the eighth place, so a wallet holding 10.71161043 WETH opened the ticket
+   * with `10.71161043` in a 380px field — eleven characters that tripped the field's own shrink to
+   * 13px — under a legend reading `MAX 10.7116` and above a positions column reading `10.4346`.
+   * Three renderings of one asset in 400 vertical pixels, which is the exact failure
+   * `tokenFractionDigits` exists to prevent.
+   *
+   * Truncating at the token's own display precision instead makes the string in the field, the
+   * string in the legend and the string in the column one string. It is a truncation, never a
+   * rounding, so the amount can only be under the balance; the cost is the dust below the fourth
+   * place, which for WETH is three cents and is not worth a second decimal convention.
+   *
+   * The eight-place floor survives as the fallback for the one case where four places would round a
+   * real balance to nothing — a wallet holding 0.00003 WETH would otherwise be handed `0.0000` and
+   * a button reading `Enter an amount`.
+   */
+  const displayPlaces = pair ? tokenFractionDigits(pair.risky.symbol) : 4;
+  const maxParts = (() => {
+    if (riskyBalance === undefined || !pair) return undefined;
+    const d = pair.risky.decimals;
+    /* The truncation is `floorToTokenDigits`, not four lines of step arithmetic written here.
+       It used to be written here, and the positions strip's promised-over-held ratio — the only
+       other place on this screen that prints this same wallet balance — reached for the default
+       formatter instead and rounded it, so `MAX 10.3302` sat above `… / 10.3303 WETH`. Both call
+       sites now ask the token registry, which owns how many places a token gets and which way the
+       digits past them go. */
+    const floored = floorToTokenDigits(riskyBalance, d, pair.risky.symbol);
+    /* The one balance four places cannot express. It keeps the eight-place floor rather than being
+       handed `0.0000` and a button reading `Enter an amount`. */
+    if (riskyBalance > BigInt(0) && floored === BigInt(0)) {
+      const deep = roundedDown(riskyBalance, d, 8);
+      return { field: deep, label: deep };
+    }
+    const fixed = {
+      significantDigits: 18,
+      minFractionDigits: displayPlaces,
+      maxFractionDigits: displayPlaces,
+    } as const;
+    /* One quantity, two renderings that differ only in the separators the field is about to put
+       back for itself. Both parse to the same bigint and print the same four places. */
+    return {
+      field: formatUnits(floored, d, { ...fixed, group: false }),
+      label: formatUnits(floored, d, fixed),
+    };
+  })();
+  const maxAmount = maxParts?.field;
+  const maxAmountLabel = maxParts?.label;
   const maxRaw =
     maxAmount !== undefined && pair
       ? (parseDecimalInput(maxAmount, pair.risky.decimals) ?? BigInt(0))
@@ -274,9 +313,11 @@ function ungroup(value: string): string {
 }
 
 /**
- * A balance as an amount someone would type: truncated at the eighth place, never rounded up.
+ * A balance as an amount someone would type: truncated, never rounded up.
+ *
  * Rounding up produces a default the wallet cannot cover, and the failure would land as a refused
- * quote rather than as a message now.
+ * quote rather than as a message now. `places` is the token's own display precision at the call
+ * site above, so what MAX writes into the field is the string the legend beside it prints.
  */
 function roundedDown(raw: bigint, decimals: number, places = 8): string {
   const step = BigInt(10) ** BigInt(Math.max(0, decimals - places));

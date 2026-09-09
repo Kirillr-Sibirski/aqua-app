@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { formatUnits } from '@/lib/ui';
-import { fallbackInitial, tokenFractionDigits, tokenMeta } from '../registry';
+import { fallbackInitial, floorToTokenDigits, tokenFractionDigits, tokenMeta } from '../registry';
 
 /** What `TokenAmount` renders, without the React. */
 function render(value: bigint, decimals: number, symbol: string): string {
@@ -73,5 +73,42 @@ describe('fallbackInitial', () => {
     expect(fallbackInitial('AERO')).toBe('A');
     expect(fallbackInitial('degen')).toBe('D');
     expect(fallbackInitial(undefined)).toBe('');
+  });
+});
+
+describe('floorToTokenDigits', () => {
+  /**
+   * The balance that caught it: 10.330261849452817572 WETH, held by anvil account #1 on the fork.
+   *
+   * Rounded to four places it is 10.3303; cut to four it is 10.3302. The screen was doing one in
+   * the ticket's MAX and the other in the positions strip's promised-over-held ratio, so the same
+   * wallet's balance disagreed with itself in the fourth decimal, two hundred pixels apart.
+   */
+  const BALANCE = BigInt('10330261849452817572');
+
+  it('cuts rather than rounds, so a balance is never printed larger than it is', () => {
+    expect(render(BALANCE, 18, 'WETH')).toBe('10.3303');
+    expect(render(floorToTokenDigits(BALANCE, 18, 'WETH'), 18, 'WETH')).toBe('10.3302');
+  });
+
+  it('agrees with itself wherever the same quantity is printed', () => {
+    const cut = floorToTokenDigits(BALANCE, 18, 'WETH');
+    // The ticket's field (ungrouped) and the strip's ratio (grouped) are one string of digits.
+    expect(formatUnits(cut, 18, { significantDigits: 18, minFractionDigits: 4, maxFractionDigits: 4, group: false })).toBe(
+      '10.3302',
+    );
+    expect(render(cut, 18, 'WETH')).toBe('10.3302');
+  });
+
+  it('takes the token its own precision, and is a no-op when there is nothing to cut', () => {
+    // USDC is two places at six decimals: 2,442.4399... becomes 2,442.43.
+    expect(render(floorToTokenDigits(BigInt(2442439999), 6, 'USDC'), 6, 'USDC')).toBe('2,442.43');
+    expect(floorToTokenDigits(WAD, 18, 'WETH')).toBe(WAD);
+    // Two decimals asked for two places has no digits past them to cut.
+    expect(floorToTokenDigits(BigInt(12345), 2, 'USDC')).toBe(BigInt(12345));
+  });
+
+  it('cuts toward zero on both signs, so a magnitude never grows', () => {
+    expect(floorToTokenDigits(-BALANCE, 18, 'WETH')).toBe(-floorToTokenDigits(BALANCE, 18, 'WETH'));
   });
 });

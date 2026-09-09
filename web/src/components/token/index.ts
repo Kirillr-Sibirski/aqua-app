@@ -17,5 +17,5 @@ export type { AmountTone, TokenAmountProps, TokenAmountSkeletonProps } from './T
 export { CbBtcMark, EthereumMark, UnknownMark, UsdcMark } from './marks';
 export type { MarkProps } from './marks';
 
-export { fallbackInitial, tokenFractionDigits, tokenMeta } from './registry';
+export { fallbackInitial, floorToTokenDigits, tokenFractionDigits, tokenMeta } from './registry';
 export type { TokenMark, TokenMeta } from './registry';

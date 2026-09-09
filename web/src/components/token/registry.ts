@@ -85,3 +85,32 @@ export function fallbackInitial(symbol: string | undefined): string {
   const stripped = /^(w|cb|x|st|a|y)[A-Z]/.test(trimmed) ? trimmed.replace(/^(w|cb|x|st|a|y)/, '') : trimmed;
   return (stripped[0] ?? trimmed[0] ?? '').toUpperCase();
 }
+
+/**
+ * A quantity cut down to the token's own display precision, as a bigint at the token's decimals.
+ *
+ * Cut, never rounded, and the direction is the whole point rather than a detail.
+ *
+ * A wallet holding `10.330261849452817572 WETH` is four places to a reader, and there are two ways
+ * to get there. Rounding gives `10.3303`; truncating gives `10.3302`. Both are defensible in
+ * isolation and the app was doing one in each of the two places it prints this number — the
+ * ticket's `MAX` truncates, because what MAX writes into the field has to be spendable, and the
+ * positions strip's promised-over-held ratio rounded, because that is what a formatter does by
+ * default. So one screen printed `MAX 10.3302` and `165.8698 / 10.3303 WETH` two hundred pixels
+ * apart, and the fourth decimal of the wallet's balance disagreed with itself.
+ *
+ * Truncation wins both places. A balance that rounds up prints more of the asset than the wallet
+ * holds, which is wrong anywhere and specifically wrong as the denominator of a solvency ratio: the
+ * one figure on this screen whose job is to say how much the book has over-promised must not
+ * overstate what backs it. The dust below the fourth place is three cents of ETH.
+ *
+ * `tokenFractionDigits` says how many places; this says which way the ones past them go. The two
+ * belong together, which is why they live in the same file.
+ */
+export function floorToTokenDigits(value: bigint, decimals: number, symbol: string | undefined): bigint {
+  const places = tokenFractionDigits(symbol);
+  const step = BigInt(10) ** BigInt(Math.max(0, decimals - places));
+  if (step === BigInt(1)) return value;
+  // BigInt division truncates toward zero, which is what "cut" means on both signs.
+  return (value / step) * step;
+}

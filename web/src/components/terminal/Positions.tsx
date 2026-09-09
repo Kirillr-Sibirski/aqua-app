@@ -19,29 +19,50 @@
  * such a row would be a claim about a trade that is structurally impossible.
  */
 import { ChevronDown, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Hex } from 'viem';
 import { useDock } from '@/hooks';
 import { sigmaRatio } from '@/hooks/strikeline';
-import type { BookLeg, UseBookReturn } from '@/hooks/useBook';
-import { TokenAmount, TokenAmountSkeleton, TokenIcon, tokenFractionDigits } from '@/components/token';
+import type { BookLeg, BookTokenView, UseBookReturn } from '@/hooks/useBook';
+import {
+  floorToTokenDigits,
+  TokenAmount,
+  TokenAmountSkeleton,
+  TokenIcon,
+  tokenFractionDigits,
+} from '@/components/token';
+import { Reveal, useLandings, useTweenedBigInt, useTweenedNumber, type LandingStage } from '@/lib/motion';
 import { formatPercent, formatTenor, formatUnits } from '@/lib/ui';
 import { backingRatio } from './backing';
 import { Bar, Meter, Num } from './bits';
+import { Explain, Labelled } from './Explain';
 import classes from './terminal.module.css';
 
 const ZERO = BigInt(0);
 
 /**
- * The two halves of the promised-over-held ratio, at the token's own precision.
+ * One half of the promised-over-held ratio, printed the way this app prints a balance.
  *
- * Fixed at two places it printed `30.74 / 10.40` for a token every other figure on the screen shows
- * to four — the SELL legend and the SIZE column both read `10.4000`. There is one decimal
- * convention per token in this app and it comes from `components/token/registry`.
+ * Two things have to agree here, and only the first of them used to. The count of places comes from
+ * `components/token/registry`, which is what stopped this line reading `30.74 / 10.40` under a
+ * legend reading `MAX 10.4000`. The *direction* of the digits past them comes from the same file,
+ * which is what stops it reading `10.3303` under a legend reading `10.3302` — the same wallet, the
+ * same instant, two hundred pixels apart, disagreeing in the fourth place because one call site
+ * truncated and the other rounded.
+ *
+ * Both halves take the same treatment, so the ratio cannot be internally inconsistent either. The
+ * multiple beside it is computed from the unrounded integers, so it is unaffected by any of this.
  */
-function promisedDigits(symbol: string) {
-  const places = tokenFractionDigits(symbol);
-  return { significantDigits: 18, minFractionDigits: places, maxFractionDigits: places } as const;
+function promisedFigure(value: bigint, token: { symbol: string; decimals: number }): string {
+  const places = tokenFractionDigits(token.symbol);
+  return formatUnits(floorToTokenDigits(value, token.decimals, token.symbol), token.decimals, {
+    significantDigits: 18,
+    minFractionDigits: places,
+    maxFractionDigits: places,
+    // A book that has promised a hair over a thousandth of a token has promised nothing a reader
+    // needs a `<` for; this is a ratio of holdings, not a dust-sized payment.
+    dust: 'zero',
+  });
 }
 
 export interface PositionsProps {
@@ -52,6 +73,8 @@ export interface PositionsProps {
 
 export function Positions({ book, connected, hydrated }: PositionsProps) {
   const arrived = useArrivals(book.legs);
+  const promised = usePromisedFigures(book.kpis.writtenToken);
+  const rows = useRowMotion(book.legs);
   const [showWithdrawn, setShowWithdrawn] = useState(false);
   const [arming, setArming] = useState<Hex>();
   const { dock, isRunning } = useDock();
@@ -70,7 +93,18 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
    * change. Set during render rather than in an effect, so the skeletons never paint at the wrong
    * count first.
    */
-  const [heldRows, setHeldRows] = useState(3);
+  /*
+   * One, not three.
+   *
+   * The held count exists so a re-read after a publish does not collapse the strip, and after the
+   * first answer it is the real row count, so the seed only ever describes the very first paint —
+   * which, because wagmi reconnects from a cookie on the client, is always the disconnected one.
+   * Seeded at three, a first-time visitor got three shimmering rows for the length of hydration and
+   * then a single line reading `Not connected`: 72px handed to the chart and taken back, on the one
+   * paint a reader is watching hardest. Seeded at one, that first paint is already the shape it
+   * settles into, and a returning wallet's book grows into the space instead of shrinking out of it.
+   */
+  const [heldRows, setHeldRows] = useState(1);
   const [heldWithdrawn, setHeldWithdrawn] = useState(0);
   const settled = !book.isLoading;
   if (live.length > 0 && live.length !== heldRows) setHeldRows(live.length);
@@ -103,24 +137,60 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
       <div className={classes.positionsHead}>
         <span className={classes.positionsTitle}>Positions</span>
         {signature ? (
-          <span
-            className={classes.promised}
-            title="Written across every live offer, over the one balance behind all of them."
-          >
-            Promised
+          <span className={classes.promised}>
+            {/*
+              * The ⓘ rides the word, not the end of the line.
+              *
+              * It used to trail the whole group — after the ratio, the unit and the multiple — which
+              * put it 22px past the last figure and so 2px past the strip header's own padding,
+              * and, worse, made this the one explainer on the screen attached to a number instead of
+              * to a label. Every other one on the terminal follows the word it defines: `IV ⓘ`,
+              * `PREMIUM ⓘ`, `CAPPED AT ⓘ`. This one now does too, and `16.06×` gets the right edge
+              * back.
+              *
+              * The one figure on this screen that exists nowhere else is also the one nobody can
+              * read. It used to carry a native `title`, which is prose only a mouse can reach, never
+              * announces itself, and cannot be opened on the phone where this line is at its most
+              * cryptic. Everything the title said is in the popover, plus the half it never said:
+              * why the numerator is allowed to be larger.
+              */}
+            <Labelled>
+              Promised
+              <Explain term="Promised" position="top-end">
+                <p>
+                  {`What every live offer has promised, over what the one wallet behind them can actually deliver — its ${signature.symbol} balance, or its Aqua allowance where that is smaller.`}
+                </p>
+                <p>
+                  Nothing moved to write them. Each offer is a quote priced against the wallet, and
+                  the on-chain Coverage guard refuses any fill the balance cannot honour.
+                </p>
+                <p>
+                  That is why one wallet can stand behind several offers at once — and why a fill on
+                  any of them shrinks what the rest can deliver, in the same block.
+                </p>
+              </Explain>
+            </Labelled>
             {/* Both halves at the same fixed precision. Trimming trailing zeros independently put
                 `30.74 / 10.4` on the screen — two different decimal counts inside what a reader
-                takes for one figure, which is the fastest way to make a ratio look approximate. */}
+                takes for one figure, which is the fastest way to make a ratio look approximate.
+
+                The denominator is `coverage`, not `wallet`, and that is a correctness fix rather
+                than a preference: the multiple beside it has always been `written / coverage`, so
+                on a wallet whose Aqua allowance is smaller than its balance the printed ratio and
+                the printed `x` were two different divisions of the same numerator, disagreeing by
+                exactly the shortfall. `coverage` is `min(balance, allowance)` — the number the
+                `Coverage` guard enforces, and the only denominator under which "what one wallet can
+                actually deliver" is true. On an approved wallet the two are the same figure. */}
             <span className={classes.promisedFigure}>
-              {formatUnits(signature.written, signature.decimals, promisedDigits(signature.symbol))}
+              {promisedFigure(promised.written, signature)}
               <span className={classes.promisedOver}> / </span>
-              {formatUnits(signature.wallet, signature.decimals, promisedDigits(signature.symbol))}
+              {promisedFigure(promised.coverage, signature)}
             </span>
-            <span className={classes.promisedFigure} style={{ color: 'var(--ink-3)' }}>
+            <span className={`${classes.promisedFigure} ${classes.promisedSymbol}`}>
               {signature.symbol}
             </span>
             {signature.writtenMultiple > 1 ? (
-              <span className={classes.promisedMultiple}>{signature.writtenMultiple.toFixed(2)}×</span>
+              <span className={classes.promisedMultiple}>{promised.multiple.toFixed(2)}×</span>
             ) : null}
           </span>
         ) : null}
@@ -142,8 +212,31 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
               <th scope="col">IV</th>
               <th scope="col">Expiry</th>
               <th scope="col">Earned</th>
-              {/* Not `Open`. See `Row`. */}
-              <th scope="col">Backing</th>
+              {/*
+                * Not `Open` — see `Row` — and no longer `Backing` either.
+                *
+                * `Backing` names a thing (collateral) where the column holds a proportion, and it
+                * reads as a synonym for the meter beside it rather than as the meter's unit. What
+                * the figure actually answers is "how much of this offer could be taken right now",
+                * and the shortest true word for that is what it can deliver. One word longer, one
+                * question fewer.
+                */}
+              <th scope="col">
+                <Labelled className={classes.headLabel}>
+                  Deliverable
+                  <Explain term="Deliverable" position="top-end">
+                    <p>
+                      How much of what this offer advertises the wallet could hand over right now —
+                      the bound the on-chain Coverage guard itself reported when the offer was
+                      probed for the whole of it.
+                    </p>
+                    <p>
+                      Every offer draws on the same balance, so one fill shrinks its siblings in the
+                      same block. 100% is an offer nothing has eaten into yet.
+                    </p>
+                  </Explain>
+                </Labelled>
+              </th>
               <th scope="col">
                 <span className="sr-only">Withdraw</span>
               </th>
@@ -158,17 +251,13 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
                  The strip holds its height across a re-read; only the digits change. */
               Array.from({ length: skeletonRows }, (_, i) => <LoadingRow key={i} />)
             ) : !connected ? (
-              <tr>
-                <td colSpan={8} className={classes.emptyRow}>
-                  Not connected
-                </td>
-              </tr>
+              <EmptyRow rows={skeletonRows}>Not connected</EmptyRow>
             ) : live.length === 0 ? (
-              <tr>
-                <td colSpan={8} className={classes.emptyRow}>
-                  No positions
-                </td>
-              </tr>
+              /* Not `No positions`: the disclosure directly below this may be offering nineteen
+                 withdrawn ones, and a strip that says it has none over a button that counts
+                 nineteen is contradicting itself in 32px. The word that is true in both places is
+                 `live`. */
+              <EmptyRow rows={skeletonRows}>No live offers</EmptyRow>
             ) : (
               live.map((leg) => (
                 <Row
@@ -177,6 +266,8 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
                   armed={arming === leg.strategyHash}
                   pending={pending === leg.strategyHash && isRunning}
                   isNew={arrived.has(leg.strategyHash)}
+                  from={rows.from(leg.key)}
+                  landing={rows.stage(leg.key)}
                   onWithdraw={() => void onWithdraw(leg)}
                 />
               ))
@@ -218,6 +309,67 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
 }
 
 /**
+ * Row motion, owned by the strip because the rows do not survive long enough to own it.
+ *
+ * A re-read swaps every row for a skeleton and back — measured on a real fill: nought of seventeen
+ * rows kept their DOM identity. So the two things a row needs in order to move, and cannot keep for
+ * itself, live here: what it printed before the read in flight, and whether what it prints has
+ * changed since.
+ *
+ * `from` is read during the row's own render, which is before this hook's effect runs, so a row
+ * that has just remounted with new figures is handed the ones it had a moment ago and travels from
+ * them. A row on its first sighting is handed nothing and simply appears at its value.
+ */
+function useRowMotion(legs: readonly BookLeg[]) {
+  const previous = useRef(new Map<string, RowFigures>());
+  const stages = useLandings(legs.map((leg) => [leg.key, rowFigures(leg).print] as const));
+
+  const before = previous.current;
+  /* After the rows have rendered — and after they have read `before` — record what they are
+     showing now, so the next read has something to travel from. A settled half only: a pending one
+     would overwrite a real reading with nothing and lose the comparison across the round trip. */
+  useEffect(() => {
+    for (const leg of legs) {
+      const next = rowFigures(leg);
+      const held = previous.current.get(leg.key);
+      previous.current.set(leg.key, {
+        backed: next.backed ?? held?.backed,
+        earned: next.earned ?? held?.earned,
+        print: next.print ?? held?.print,
+      });
+    }
+  });
+
+  return {
+    from: (key: string) => before.get(key),
+    stage: (key: string) => stages.get(key),
+  };
+}
+
+/**
+ * The signature figure, moving.
+ *
+ * `PROMISED 30.7400 / 10.4000 WETH 2.96x` is the claim no other venue can print, and every part of
+ * it moves on the two events this screen exists for: publishing an offer raises the numerator, and
+ * a fill changes the wallet under it. Travelling between two readings is what says which of the two
+ * just happened; replacing one string with another says only that something did.
+ *
+ * All three are tweened off the same reads, so the ratio and the multiple beside it never disagree
+ * mid-transition. Each falls back to the figure itself, which is what a first reading gives and
+ * what a reader who has asked for reduced motion gets on every reading after it.
+ */
+function usePromisedFigures(token: UseBookReturn['kpis']['writtenToken']) {
+  const written = useTweenedBigInt(token?.written);
+  const coverage = useTweenedBigInt(token?.coverage);
+  const multiple = useTweenedNumber(token?.writtenMultiple);
+  return {
+    written: written ?? token?.written ?? ZERO,
+    coverage: coverage ?? token?.coverage ?? ZERO,
+    multiple: multiple ?? token?.writtenMultiple ?? 0,
+  };
+}
+
+/**
  * Which rows landed since the last read.
  *
  * The one confirmation a publish gets. Pressing the button used to produce nothing observable for
@@ -255,6 +407,50 @@ function useArrivals(legs: readonly BookLeg[], holdMs = 2_000): ReadonlySet<Hex>
 }
 
 /**
+ * What a row prints, as data: the two figures a fill moves, and the string a reader could see.
+ *
+ * It is computed here rather than inside the row because the strip needs it too — to notice that a
+ * figure changed across a re-read that unmounted every row, and to lend the row that comes back the
+ * reading the row that went away was showing. One function, so the two can never disagree about
+ * what "this row changed" means.
+ *
+ * Either half is `undefined` while its own read is in flight, which is exactly the condition under
+ * which that cell draws a skeleton. A row with a pending half is not compared and not recorded, so
+ * the round trip is spanned rather than mistaken for a change.
+ */
+interface RowFigures {
+  /** `open / written`, the fraction of what this offer promises the wallet can still deliver. */
+  backed?: number;
+  /** Realised theta, and the token it was paid in. */
+  earned?: { amount: bigint; token: BookTokenView };
+  /** The two of them as a reader sees them: the string the landing tint compares. */
+  print?: string;
+}
+
+function rowFigures(leg: BookLeg): RowFigures {
+  // The guard's own number wins when it gave one: same quantity, straight from the enforcer.
+  const backed = leg.probe.pending
+    ? undefined
+    : backingRatio(leg.probe.bound ?? leg.depth.amount, leg.depth.written);
+
+  const theta = leg.theta;
+  const earned = theta?.pending
+    ? undefined
+    : theta && theta.risky > ZERO
+      ? { amount: theta.risky, token: leg.risky }
+      : theta && theta.stable > ZERO
+        ? { amount: theta.stable, token: leg.stable }
+        : { amount: ZERO, token: leg.bandToken };
+
+  const print =
+    backed === undefined || earned === undefined || leg.status === 'docked'
+      ? undefined
+      : `${Math.round(backed * 100)}|${earned.amount}${earned.token.symbol}`;
+
+  return { backed, earned, print };
+}
+
+/**
  * The column widths, stated once and away from the headings.
  *
  * `table-layout: fixed` takes its geometry from the first row it can find unless a `<colgroup>`
@@ -269,8 +465,12 @@ function Columns() {
       <col style={{ width: '15%' }} />
       <col style={{ width: '10%' }} />
       <col style={{ width: '15%' }} />
-      <col style={{ width: '20%' }} />
+      {/* Two points move from EARNED to DELIVERABLE. At the table's 42rem floor — which is exactly
+          the phone, where the strip scrolls inside itself — the last column was 121px holding 100px
+          of meter-plus-percentage inside 24px of padding, so its content had been overflowing into
+          EARNED before the header grew a word and an ⓘ. `0.00 USDC` needs 94 and had 134. */}
       <col style={{ width: '18%' }} />
+      <col style={{ width: '20%' }} />
       <col style={{ width: '2.5rem' }} />
     </colgroup>
   );
@@ -282,6 +482,8 @@ function Row({
   armed = false,
   pending = false,
   isNew = false,
+  from,
+  landing,
   onWithdraw,
 }: {
   leg: BookLeg;
@@ -290,24 +492,42 @@ function Row({
   pending?: boolean;
   /** Landed since this strip was last read: the row that confirms a publish. */
   isNew?: boolean;
+  /** What this row printed before the read in flight, so its figures can travel rather than jump. */
+  from?: RowFigures;
+  /** Set for the second and a half after somebody took an offer this row is exposed to. */
+  landing?: LandingStage;
   onWithdraw?: () => void;
 }) {
   const delivers = leg.deliversRisky ? leg.risky : leg.stable;
-  // The guard's own number wins when it gave one: same quantity, straight from the enforcer.
-  const open = leg.probe.bound ?? leg.depth.amount;
-  const written = leg.depth.written;
-  const backing = backingRatio(open, written);
+  const figures = rowFigures(leg);
+  const earnedToken = figures.earned?.token ?? leg.bandToken;
 
-  const theta = leg.theta;
-  const earned =
-    theta && theta.risky > ZERO
-      ? { token: leg.risky, amount: theta.risky }
-      : theta && theta.stable > ZERO
-        ? { token: leg.stable, amount: theta.stable }
-        : undefined;
+  /*
+   * The two figures a fill moves, and they move rather than jump.
+   *
+   * BACKING is the one on this strip that changes without anybody touching this row: a fill on a
+   * sibling offer eats into the one balance behind all of them, so this offer can suddenly deliver
+   * less of what it advertises. That is the claim the whole product makes, and it used to arrive as
+   * a different set of digits and a different count of lit cells on the next read, which on a strip
+   * of fifteen rows is indistinguishable from nothing having happened. The meter and the percentage
+   * are driven off one tweened ratio, so the cells go out in order from the tip and the figure
+   * counts down with them instead of the two changing independently.
+   *
+   * `from` is the reading this row held before the re-read, lent by the strip: the rows are
+   * unmounted while the new block is being read, so a hook in here has no memory of its own to
+   * travel from. Absent on a first sighting, which is what keeps a figure that has only just
+   * arrived from counting up out of nowhere.
+   */
+  const backing = useTweenedNumber(figures.backed, { from: from?.backed }) ?? figures.backed ?? 1;
+  const earnedAmount = useTweenedBigInt(figures.earned?.amount, { from: from?.earned?.amount });
 
   return (
-    <tr className={classes.row} data-dim={withdrawn || undefined} data-new={isNew || undefined}>
+    <tr
+      className={classes.row}
+      data-dim={withdrawn || undefined}
+      data-new={isNew || undefined}
+      data-filled={landing}
+    >
       <td className={classes.cellStart}>
         <span className={classes.mark}>
           <TokenIcon symbol={delivers.symbol} size={18} dim={withdrawn} />
@@ -319,7 +539,7 @@ function Row({
 
       <td>
         <TokenAmount
-          value={written}
+          value={leg.depth.written}
           decimals={delivers.decimals}
           symbol={delivers.symbol}
           icon={false}
@@ -364,22 +584,24 @@ function Row({
       </td>
 
       <td>
-        {theta?.pending ? (
-          <TokenAmountSkeleton chars={7} icon={false} />
-        ) : (
-          /* A leg that has never been swept earns nothing, and it used to say so with a bare `0` —
-             no unit, no decimal places, and so no relationship to the `+0.3380 WETH` above it. The
-             zero is printed in the same shape as a real figure instead, in the token a taker would
-             pay to sweep this leg, which is the token any premium on it will arrive in. */
-          <TokenAmount
-            value={earned?.amount ?? ZERO}
-            decimals={(earned?.token ?? leg.bandToken).decimals}
-            symbol={(earned?.token ?? leg.bandToken).symbol}
-            icon={false}
-            sign="always"
-            tone={earned ? 'money' : 'muted'}
-          />
-        )}
+        <Reveal token={earnedAmount === undefined ? 'pending' : 'settled'}>
+          {earnedAmount === undefined ? (
+            <TokenAmountSkeleton chars={9} icon={false} />
+          ) : (
+            /* A leg that has never been swept earns nothing, and it used to say so with a bare `0` —
+               no unit, no decimal places, and so no relationship to the `+0.3380 WETH` above it. The
+               zero is printed in the same shape as a real figure instead, in the token a taker would
+               pay to sweep this leg, which is the token any premium on it will arrive in. */
+            <TokenAmount
+              value={earnedAmount}
+              decimals={earnedToken.decimals}
+              symbol={earnedToken.symbol}
+              icon={false}
+              sign="always"
+              tone={figures.earned && figures.earned.amount > ZERO ? 'money' : 'muted'}
+            />
+          )}
+        </Reveal>
       </td>
 
       <td>
@@ -400,15 +622,19 @@ function Row({
           */}
         {withdrawn || leg.status === 'docked' ? (
           <Num tone="dim">—</Num>
-        ) : leg.probe.pending ? (
-          <TokenAmountSkeleton chars={7} icon={false} />
         ) : (
-          <span className={classes.backing}>
-            <Meter value={backing} />
-            <Num tone={backing < 0.999 ? undefined : 'dim'}>
-              {formatPercent(backing, { fractionDigits: 0 })}
-            </Num>
-          </span>
+          <Reveal token={figures.backed === undefined ? 'pending' : 'settled'}>
+            {figures.backed === undefined ? (
+              <TokenAmountSkeleton chars={9} icon={false} />
+            ) : (
+              <span className={classes.backing}>
+                <Meter value={backing} />
+                <Num tone={backing < 0.999 ? undefined : 'dim'}>
+                  {formatPercent(backing, { fractionDigits: 0 })}
+                </Num>
+              </span>
+            )}
+          </Reveal>
         )}
       </td>
 
@@ -424,7 +650,11 @@ function Row({
                 ? 'Click again. This cannot be undone: the strategy hash is dead for good.'
                 : 'Withdraw'
             }
-            style={armed ? { background: 'var(--neg-soft)', color: 'var(--neg)' } : undefined}
+            /* An attribute, not an inline style. Two other places on this screen used to paint a
+               state with `style={{ color: 'var(--neg)' }}`, which means the armed treatment lives
+               somewhere the stylesheet cannot see it and cannot be given a transition, a hover or a
+               focus variant without moving it back. */
+            data-armed={armed || undefined}
             onClick={onWithdraw}
           >
             <X size={14} strokeWidth={2} aria-hidden="true" />
@@ -435,6 +665,43 @@ function Row({
   );
 }
 
+/**
+ * The strip with nothing in it, at the height the strip already had.
+ *
+ * The empty state takes the height the skeletons above it were holding, so the strip is the size it
+ * is going to be from the first frame and the chart above it stops moving. Capped at three rows: a
+ * wallet that disconnects out of a fifteen-row book would otherwise leave a 540px hole with two
+ * words in it.
+ *
+ * The message stays left-aligned rather than centred: at 390px this table is 672px wide inside a
+ * 390px scroller, and a message centred on the table is a message parked 140px off the right edge
+ * of the phone.
+ */
+function EmptyRow({ rows, children }: { rows: number; children: ReactNode }) {
+  return (
+    <tr>
+      <td
+        colSpan={8}
+        className={classes.emptyRow}
+        /* A length, computed from the row height the module already owns — not a colour, and not a
+           second copy of the 36px constant. */
+        style={{ height: `calc(${Math.min(3, Math.max(1, rows))} * var(--row-h))` }}
+      >
+        {children}
+      </td>
+    </tr>
+  );
+}
+
+/**
+ * A row of the right widths, measured against what actually lands in each cell.
+ *
+ * "A skeleton of the right width" is only worth the rule if the widths are right. Two of these were
+ * not: EARNED reserved 53px for `0.00 USDC`, which sets 70, and DELIVERABLE reserved the same 53
+ * for a nine-cell meter plus `100%`, which is 102 — so the last column of a loading strip was half
+ * the width of the column that replaced it, and the whole rail moved when the read landed. The
+ * numbers below are the rendered widths of the widest figure each column holds at 13px mono.
+ */
 function LoadingRow() {
   return (
     <tr>
@@ -445,19 +712,19 @@ function LoadingRow() {
         <Bar width={110} />
       </td>
       <td>
-        <Bar width={56} />
+        <Bar width={62} />
       </td>
       <td>
         <Bar width={38} />
       </td>
       <td>
-        <Bar width={48} />
+        <Bar width={72} />
       </td>
       <td>
         <Bar width={72} />
       </td>
       <td>
-        <Bar width={53} />
+        <Bar width={100} />
       </td>
       <td />
     </tr>
