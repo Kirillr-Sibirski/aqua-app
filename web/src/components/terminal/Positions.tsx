@@ -19,24 +19,29 @@
  * such a row would be a claim about a trade that is structurally impossible.
  */
 import { ChevronDown, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Hex } from 'viem';
 import { useDock } from '@/hooks';
 import type { BookLeg, UseBookReturn } from '@/hooks/useBook';
-import { TokenAmount, TokenAmountSkeleton, tokenFractionDigits } from '@/components/token';
-import { formatUnits } from '@/lib/ui';
+import { TokenAmount, TokenAmountSkeleton, TokenIcon, tokenFractionDigits } from '@/components/token';
+import { formatPercent, formatTenor, formatUnits } from '@/lib/ui';
 import { backingRatio } from './backing';
 import { Bar, Meter, Num } from './bits';
 import classes from './terminal.module.css';
 
 const ZERO = BigInt(0);
 
-/** The two halves of the promised-over-held ratio, printed to the same width. */
-const PROMISED_DIGITS = {
-  significantDigits: 18,
-  minFractionDigits: 2,
-  maxFractionDigits: 2,
-} as const;
+/**
+ * The two halves of the promised-over-held ratio, at the token's own precision.
+ *
+ * Fixed at two places it printed `30.74 / 10.40` for a token every other figure on the screen shows
+ * to four — the SELL legend and the SIZE column both read `10.4000`. There is one decimal
+ * convention per token in this app and it comes from `components/token/registry`.
+ */
+function promisedDigits(symbol: string) {
+  const places = tokenFractionDigits(symbol);
+  return { significantDigits: 18, minFractionDigits: places, maxFractionDigits: places } as const;
+}
 
 export interface PositionsProps {
   book: UseBookReturn;
@@ -45,6 +50,7 @@ export interface PositionsProps {
 }
 
 export function Positions({ book, connected, hydrated }: PositionsProps) {
+  const arrived = useArrivals(book.legs);
   const [showWithdrawn, setShowWithdrawn] = useState(false);
   const [arming, setArming] = useState<Hex>();
   const { dock, isRunning } = useDock();
@@ -52,6 +58,24 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
 
   const live = book.legs.filter((leg) => leg.status !== 'docked');
   const withdrawn = book.legs.filter((leg) => leg.status === 'docked');
+
+  /*
+   * The shape the strip held last time it had an answer: how many rows, and whether there was a
+   * withdrawn disclosure under them.
+   *
+   * A re-read after a publish empties both for about a second and a half, and the strip used to
+   * collapse from 357px to 174px and back — twice — handing the space to the chart and taking it
+   * away again while the reader watched. It keeps its shape across a re-read now; only the digits
+   * change. Set during render rather than in an effect, so the skeletons never paint at the wrong
+   * count first.
+   */
+  const [heldRows, setHeldRows] = useState(3);
+  const [heldWithdrawn, setHeldWithdrawn] = useState(0);
+  const settled = !book.isLoading;
+  if (live.length > 0 && live.length !== heldRows) setHeldRows(live.length);
+  if (settled && withdrawn.length !== heldWithdrawn) setHeldWithdrawn(withdrawn.length);
+  const skeletonRows = heldRows;
+  const withdrawnCount = settled ? withdrawn.length : heldWithdrawn;
 
   /* The token the book is most over-allocated on: the one the signature figure is about. */
   const signature = book.kpis.writtenToken;
@@ -80,16 +104,16 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
         {signature ? (
           <span
             className={classes.promised}
-            title="Written across every live offer, against the balance standing behind all of them. One fill shrinks what the rest can deliver, in the same block."
+            title="Written across every live offer, over the one balance behind all of them."
           >
             Promised
             {/* Both halves at the same fixed precision. Trimming trailing zeros independently put
                 `30.74 / 10.4` on the screen — two different decimal counts inside what a reader
                 takes for one figure, which is the fastest way to make a ratio look approximate. */}
             <span className={classes.promisedFigure}>
-              {formatUnits(signature.written, signature.decimals, PROMISED_DIGITS)}
+              {formatUnits(signature.written, signature.decimals, promisedDigits(signature.symbol))}
               <span className={classes.promisedOver}> / </span>
-              {formatUnits(signature.wallet, signature.decimals, PROMISED_DIGITS)}
+              {formatUnits(signature.wallet, signature.decimals, promisedDigits(signature.symbol))}
             </span>
             <span className={classes.promisedFigure} style={{ color: 'var(--ink-3)' }}>
               {signature.symbol}
@@ -107,12 +131,13 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
           <thead>
             <tr>
               <th scope="col" className={classes.cellStart}>
-                Size
+                <span className="sr-only">Instrument</span>
               </th>
+              <th scope="col">Size</th>
               <th scope="col">Strike</th>
               <th scope="col">Expiry</th>
-              <th scope="col">Open</th>
               <th scope="col">Earned</th>
+              {/* Not `Open`. See `Row`. */}
               <th scope="col">Backing</th>
               <th scope="col">
                 <span className="sr-only">Withdraw</span>
@@ -121,7 +146,12 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
           </thead>
           <tbody>
             {!hydrated || (connected && book.isLoading) ? (
-              [0, 1, 2].map((i) => <LoadingRow key={i} />)
+              /* As many skeletons as the strip last held, not three.
+                 A refetch after a publish emptied the table down to three placeholder rows for a
+                 second and a half, which took 183px off this section and handed them to the chart
+                 above — the layout lurching twice while a figure the reader was watching reloaded.
+                 The strip holds its height across a re-read; only the digits change. */
+              Array.from({ length: skeletonRows }, (_, i) => <LoadingRow key={i} />)
             ) : !connected ? (
               <tr>
                 <td colSpan={7} className={classes.emptyRow}>
@@ -141,6 +171,7 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
                   leg={leg}
                   armed={arming === leg.strategyHash}
                   pending={pending === leg.strategyHash && isRunning}
+                  isNew={arrived.has(leg.strategyHash)}
                   onWithdraw={() => void onWithdraw(leg)}
                 />
               ))
@@ -165,19 +196,57 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
         </table>
       </div>
 
-      {withdrawn.length > 0 ? (
+      {withdrawnCount > 0 ? (
         <button
           type="button"
           className={classes.disclosure}
           aria-expanded={showWithdrawn}
+          disabled={withdrawn.length === 0}
           onClick={() => setShowWithdrawn((v) => !v)}
         >
           <ChevronDown size={13} strokeWidth={1.75} aria-hidden="true" className={classes.disclosureChevron} />
-          <span>{withdrawn.length} withdrawn</span>
+          <span>{withdrawnCount} withdrawn</span>
         </button>
       ) : null}
     </section>
   );
+}
+
+/**
+ * Which rows landed since the last read.
+ *
+ * The one confirmation a publish gets. Pressing the button used to produce nothing observable for
+ * the whole nineteen seconds a run takes on a fork — the offer landed and a row silently appeared
+ * among five identical ones. The row that appears now lights for two seconds in the accent, which
+ * LAYOUT.md reserves for the primary action and your own position, and this is both: it is the
+ * thing the primary action just made.
+ *
+ * The first read is not an arrival. Every leg is new on the first render of a connected wallet, and
+ * lighting the whole book would say a fill had happened five times over.
+ */
+function useArrivals(legs: readonly BookLeg[], holdMs = 2_000): ReadonlySet<Hex> {
+  const seen = useRef<Set<Hex> | null>(null);
+  const [arrived, setArrived] = useState<ReadonlySet<Hex>>(() => new Set());
+
+  const hashes = legs.map((leg) => leg.strategyHash).join(',');
+
+  useEffect(() => {
+    const now = new Set(legs.map((leg) => leg.strategyHash));
+    const before = seen.current;
+    seen.current = now;
+    if (before === null || now.size === 0) return;
+
+    const fresh = new Set([...now].filter((hash) => !before.has(hash)));
+    if (fresh.size === 0) return;
+
+    setArrived(fresh);
+    const timer = setTimeout(() => setArrived(new Set()), holdMs);
+    return () => clearTimeout(timer);
+    // `hashes` is the identity of the set; `legs` is a new array on every read of the same book.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hashes, holdMs]);
+
+  return arrived;
 }
 
 /**
@@ -190,13 +259,13 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
 function Columns() {
   return (
     <colgroup>
+      <col style={{ width: '3.5rem' }} />
+      <col style={{ width: '24%' }} />
+      <col style={{ width: '16%' }} />
+      <col style={{ width: '16%' }} />
       <col style={{ width: '22%' }} />
-      <col style={{ width: '13%' }} />
-      <col style={{ width: '13%' }} />
-      <col style={{ width: '17%' }} />
-      <col style={{ width: '17%' }} />
-      <col style={{ width: '12%' }} />
-      <col style={{ width: '6%' }} />
+      <col style={{ width: '22%' }} />
+      <col style={{ width: '2.5rem' }} />
     </colgroup>
   );
 }
@@ -206,12 +275,15 @@ function Row({
   withdrawn = false,
   armed = false,
   pending = false,
+  isNew = false,
   onWithdraw,
 }: {
   leg: BookLeg;
   withdrawn?: boolean;
   armed?: boolean;
   pending?: boolean;
+  /** Landed since this strip was last read: the row that confirms a publish. */
+  isNew?: boolean;
   onWithdraw?: () => void;
 }) {
   const delivers = leg.deliversRisky ? leg.risky : leg.stable;
@@ -229,14 +301,22 @@ function Row({
         : undefined;
 
   return (
-    <tr className={classes.row} data-dim={withdrawn || undefined}>
+    <tr className={classes.row} data-dim={withdrawn || undefined} data-new={isNew || undefined}>
       <td className={classes.cellStart}>
+        <span className={classes.mark}>
+          <TokenIcon symbol={delivers.symbol} size={18} dim={withdrawn} />
+          <span className={classes.side} title={leg.kind === 'call' ? 'Covered call' : 'Cash-secured put'}>
+            {leg.kind === 'call' ? 'C' : 'P'}
+          </span>
+        </span>
+      </td>
+
+      <td>
         <TokenAmount
           value={written}
           decimals={delivers.decimals}
           symbol={delivers.symbol}
-          icon
-          size={18}
+          icon={false}
           tone={withdrawn ? 'muted' : 'default'}
         />
       </td>
@@ -263,26 +343,10 @@ function Row({
         <Num
           tone={withdrawn ? 'dim' : undefined}
           title={expiryTitle(leg)}
-          unit={withdrawn ? undefined : tenorLeft(leg.secondsLeft)}
+          unit={withdrawn ? undefined : formatTenor(leg.secondsLeft)}
         >
           {expiryDate(leg.rmm.maturity)}
         </Num>
-      </td>
-
-      <td>
-        {withdrawn || leg.status === 'docked' ? (
-          <Num tone="dim">—</Num>
-        ) : leg.probe.pending ? (
-          <TokenAmountSkeleton chars={7} icon={false} />
-        ) : (
-          <TokenAmount
-            value={open}
-            decimals={delivers.decimals}
-            symbol={delivers.symbol}
-            icon={false}
-            tone={open === ZERO ? 'muted' : 'default'}
-          />
-        )}
       </td>
 
       <td>
@@ -305,13 +369,32 @@ function Row({
       </td>
 
       <td>
-        {withdrawn ? (
+        {/*
+          * BACKING, and the column that used to sit beside it.
+          *
+          * There was an OPEN column here printing `open` in full, and it was `SIZE × BACKING` — not
+          * coincidentally in the demo state, but by construction, because this figure IS
+          * `open / written`. Two columns for one quantity read as density and were redundancy: in a
+          * fifteen-row book they printed the same string as SIZE fifteen times. The absolute is
+          * still one multiplication away and the relative is the one a maker acts on, because it is
+          * the one that moves when a sibling offer is filled out of the same balance.
+          *
+          * The meter alone carried no reading at all: nine cells, and its only explanation was an
+          * `aria-label` spelling out a full teaching sentence — prose for a screen reader and an
+          * unlabelled bar for everybody else, which is the worst of both. The figure is the value
+          * and the column header is its unit; the meter is the shape, and it is `aria-hidden`.
+          */}
+        {withdrawn || leg.status === 'docked' ? (
           <Num tone="dim">—</Num>
+        ) : leg.probe.pending ? (
+          <TokenAmountSkeleton chars={7} icon={false} />
         ) : (
-          <Meter
-            value={backing}
-            label={`${(backing * 100).toFixed(0)}% of what this offer promises can be handed over right now`}
-          />
+          <span className={classes.backing}>
+            <Meter value={backing} />
+            <Num tone={backing < 0.999 ? undefined : 'dim'}>
+              {formatPercent(backing, { fractionDigits: 0 })}
+            </Num>
+          </span>
         )}
       </td>
 
@@ -342,6 +425,9 @@ function LoadingRow() {
   return (
     <tr>
       <td className={classes.cellStart}>
+        <Bar width={18} />
+      </td>
+      <td>
         <Bar width={110} />
       </td>
       <td>
@@ -349,9 +435,6 @@ function LoadingRow() {
       </td>
       <td>
         <Bar width={48} />
-      </td>
-      <td>
-        <Bar width={72} />
       </td>
       <td>
         <Bar width={72} />
@@ -370,24 +453,6 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 function expiryDate(maturity: number): string {
   const d = new Date(maturity * 1000);
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
-}
-
-/**
- * How long is left, in one unit and at most three characters: `9d`, `18h`, `44m`, `now`.
- *
- * Deliberately not `formatRelativeTime`, which says `in 9d` — correct English and the wrong thing
- * in a column, where the preposition is width that repeats on every row and carries nothing. Past
- * maturity reads `done` rather than a negative, because the leg has stopped counting.
- */
-function tenorLeft(secondsLeft: number): string {
-  if (!Number.isFinite(secondsLeft)) return '';
-  if (secondsLeft <= 0) return 'done';
-  const days = Math.floor(secondsLeft / 86_400);
-  if (days >= 1) return `${days}d`;
-  const hours = Math.floor(secondsLeft / 3_600);
-  if (hours >= 1) return `${hours}h`;
-  const minutes = Math.floor(secondsLeft / 60);
-  return minutes >= 1 ? `${minutes}m` : 'now';
 }
 
 function expiryTitle(leg: BookLeg): string {
