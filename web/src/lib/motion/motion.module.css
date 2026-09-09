@@ -1,0 +1,23 @@
+/*
+ * One enter transition, and it belongs to `Reveal`.
+ *
+ * A module rather than a utility because it is keyed from React: the element carrying this class is
+ * mounted at the moment the thing it shows becomes true, so the animation runs exactly once, when
+ * the state changed, and never on the many re-renders of the same element in between.
+ *
+ * It collapses under `prefers-reduced-motion` through the block at the bottom of `globals.css`,
+ * which forces `animation-duration: 1ms` on everything: the value appears on the same frame instead
+ * of fading up, which is the jump branch. It moves no layout — opacity, and nothing else.
+ */
+.reveal {
+  animation: reveal var(--duration-base) var(--ease-out-quart) both;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
