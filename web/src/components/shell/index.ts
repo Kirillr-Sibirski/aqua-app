@@ -1,15 +1,14 @@
 /**
- * The frame. One import for anything that draws chrome around a screen.
+ * The frame, and the mark.
  *
- * One chrome, one nav, one wallet control. `AppChrome` replaced a pair of shells that disagreed
- * about how many routes exist — two tabs on the card and the positions view, four items plus a
- * network pill and a second wallet UI everywhere else — which a person saw directly as the header
- * growing when they clicked their own offer.
+ * The app is one screen and draws its own bar; `AppChrome` is what wraps the two read-layer
+ * artifacts the footer links to. `SiteFooter` is the app's only navigation, on purpose.
  */
 export { AppChrome } from './AppChrome';
 export type { AppChromeProps } from './AppChrome';
 
 export { SiteFooter } from './SiteFooter';
+export type { SiteFooterProps } from './SiteFooter';
 
 export { PageHeader } from './PageHeader';
 export type { PageHeaderProps } from './PageHeader';

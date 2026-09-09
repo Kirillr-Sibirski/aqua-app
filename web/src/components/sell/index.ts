@@ -1,12 +1,11 @@
 /**
- * The card, and everything that stands behind it.
+ * What stands behind the ticket.
  *
- * `OfferCard` is the product: three fields and one button, all three pre-filled from the chain.
- * The rest is exported for the offer screen and the tests, which need the same date arithmetic and
- * the same sizing rule the card publishes with. The chrome it sits under is `AppChrome`, in
- * `components/shell`, and is the same frame every other route renders.
+ * The card that used to live here is gone: `components/terminal/Ticket` is the same three controls
+ * at terminal density, and it imports every hook below rather than reimplementing one. This barrel
+ * is now the sizing path (`useOffer`), the publish path (`usePublish`), the volatility measurement,
+ * the date arithmetic, and the wallet control — the pieces, without the screen.
  */
-export { OfferCard } from './OfferCard';
 export { WalletButton, ConnectModal, NetworkNotice } from './WalletButton';
 
 export {
@@ -41,7 +40,14 @@ export type { UseOfferParams, UseOfferResult } from './useOffer';
 export { usePublishOffer } from './usePublish';
 export type { PublishParams, PublishResult } from './usePublish';
 
-export { blockLadder, estimateRealisedVol, readBlockHistory, useRealisedVol } from './useRealisedVol';
+export {
+  blockLadder,
+  estimateRealisedVol,
+  readBlockHistory,
+  useRealisedVol,
+  FALLBACK_VOL,
+  MIN_VOL_SPAN_SECONDS,
+} from './useRealisedVol';
 export type {
   PriceObservation,
   RealisedVol,

@@ -1,15 +1,14 @@
 'use client';
 
 /**
- * One quiet line at the bottom of every page.
+ * One quiet line at the bottom of the screen, and the only navigation in the app.
  *
  * It carries two things and nothing else. First, the two read-layer surfaces — the market rebuilt
- * from the chain's own log, and the markout study — which used to be top-level nav items. They are
- * demonstrations rather than steps in making an offer, and having them in the bar is most of what
- * made the header read like a terminal's; down here they are reachable without being put in front
- * of someone who arrived to sell some ETH. Second, what the app is pointed at: the chain, the
- * router it calls, and the commit this bundle was built from, because a person checking a number
- * for themselves needs the address to check it against.
+ * from the chain's own log, and the markout study. They are submission artifacts rather than
+ * product screens, and this is deliberately the only way to reach either: putting them in a nav bar
+ * is most of what made the old header read like a site's. Second, what the app is pointed at: the
+ * chain, the router it calls, and the commit this bundle was built from, because a person checking
+ * a number for themselves needs the address to check it against.
  *
  * Fork-local addresses carry no explorer link. Nothing deployed onto the fork after the pinned
  * block exists upstream, so the link would be a dead end.
@@ -22,7 +21,12 @@ import { addressUrl, COMMIT_SHA, commitUrl, explorerFor, isForkOfBase, REPO_URL 
 import { useDeploymentChain } from './useDeploymentChain';
 import { useIsHydrated } from './useIsHydrated';
 
-export function SiteFooter() {
+export interface SiteFooterProps {
+  /** Full-bleed, for the terminal, which has no 64rem column to line up with. */
+  wide?: boolean;
+}
+
+export function SiteFooter({ wide = false }: SiteFooterProps) {
   const hydrated = useIsHydrated();
   const { deployments } = useDeployments();
   const { chainId, name } = useDeploymentChain();
@@ -31,7 +35,7 @@ export function SiteFooter() {
 
   return (
     <footer className={classes.footer}>
-      <div className={classes.footerInner}>
+      <div className={classes.footerInner} data-wide={wide || undefined}>
         <Link href="/surface" className={classes.footerLink}>
           Market
         </Link>
