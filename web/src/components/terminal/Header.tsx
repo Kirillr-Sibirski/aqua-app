@@ -10,6 +10,7 @@
 import { WalletButton } from '@/components/sell';
 import { WordmarkMark } from '@/components/shell';
 import { TokenPair } from '@/components/token';
+import { formatCount } from '@/lib/ui';
 import { Bar } from './bits';
 import classes from './terminal.module.css';
 import { formatSpan, type SpotWindow } from './useSpotWindow';
@@ -78,7 +79,7 @@ export function TerminalHeader({ base, quote, spot, window: spotWindow, blockNum
             title="Every figure on this screen was read at this block, in one snapshot."
           >
             <span aria-hidden="true" className={classes.blockDot} />
-            {blockNumber.toString()}
+            {formatCount(blockNumber)}
           </span>
         )}
         <WalletButton size="xs" />

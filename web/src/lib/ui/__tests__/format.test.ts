@@ -10,6 +10,7 @@ import {
   bpsToRatio,
   formatBps,
   formatCompact,
+  formatCount,
   formatPercent,
   formatRelativeTime,
   formatTokenAmount,
@@ -98,6 +99,22 @@ describe('formatUnits', () => {
   it('rejects an impossible scale', () => {
     expect(() => formatUnits(bn('1'), -1)).toThrow(RangeError);
     expect(() => formatUnits(bn('1'), 1.5)).toThrow(RangeError);
+  });
+});
+
+describe('formatCount', () => {
+  it('groups a whole number without truncating it to a significant-digit budget', () => {
+    // The bug this guards: the default budget is 6 digits, which would render a Base block height
+    // as 50,946,400 — grouped, plausible, and off by 352.
+    expect(formatCount(50_946_352)).toBe('50,946,352');
+    expect(formatCount(BigInt('50946352'))).toBe('50,946,352');
+    expect(formatCount(999)).toBe('999');
+    expect(formatCount(1_000)).toBe('1,000');
+    expect(formatCount(0)).toBe('0');
+  });
+
+  it('survives a height past Number.MAX_SAFE_INTEGER when it arrives as a bigint', () => {
+    expect(formatCount(BigInt('9007199254740993'))).toBe('9,007,199,254,740,993');
   });
 });
 

@@ -207,6 +207,25 @@ export function formatUnits(value: bigint, decimals: number, opts: FormatUnitsOp
   return `${signPrefix(rounded.neg && !isZero(rounded), sign)}${body}`;
 }
 
+/**
+ * A plain whole number, grouped: a block height, a fill count, a round count.
+ *
+ * It exists because the two things it replaces were both wrong in the same column of the same
+ * screen. `blockNumber.toString()` printed `50946352`, which is eight digits a reader has to count
+ * on their fingers; `blockNumber.toLocaleString('en-US')` printed `50,946,352` but reintroduced the
+ * `Intl` dependency this module exists to avoid — it is locale data, so it can disagree between the
+ * server render and the browser's, and React repairs that disagreement by discarding the server
+ * tree. This groups by the same fixed-point path as every other figure, on a bigint, deterministic
+ * everywhere.
+ *
+ * @example formatCount(50_946_352) // '50,946,352'
+ * @example formatCount(0) // '0'
+ */
+export function formatCount(value: number | bigint): string {
+  const n = typeof value === 'bigint' ? value : BigInt(Math.trunc(value));
+  return formatUnits(n, 0, { significantDigits: 96 });
+}
+
 // ---------------------------------------------------------------------------
 // Compact notation
 // ---------------------------------------------------------------------------

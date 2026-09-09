@@ -15,7 +15,7 @@
  */
 import Link from 'next/link';
 import { useDeployments } from '@/hooks';
-import { truncateAddress } from '@/lib/ui';
+import { formatCount, truncateAddress } from '@/lib/ui';
 import classes from './chrome.module.css';
 import { addressUrl, COMMIT_SHA, commitUrl, explorerFor, isForkOfBase, REPO_URL } from './explorer';
 import { useDeploymentChain } from './useDeploymentChain';
@@ -50,7 +50,7 @@ export function SiteFooter({ wide = false }: SiteFooterProps) {
           {hydrated && deployments ? (
             <>
               <span>
-                {name} · block {deployments.blockNumber.toLocaleString('en-US')}
+                {name} · block {formatCount(deployments.blockNumber)}
               </span>
               <span>
                 router{' '}
