@@ -23,14 +23,16 @@
  * not see was an input, and it failed the 24px target size on a phone, where there is no hover to
  * reveal it with. It gets the same well the other three have.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader, NumberInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { Minus, Plus } from 'lucide-react';
 import { dateStringFor, maturityAt, type OfferPair } from '@/components/sell';
 import { TokenAmount, TokenIcon } from '@/components/token';
+import { Reveal, useTweenedBigInt } from '@/lib/motion';
 import { explainError, formatTenor } from '@/lib/ui';
 import { Bar, FigureRow } from './bits';
+import { Explain, Labelled } from './Explain';
 import classes from './terminal.module.css';
 import type { TicketDraft } from './useTicketDraft';
 
@@ -79,6 +81,20 @@ export function Ticket({
   const active = publisher.steps.find((s) => s.status === 'signing' || s.status === 'pending');
   const steps = useStepsInView(publisher.steps.length);
 
+  /*
+   * The two figures, moving.
+   *
+   * These are the numbers a maker is actually steering: raising the strike lowers the premium and
+   * raises the cap, and stepping the volatility does the opposite. Replacing one string with
+   * another between two frames says a number is different; travelling from one to the other says
+   * which way the control the maker just touched pushed it, which is the entire reason the control
+   * is there. What is tweened is the router's own WAD integer, so every frame is a quantity
+   * `stableFor` could have returned and the last one is the quantity it did.
+   */
+  const quote = useHeldQuote(draft);
+  const premiumWad = useTweenedBigInt(quote?.premium);
+  const cappedWad = useTweenedBigInt(quote?.capped);
+
   const label = (() => {
     if (!hydrated) return 'Publish offer';
     if (!address) return 'Connect wallet';
@@ -104,11 +120,15 @@ export function Ticket({
             * figure on the screen, and the affordance is the figure rather than a separate chip:
             * the balance IS what MAX means.
             */}
-          {draft.maxAmount === undefined ? (
-            <span className={classes.legendFigure}>
-              {hydrated && address ? <Bar width={56} /> : '—'}
-            </span>
-          ) : (
+          {/*
+            * With no wallet there is no balance, and the legend says nothing rather than `—`.
+            *
+            * An em dash is a figure that failed to arrive. A first-time visitor has not failed to
+            * arrive at anything: they have not connected, the ticket is quoting one WETH because
+            * that is a size, and the right-hand end of this legend has no business on the screen
+            * until there is a balance to put in it.
+            */}
+          {draft.maxAmount !== undefined ? (
             <button
               type="button"
               className={classes.maxButton}
@@ -117,7 +137,14 @@ export function Ticket({
               Max
               <span className={classes.maxFigure}>{draft.maxAmountLabel ?? draft.maxAmount}</span>
             </button>
-          )}
+          ) : hydrated && address ? (
+            /* 76px, which is what `Max 10.4000` measures. A 56px placeholder in the slot of an
+               80px figure is a skeleton of the wrong width, and the rule is that it is the right
+               one — the strip's left edge jumped 20px when the balance landed. */
+            <span className={classes.legendFigure}>
+              <Bar width={76} />
+            </span>
+          ) : null}
         </div>
         <div className={classes.well} data-invalid={draft.overBalance || undefined}>
           <span className={classes.wellUnit}>
@@ -168,7 +195,7 @@ export function Ticket({
           />
           <span
             className={classes.wellEnd}
-            style={draft.belowSpot ? { color: 'var(--neg)' } : undefined}
+            data-tone={draft.belowSpot ? 'neg' : undefined}
             title="Distance from the feed's current answer."
           >
             {draft.moneyness === undefined ? (
@@ -238,10 +265,26 @@ export function Ticket({
         */}
       <div className={classes.group}>
         <div className={classes.legend}>
-          <span>IV</span>
-          {draft.measuredVol === undefined ? (
-            <span className={classes.legendFigure}>{hydrated ? <Bar width={56} /> : '—'}</span>
-          ) : (
+          <Labelled>
+            <span>IV</span>
+            <Explain term="Implied volatility" position="top-start">
+              <p>
+                The volatility you are selling, and the one number on this ticket the chain cannot
+                supply.
+              </p>
+              <p>
+                A higher figure widens the spread a taker has to cross, so every day of waiting is
+                worth more — and fewer takers ever cross it.
+              </p>
+              <p>
+                <b>Realised</b> is what this price feed has actually done over the window the chain
+                would serve. Pressing it adopts that measurement.
+              </p>
+            </Explain>
+          </Labelled>
+          {/* `Realised`, not `Real`. One is the opposite of implied, which is what this figure is;
+              the other is the opposite of fake, which is not a distinction anything here draws. */}
+          {draft.measuredVol !== undefined ? (
             <button
               type="button"
               className={classes.maxButton}
@@ -253,9 +296,18 @@ export function Ticket({
               }
               onClick={() => draft.setVol(draft.measuredVol ?? '')}
             >
-              Real
+              Realised
               <span className={classes.maxFigure}>{draft.measuredVol}</span>
             </button>
+          ) : draft.volUnavailable ? (
+            /* The chain would not serve enough history to measure one. A skeleton here shimmers
+               forever for a figure that is never coming. */
+            null
+          ) : (
+            /* `Realised 25.2` measures 84. */
+            <span className={classes.legendFigure}>
+              <Bar width={84} />
+            </span>
           )}
         </div>
         <div className={classes.well}>
@@ -309,34 +361,71 @@ export function Ticket({
         className={classes.figures}
         data-clamped={draft.overBalance || draft.belowSpot || undefined}
       >
-        <FigureRow label="Premium" unit={draft.offer ? stableSymbol : undefined}>
-          {draft.offer && stableSymbol ? (
-            <TokenAmount
-              value={draft.offer.earnedWad}
-              decimals={18}
-              symbol={stableSymbol}
-              icon={false}
-              unit="none"
-              sign="always"
-              tone="money"
-            />
-          ) : (
-            <Bar width={96} />
-          )}
+        <FigureRow
+          label="Premium"
+          unit={draft.offer ? stableSymbol : undefined}
+          explain={
+            <Explain term="Premium" position="top-start">
+              <p>
+                What a taker pays on top of your strike to be assigned the whole amount. It is the
+                total for this offer, not a rate.
+              </p>
+              <p>
+                It is not credited up front: it accrues inside the spread as the curve decays, and
+                you collect it only if somebody trades.
+              </p>
+              <p>
+                Both terms behind it are router reads — the quote at your date, and the same quote
+                at expiry.
+              </p>
+            </Explain>
+          }
+        >
+          <Reveal token={premiumWad === undefined ? 'pending' : 'settled'}>
+            {premiumWad !== undefined && stableSymbol ? (
+              <TokenAmount
+                value={premiumWad}
+                decimals={18}
+                symbol={stableSymbol}
+                icon={false}
+                unit="none"
+                sign="always"
+                tone="money"
+              />
+            ) : (
+              <Bar width={96} />
+            )}
+          </Reveal>
         </FigureRow>
 
-        <FigureRow label="Capped at" unit={draft.offer ? stableSymbol : undefined}>
-          {draft.offer && stableSymbol ? (
-            <TokenAmount
-              value={draft.offer.effectivePriceWad}
-              decimals={18}
-              symbol={stableSymbol}
-              icon={false}
-              unit="none"
-            />
-          ) : (
-            <Bar width={96} />
-          )}
+        <FigureRow
+          label="Capped at"
+          unit={draft.offer ? stableSymbol : undefined}
+          explain={
+            <Explain term="Capped at" position="top-start">
+              <p>
+                {`What the sale works out at per ${riskySymbol ?? 'unit'}: your strike, plus the premium spread across the amount on offer.`}
+              </p>
+              <p>
+                It is a ceiling, not a target. If the price runs past your strike you sell there and
+                the rest of the move is not yours.
+              </p>
+            </Explain>
+          }
+        >
+          <Reveal token={cappedWad === undefined ? 'pending' : 'settled'}>
+            {cappedWad !== undefined && stableSymbol ? (
+              <TokenAmount
+                value={cappedWad}
+                decimals={18}
+                symbol={stableSymbol}
+                icon={false}
+                unit="none"
+              />
+            ) : (
+              <Bar width={96} />
+            )}
+          </Reveal>
         </FigureRow>
       </div>
 
@@ -371,7 +460,10 @@ export function Ticket({
         }}
       >
         {running ? <Loader size={16} color="var(--ink-3)" /> : null}
-        {label}
+        {/* The label moves between its states rather than swapping between them: `Approve WETH`
+            gives way to `Ship offer` over the same 170ms every other state change on this screen
+            takes, keyed on the word so it runs once per step and not once per render. */}
+        <Reveal token={label}>{label}</Reveal>
       </button>
 
       {/*
@@ -388,7 +480,9 @@ export function Ticket({
             <li key={step.id} className={classes.step} data-state={stateOf(step.status)}>
               <span className={classes.stepBar} />
               <span>{step.label}</span>
-              <span className={classes.stepState}>{STEP_STATE_LABEL[stateOf(step.status)]}</span>
+              <span className={classes.stepState}>
+                <Reveal token={stateOf(step.status)}>{STEP_STATE_LABEL[stateOf(step.status)]}</Reveal>
+              </span>
             </li>
           ))}
         </ol>
@@ -407,6 +501,40 @@ export function Ticket({
       ) : null}
     </aside>
   );
+}
+
+/**
+ * The last quote the router gave, held across the next one.
+ *
+ * `useOffer` re-keys its `stableFor` pair on every argument the maker touches, and react-query has
+ * no data under a key it has never fetched — so `draft.offer` is `undefined` for the hundred and
+ * fifty milliseconds a re-quote takes, and the two figures used to collapse to skeletons and come
+ * back. That is right the first time, when there is genuinely nothing to show, and wrong every time
+ * after it: a figure that blanks cannot travel, so the one thing a maker most wants to see about
+ * the control they just moved — which way it pushed the premium, and by how much — was the one
+ * thing the ticket refused to show them.
+ *
+ * The previous reading is held instead, and the new one arrives by travelling to it. Nothing is
+ * invented: what is on the screen during that gap is the last number `stableFor` actually returned,
+ * the button beside it reads `Pricing` for exactly that window, and the block in the bar says which
+ * block everything else was read at. The moment the quote errors or the ticket stops being able to
+ * price at all, the hold is dropped and the skeletons come back.
+ */
+function useHeldQuote(draft: TicketDraft): { premium: bigint; capped: bigint } | undefined {
+  const [held, setHeld] = useState<{ premium: bigint; capped: bigint }>();
+  const offer = draft.offer;
+
+  /* Adjusted during render rather than in an effect: this is state derived from a new reading, not
+     a subscription to anything, and the strip below does the same with the row count it holds
+     across a re-read. React re-runs this component with the new value before it commits, so a
+     figure is never painted one reading behind. */
+  if (offer && (held?.premium !== offer.earnedWad || held?.capped !== offer.effectivePriceWad)) {
+    setHeld({ premium: offer.earnedWad, capped: offer.effectivePriceWad });
+  } else if (!offer && !draft.sizing.isLoading && held !== undefined) {
+    setHeld(undefined);
+  }
+
+  return held;
 }
 
 /**
