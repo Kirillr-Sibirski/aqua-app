@@ -11,17 +11,13 @@ import { useConnection } from 'wagmi';
 import { getBlock } from 'wagmi/actions';
 import { useConfig } from 'wagmi';
 
-import {
-  useAquaBalances,
-  useDeployments,
-  useDock,
-  useOraclePrice,
-  useQuote,
-  useShip,
-  useShippedStrategies,
-  useSwap,
-  useTokenBalances,
-} from '@/hooks';
+import { useDeployments, useDock, useOraclePrice, useShippedStrategies, useTokenBalances } from '@/hooks';
+/* Deep imports, not the barrel: these four are the taker path and the raw ship, and they belong to
+   this page rather than to the app. See `hooks/index.ts`. */
+import { useAquaBalances } from '@/hooks/useAquaBalances';
+import { useQuote } from '@/hooks/useQuote';
+import { useShip } from '@/hooks/useShip';
+import { useSwap } from '@/hooks/useSwap';
 import { aquaFork, FORK_RPC_URL } from '@/lib/chain';
 import { tokenInfo } from '@/lib/contracts';
 import { buildAquaOrder, buildTakerTraits, ix, program, type Order } from '@/lib/swapvm';
