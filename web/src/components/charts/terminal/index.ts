@@ -6,7 +6,9 @@
  * router, a leg and the two tokens; the component does its own reads.
  */
 export { TerminalChart } from './TerminalChart';
-export { TERMINAL_VIEWS, TERMINAL_VIEW_LABEL } from './types';
+export { TERMINAL_VIEWS } from './types';
+export { TERMINAL_VIEW_LABEL, VIEW_COPY } from './copy';
+export type { ViewCopy } from './copy';
 export type {
   TerminalChartProps,
   TerminalLeg,
