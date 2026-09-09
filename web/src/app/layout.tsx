@@ -29,12 +29,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  /* One route, so one title, and no `template` for the sub-pages that no longer exist. The name
-     alone is what a bookmark says and not what a tab full of them says, so the category rides
-     along: it is the shortest true description of the screen, and it is one string to change when
-     the name does. The icon beside it is `icon.svg`, with `favicon.ico` redrawn from the same file
-     by `scripts/favicon.mjs` for everything that still asks for one. */
-  title: "Strikeline — covered calls",
+  /* The terminal names its own instrument, so a tab reads `WETH/USDC · Strikeline` — the pair
+     first, because that is what someone with nine tabs open is scanning for, and the product after
+     it, because a tab with only a pair in it could be anybody's. The default carries the category
+     for the two read-layer routes and for anything that renders without a title of its own; it is
+     one string to change when the name does. The icon beside it is `icon.svg`, with `favicon.ico`
+     redrawn from the same file by `scripts/favicon.mjs` for everything that still asks for one. */
+  title: {
+    default: "Strikeline — covered calls",
+    template: "%s · Strikeline",
+  },
   description:
     "Covered calls written as price curves inside 1inch Aqua. No vault, no option token, no oracle and no keeper: the collateral stays in the maker's wallet and several offers stand behind one balance.",
   applicationName: "Strikeline",
