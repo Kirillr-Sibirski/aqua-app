@@ -128,7 +128,7 @@ export function TokenAmountSkeleton({
     >
       {icon ? (
         <span
-          className="shrink-0 rounded-full bg-surface-3"
+          className="shrink-0 rounded-pill bg-surface-3"
           style={{ width: size, height: size }}
         />
       ) : null}

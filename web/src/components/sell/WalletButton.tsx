@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * The wallet corner. Three controls and no more: connect, the connected address, and a notice when
- * the wallet is on the wrong chain. This is not a wallet product.
+ * The wallet corner. Two controls and no more: connect, and the connected address.
+ * This is not a wallet product.
  *
  * Built on the wagmi 3 config in `lib/chain` and dressed in Mantine. wagmi's connection state is
  * browser-only — the connectors have not announced themselves when the HTML is generated, and the
@@ -55,7 +55,12 @@ function AddressPill({ address, size }: { address: `0x${string}`; size: 'xs' | '
     <Menu position="bottom-end" width={200} radius="md" shadow="md">
       <Menu.Target>
         <Button variant="default" size={size} radius="md" className={classes.mono}>
-          {truncateAddress(address)}
+          {/* Two renderings, one swapped out by a media query rather than by measurement: at 390px
+              the bar's six items come to 437px and something has to give, and the middle of an
+              address a person is only ever checking the ends of is the cheapest 31px on the row.
+              Both are in the markup so the server and the client agree on it. */}
+          <span className={classes.addressWide}>{truncateAddress(address)}</span>
+          <span className={classes.addressNarrow}>{truncateAddress(address, { lead: 4, tail: 2 })}</span>
         </Button>
       </Menu.Target>
       <Menu.Dropdown>
@@ -116,15 +121,21 @@ function ConnectorList({ onClose }: { onClose: () => void }) {
 
   const rejected = error?.name === 'UserRejectedRequestError';
 
+  /*
+   * Rows, not paragraphs.
+   *
+   * This modal was the one place on the terminal route where the banned prose survived: six
+   * sentences, including "Nothing here ever holds the tokens behind your offer" — the exact
+   * sentence LAYOUT.md ordered deleted from the card, relocated into a dialog — plus an orphaned
+   * "No extension installed?" heading with no answer under it. What is left is a wallet per row and
+   * one caption on the demo connector, kept because it is a safety string rather than a teaching
+   * one: the fork's key is on this page and it must never be pointed at a live network.
+   */
   return (
     <Stack gap={4}>
-      <Text size="xs" c="dimmed" mb={4}>
-        Signing stays in the wallet you pick. Nothing here ever holds the tokens behind your offer.
-      </Text>
-
       {wallets.length === 0 ? (
         <Text size="sm" c="dimmed" px="xs" py="sm">
-          No browser wallet announced itself. Install one and reload, or use the demo wallet below.
+          No wallet detected
         </Text>
       ) : (
         wallets.map((connector) => (
@@ -142,25 +153,20 @@ function ConnectorList({ onClose }: { onClose: () => void }) {
       )}
 
       {burner ? (
-        <>
-          <Text size="xs" c="dimmed" mt="xs" px="xs">
-            No extension installed?
-          </Text>
-          <ConnectorRow
-            name="Demo wallet"
-            detail="Signs locally with the fork's own key. Never use it on a live network."
-            pending={isPending && variables?.connector === burner}
-            onClick={() => {
-              reset();
-              connect({ connector: burner, chainId: target }, { onSuccess: onClose });
-            }}
-          />
-        </>
+        <ConnectorRow
+          name="Demo wallet"
+          detail="fork key — never on a live network"
+          pending={isPending && variables?.connector === burner}
+          onClick={() => {
+            reset();
+            connect({ connector: burner, chainId: target }, { onSuccess: onClose });
+          }}
+        />
       ) : null}
 
       {error ? (
         <Alert color={rejected ? 'slate' : 'ember'} variant="light" mt="xs" radius="lg">
-          {rejected ? 'Connection cancelled in the wallet. Pick one to try again.' : error.message}
+          {rejected ? 'Cancelled in the wallet' : error.message}
         </Alert>
       ) : null}
     </Stack>

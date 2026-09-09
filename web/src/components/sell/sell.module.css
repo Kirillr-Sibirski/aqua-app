@@ -36,6 +36,8 @@
   pointer-events: none;
 }
 
+/* Circular, like every other identity mark in the app — the token discs in the bar, the marks in
+   the positions rows. A lettered rounded square was a second vocabulary for the same job. */
 .connectorIcon {
   flex: none;
   display: grid;
@@ -44,7 +46,7 @@
   height: 2rem;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--surface-2);
   font-family: var(--font-mono);
   font-size: var(--text-meta);
@@ -54,4 +56,19 @@
 .connectorText {
   min-width: 0;
   flex: 1 1 auto;
+}
+
+/* The account, at two widths. See `WalletButton`'s AddressPill. */
+.addressNarrow {
+  display: none;
+}
+
+@media (max-width: 30rem) {
+  .addressWide {
+    display: none;
+  }
+
+  .addressNarrow {
+    display: inline;
+  }
 }

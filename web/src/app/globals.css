@@ -1,8 +1,9 @@
 /* ==========================================================================
-   Strikeline — design tokens. LIGHT.
+   Strikeline — design tokens. DARK, and only dark.
    Source of truth: /DESIGN.md. Values are OKLCH; contrast is verified by
-   `node scripts/contrast.mjs` (34 pairs, all >= their floor, exit code gates).
-   Light only. There is no dark theme and no `prefers-color-scheme` branch.
+   `node scripts/contrast.mjs` (36 pairs, all >= their floor, exit code gates).
+   There is no light theme and no `prefers-color-scheme` branch: a desk tool
+   that sits open beside a chart all day gets one ground, and it is near-black.
    ==========================================================================
 
    CASCADE LAYERS, and why this order.
@@ -169,17 +170,24 @@
   --leading-num: 1.2; /* numeric rows */
   --leading-prose: 1.45; /* prose */
 
-  /* Radius: four values, and only four. `field` is the big rounded input well
-     the amount and price rows sit in. */
+  /* Radius: five values, and only five, each with one job.
+
+     `control` is every button, well, pill and bordered box on the terminal.
+     `chip` is the ONLY exception, and it is a geometric one: a chip sits inside
+     a `control`-radius track with 2px of padding, and a concentric inner corner
+     is the outer radius minus the gap. Hard-coding 6px here and 7px there was
+     the same arithmetic done twice and inconsistently, which is how the screen
+     ended up with five different corners a reader could see.
+     `field` and `card` belong to the overlays — the modal and the date popover. */
   --radius-card: 16px;
   --radius-field: 12px;
   --radius-control: 8px;
+  --radius-chip: 6px;
   --radius-pill: 999px;
 
-  /* Elevation. On a light theme a shadow is how a card leaves the page, so
-     unlike the dark system this is used on the one card, not only on overlays.
-     Two layers: a tight contact shadow and a wide soft one, both neutral-cool
-     rather than black, so the edge does not go muddy against the paper. */
+  /* Elevation. Surfaces on this theme lift by luminance, never by shadow, so
+     these are for the two things that genuinely leave the page: the connect
+     modal and the date popover. Nothing on the terminal itself casts one. */
   --shadow-card:
     0 1px 2px -1px oklch(0.24 0.014 215 / 0.08), 0 8px 24px -12px oklch(0.24 0.014 215 / 0.14);
   --shadow-overlay:

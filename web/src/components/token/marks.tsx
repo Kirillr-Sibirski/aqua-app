@@ -16,7 +16,9 @@
  *     `--bg` (oklch 0.155) without a ring, and every glyph inside one is white.
  *
  * Each mark fills its box edge to edge, so the three of them are optically the same size and a
- * `rounded-full` on the element is the whole clipping story.
+ * `rounded-pill` on the element is the whole clipping story — the same token every other
+ * circle in the app uses, rather than Tailwind's `rounded-full`, which computes to a 33-million-pixel
+ * radius and shows up in an audit as a fifth corner value.
  *
  * The colours are the brands' own. Nothing else in the app may use them.
  */
@@ -49,7 +51,7 @@ export function EthereumMark({ size, className, style }: MarkProps) {
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"
-      className={cn('shrink-0 rounded-full', className)}
+      className={cn('shrink-0 rounded-pill', className)}
       style={style}
     >
       <circle cx="12" cy="12" r="12" fill="#627EEA" />
@@ -81,7 +83,7 @@ export function UsdcMark({ size, className, style }: MarkProps) {
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"
-      className={cn('shrink-0 rounded-full', className)}
+      className={cn('shrink-0 rounded-pill', className)}
       style={style}
     >
       <circle cx="12" cy="12" r="12" fill="#2775CA" />
@@ -124,7 +126,7 @@ export function CbBtcMark({ size, className, style }: MarkProps) {
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"
-      className={cn('shrink-0 rounded-full', className)}
+      className={cn('shrink-0 rounded-pill', className)}
       style={style}
     >
       <circle cx="12" cy="12" r="12" fill="#0052FF" />
@@ -162,7 +164,7 @@ export function UnknownMark({ size, className, style, symbol }: MarkProps & { sy
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"
-      className={cn('shrink-0 rounded-full', className)}
+      className={cn('shrink-0 rounded-pill', className)}
       style={style}
     >
       <circle cx="12" cy="12" r="12" fill="currentColor" fillOpacity="0.1" />
