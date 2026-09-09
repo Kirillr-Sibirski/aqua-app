@@ -53,7 +53,10 @@
      at the accent hue keeps the greys from reading as ash. */
   --ink: oklch(0.965 0.004 240); /* primary */
   --ink-2: oklch(0.755 0.008 240); /* secondary */
-  --ink-3: oklch(0.615 0.010 240); /* tertiary, axis labels */
+  /* 0.66 rather than 0.615: the darker grey measured 4.08:1 on --surface-3 (a hovered
+     row) and 3.87:1 on --accent-soft (a chip), both under the 4.5 floor and both
+     combinations this app renders. `node scripts/contrast.mjs` gates it. */
+  --ink-3: oklch(0.66 0.010 240); /* tertiary, axis labels */
   --ink-inverse: oklch(0.16 0.008 240); /* text on a filled accent block */
 
   /* --- accent -------------------------------------------------------------
@@ -84,9 +87,9 @@
   /* The app bar's height. A sticky table header offsets by it, or it pins itself
      underneath the bar and the column headers disappear exactly when they matter. */
   --header-h: 3.5rem;
-  /* The one card. Uniswap's swap card is 480px; ours holds one more line of
-     English, so 30rem with the gutters outside it. */
-  --card-w: 30rem;
+  /* The ticket beside the chart. LAYOUT.md fixes it at 380px, which is the width a
+     three-control ticket needs and the width every perp UI has converged on. */
+  --card-w: 23.75rem;
 
   /* --- z-index: semantic steps only. Never write an arbitrary z value. ----- */
   --z-dropdown: 10;
@@ -306,10 +309,6 @@
 /* --- base ----------------------------------------------------------------- */
 
 @layer base {
-  :root {
-    color-scheme: light;
-  }
-
   html {
     background-color: var(--bg);
     -webkit-text-size-adjust: 100%;

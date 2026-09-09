@@ -63,10 +63,12 @@ export function Providers({ children, initialState }: ProvidersProps) {
     <MantineProvider
       theme={theme}
       cssVariablesResolver={cssVariablesResolver}
-      // The app has one theme. Forcing it means Mantine never reads localStorage or the OS
-      // setting, which is also why `ColorSchemeScript` in the layout cannot flash.
-      forceColorScheme="light"
-      defaultColorScheme="light"
+      // The app has one theme and it is dark. Forcing it means Mantine never reads localStorage or
+      // the OS setting, which is also why `ColorSchemeScript` in the layout cannot flash — and it
+      // puts Mantine's own variant maths on its dark branch, where `light` variants tint with the
+      // pale end of a ramp instead of painting a white wash under dark text.
+      forceColorScheme="dark"
+      defaultColorScheme="dark"
     >
       <ModalsProvider>
         <Notifications position="bottom-right" limit={4} zIndex={Z.toast} />

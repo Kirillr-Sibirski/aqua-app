@@ -14,9 +14,9 @@
  *                                          Without this, Mantine paints its default greys and
  *                                          the app is two palettes wearing one coat.
  *
- * There is no dark branch. `forceColorScheme="light"` is set on the provider and on the
- * ColorSchemeScript, so the `dark` half of every resolver entry is unreachable; it is filled in
- * with the light value rather than left blank, because Mantine's types require the key and a
+ * There is no light branch. `forceColorScheme="dark"` is set on the provider and on the
+ * ColorSchemeScript, so the `light` half of every resolver entry is unreachable; it is filled in
+ * with the dark value rather than left blank, because Mantine's types require the key and a
  * wrong-but-present value would be a trap for whoever removes the force later.
  */
 import { createTheme, type CSSVariablesResolver, type MantineColorsTuple } from '@mantine/core';
@@ -30,12 +30,20 @@ const tuple = (ramp: readonly string[]) => ramp as unknown as MantineColorsTuple
 export const theme = createTheme({
   // --- colour ------------------------------------------------------------
   primaryColor: 'petrol',
-  // 8, not Mantine's default 6. A fill that must also carry white text at 4.5:1
-  // has to be dark; petrol.6 measures 3.1:1 under white and petrol.8 measures 5.81:1.
+  // 8, not Mantine's default 6. Only the dark end of these ramps carries a light
+  // label at 4.5:1, and the primary fill never reaches the ramp at all: the
+  // resolver below points `--mantine-primary-color-filled` straight at --accent.
   primaryShade: { light: PRIMARY_SHADE, dark: PRIMARY_SHADE },
-  autoContrast: false,
-  white: COLOR_SRGB.surface,
-  black: COLOR_SRGB.ink,
+  /*
+   * On a dark scheme the fills are at both ends of the ramp — the primary is bright cyan, a
+   * `filled` ember is near-maroon — so one fixed label colour cannot read on both. `autoContrast`
+   * picks per fill, out of the two below, and the audit measures the one that lands on the accent.
+   */
+  autoContrast: true,
+  /* Mantine's names, not ours: `white` is the label it puts on a dark fill and `black` the label it
+     puts on a light one. On this palette those are --ink and --bg. */
+  white: COLOR_SRGB.ink,
+  black: COLOR_SRGB.bg,
   colors: {
     petrol: tuple(RAMPS.petrol),
     moss: tuple(RAMPS.moss),
@@ -120,7 +128,7 @@ export const theme = createTheme({
  * Mantine's semantic variables, repointed at our tokens.
  *
  * `variables` is scheme-independent; `light` and `dark` are emitted under the color-scheme
- * selectors. We are light-only, so the two are identical by construction.
+ * selectors. We are dark-only, so the two are identical by construction.
  */
 const semantic = {
   '--mantine-color-body': 'var(--surface)',
@@ -128,8 +136,8 @@ const semantic = {
   '--mantine-color-dimmed': 'var(--ink-3)',
   '--mantine-color-bright': 'var(--ink)',
   '--mantine-color-error': 'var(--neg)',
-  // Placeholder text is text. Mantine's default is gray.5, which measures 3.06:1
-  // on white; ink-3 measures 5.60:1 and is the same grey the rest of the app dims to.
+  // Placeholder text is text, and ink-3 is the one grey in the system that is
+  // audited on every ground the app paints — including a hovered row and a chip.
   '--mantine-color-placeholder': 'var(--ink-3)',
   '--mantine-color-anchor': 'var(--accent)',
   '--mantine-color-default': 'var(--surface)',

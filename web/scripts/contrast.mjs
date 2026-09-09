@@ -5,11 +5,11 @@
  * Converts every `oklch(L C H)` token to sRGB (clipping out-of-gamut channels the way a display
  * does), then reports WCAG 2.1 contrast ratios for the pairs that carry text or meaning.
  *
- * The palette is LIGHT. That inverts which pair is tightest: on a dark theme the risk is a dim
- * tertiary grey, here it is a *saturated* colour, because a hue legible as a fill on white has to
- * be dark, and a hue dark enough to read as text on white is nearly black by the time it is also
- * usable as a button ground. Every semantic colour in this file is therefore a dark tint, and the
- * light washes (`*-soft`) exist only as backgrounds behind dark text -- never as text themselves.
+ * The palette is DARK. That decides which pair is tightest: the risk here is a dim tertiary grey on
+ * a lifted surface, not a saturated hue, because every semantic colour is a light tint that clears
+ * 4.5:1 on near-black with room to spare. The `*-soft` values are the inverse — dark grounds that
+ * exist only behind those light tints, never as text themselves. `ink-3` on `surface-3` and on
+ * `accent-soft` are the two pairs that set the floor for the whole system.
  *
  * A pair may name an ALPHA VARIANT (`accent/70`), which is composited over its background before
  * the ratio is taken, because that is what a component actually renders. Backgrounds may be a
@@ -21,37 +21,40 @@
 
 // --- tokens (keep in sync with :root in src/app/globals.css) ---------------
 const TOKENS = {
-  // Ground. The page is a faint cool paper; the card is the only pure white in
-  // the system, so the one card on the landing screen is the brightest thing on
-  // screen without needing a shadow to say so.
-  bg: [0.972, 0.004, 215],
-  surface: [1.0, 0.0, 215],
-  'surface-2': [0.962, 0.006, 215],
-  'surface-3': [0.935, 0.008, 215],
-  line: [0.905, 0.008, 215],
-  'line-strong': [0.82, 0.01, 215],
+  // Ground. Near-black, barely cool. Surfaces lift by luminance alone, never by
+  // shadow, so the whole page is four flat planes and a hairline.
+  bg: [0.155, 0.006, 240],
+  surface: [0.192, 0.007, 240],
+  'surface-2': [0.228, 0.008, 240],
+  'surface-3': [0.268, 0.009, 240],
+  line: [0.3, 0.01, 240],
+  'line-strong': [0.4, 0.012, 240],
 
-  // Text. Cool near-black rather than pure black: #000 on white is a glare edge.
-  ink: [0.24, 0.014, 215],
-  'ink-2': [0.43, 0.014, 215],
-  'ink-3': [0.515, 0.012, 215],
-  'ink-inverse': [0.99, 0.002, 215],
+  // Text. Not pure white: #fff on near-black blooms at small sizes. `ink-3` is
+  // 0.66 rather than 0.615 because 0.615 measured 4.08:1 on `surface-3` (a hovered
+  // row) and 3.87:1 on `accent-soft` (a chip) -- both under the floor, and both
+  // combinations the terminal actually renders.
+  ink: [0.965, 0.004, 240],
+  'ink-2': [0.755, 0.008, 240],
+  'ink-3': [0.66, 0.01, 240],
+  'ink-inverse': [0.16, 0.008, 240],
 
-  // Accent: deep petrol. Dark enough to carry white text as a filled button and
-  // to read as link text on white, and far enough off 245 to not be a default blue.
-  accent: [0.48, 0.083, 212],
-  'accent-ink': [0.99, 0.002, 212],
-  'accent-hover': [0.42, 0.072, 212],
-  'accent-soft': [0.945, 0.03, 212],
-  'accent-dim': [0.76, 0.07, 212],
+  // Accent: cool cyan at hue 195, off the 245-250 every component library ships.
+  // Bright, because on a dark ground an accent has to carry dark text as a fill
+  // and read as a figure against near-black, and only the light end does both.
+  accent: [0.8, 0.115, 195],
+  'accent-ink': [0.16, 0.02, 195],
+  'accent-hover': [0.86, 0.115, 195],
+  'accent-soft': [0.28, 0.045, 195],
+  'accent-dim': [0.42, 0.06, 195],
 
-  // Money. Earned saturation, never decoration. Dark tints, legible on white.
-  pos: [0.5, 0.125, 150],
-  'pos-soft': [0.945, 0.038, 150],
-  neg: [0.52, 0.185, 27],
-  'neg-soft': [0.95, 0.024, 27],
-  warn: [0.52, 0.105, 70],
-  'warn-soft': [0.95, 0.045, 85],
+  // Money. Earned saturation, never decoration. Light tints on near-black.
+  pos: [0.78, 0.145, 152],
+  'pos-soft': [0.27, 0.05, 152],
+  neg: [0.685, 0.175, 22],
+  'neg-soft': [0.27, 0.06, 22],
+  warn: [0.8, 0.115, 78],
+  'warn-soft': [0.28, 0.05, 78],
 
   // Not shipped. Mantine's default primary (blue.6, #228be6), kept only so the
   // REJECTED table below can measure what we declined rather than assert it.
@@ -78,11 +81,12 @@ const PAIRS = [
   ['accent', 'surface', 4.5, 'accent as link text on the card'],
   ['accent', 'accent-soft', 4.5, 'accent text on its own tinted chip'],
   ['accent-ink', 'accent', 4.5, 'label on the primary button'],
-  // Mantine's `filled` variant paints its label with `--mantine-color-white`, which
-  // theme.ts sets to --surface (pure white), not --accent-ink. Both are audited
-  // because both actually render: accent-ink on our own controls, white on Mantine's.
-  ['surface', 'accent', 4.5, "white label on the primary button (Mantine's filled variant)"],
-  ['surface', 'neg', 4.5, 'white label on a destructive Mantine button'],
+  // Mantine's `filled` variant picks its own label through `autoContrast`, from
+  // theme.black (= --bg) and theme.white (= --ink). On the bright primary fill it
+  // picks the dark one, so both labels that can land on the accent are audited:
+  // --accent-ink on our own controls, --bg on Mantine's.
+  ['bg', 'accent', 4.5, "the label autoContrast picks on the primary button"],
+  ['ink', 'neg-soft', 4.5, 'primary text on a destructive tint (Alert, light variant)'],
   ['accent-ink', 'accent-hover', 4.5, 'label on the primary button, hovered'],
 
   // Money figures, on every ground they land on.
@@ -112,13 +116,15 @@ const PAIRS = [
 ];
 
 /**
- * Combinations that were measured and MUST NOT come back. Reported, never gated: they are here so
- * the number that justified removing them is in the repo rather than in a review comment.
+ * Combinations that were measured and MUST NOT come back. Reported, never gated, and two of them
+ * now clear the floor -- which is the point of printing the number rather than asserting the rule.
+ * Mantine's default blue is legible on near-black; it is rejected because it is the blue every
+ * component library ships, not because of its ratio.
  */
 const REJECTED = [
-  ['mantine-blue-6', 'surface', 4.5, "Mantine's default primary as link text on white"],
-  ['mantine-blue-6', 'bg', 4.5, "the same, on the page ground"],
-  ['ink-inverse', 'mantine-blue-6', 4.5, "white label on Mantine's default primary button"],
+  ['mantine-blue-6', 'surface', 4.5, "Mantine's default primary as link text on a card"],
+  ['mantine-blue-6', 'bg', 4.5, 'the same, on the page ground'],
+  ['ink', 'mantine-blue-6', 4.5, "a light label on Mantine's default primary button"],
   ['accent-dim', 'surface', 4.5, 'accent-dim is chart furniture, never text'],
   ['accent/70', 'surface', 4.5, 'a dimmed accent; alpha on text always loses the floor'],
 ];

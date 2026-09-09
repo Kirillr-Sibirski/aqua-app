@@ -9,7 +9,8 @@
  * Rule of thumb: reach for a Mantine prop or a Tailwind class first. Use `color()` only where
  * neither can be applied.
  *
- * The palette is LIGHT. See /DESIGN.md for why each value is where it is.
+ * The palette is DARK, and there is no light branch. See /DESIGN.md and the header of
+ * `src/app/globals.css` for why each value is where it is.
  */
 
 // ---------------------------------------------------------------------------
@@ -45,28 +46,28 @@ export type ColorToken = (typeof COLOR_TOKENS)[number];
 
 /** Authored OKLCH, for documentation and for the contrast audit. */
 export const COLOR_OKLCH: Record<ColorToken, string> = {
-  bg: 'oklch(0.972 0.004 215)',
-  surface: 'oklch(1 0 215)',
-  'surface-2': 'oklch(0.962 0.006 215)',
-  'surface-3': 'oklch(0.935 0.008 215)',
-  line: 'oklch(0.905 0.008 215)',
-  'line-strong': 'oklch(0.820 0.010 215)',
-  ink: 'oklch(0.240 0.014 215)',
-  'ink-2': 'oklch(0.430 0.014 215)',
-  'ink-3': 'oklch(0.515 0.012 215)',
-  'ink-inverse': 'oklch(0.990 0.002 215)',
-  accent: 'oklch(0.480 0.083 212)',
-  'accent-hover': 'oklch(0.420 0.072 212)',
-  'accent-ink': 'oklch(0.990 0.002 212)',
-  'accent-soft': 'oklch(0.945 0.030 212)',
-  'accent-dim': 'oklch(0.760 0.070 212)',
-  pos: 'oklch(0.500 0.125 150)',
-  'pos-soft': 'oklch(0.945 0.038 150)',
-  neg: 'oklch(0.520 0.185 27)',
-  'neg-soft': 'oklch(0.950 0.024 27)',
-  warn: 'oklch(0.520 0.105 70)',
-  'warn-soft': 'oklch(0.950 0.045 85)',
-  scrim: 'oklch(0.240 0.014 215 / 0.40)',
+  bg: 'oklch(0.155 0.006 240)',
+  surface: 'oklch(0.192 0.007 240)',
+  'surface-2': 'oklch(0.228 0.008 240)',
+  'surface-3': 'oklch(0.268 0.009 240)',
+  line: 'oklch(0.30 0.010 240)',
+  'line-strong': 'oklch(0.40 0.012 240)',
+  ink: 'oklch(0.965 0.004 240)',
+  'ink-2': 'oklch(0.755 0.008 240)',
+  'ink-3': 'oklch(0.66 0.010 240)',
+  'ink-inverse': 'oklch(0.16 0.008 240)',
+  accent: 'oklch(0.80 0.115 195)',
+  'accent-hover': 'oklch(0.86 0.115 195)',
+  'accent-ink': 'oklch(0.16 0.02 195)',
+  'accent-soft': 'oklch(0.28 0.045 195)',
+  'accent-dim': 'oklch(0.42 0.06 195)',
+  pos: 'oklch(0.78 0.145 152)',
+  'pos-soft': 'oklch(0.27 0.05 152)',
+  neg: 'oklch(0.685 0.175 22)',
+  'neg-soft': 'oklch(0.27 0.06 22)',
+  warn: 'oklch(0.80 0.115 78)',
+  'warn-soft': 'oklch(0.28 0.05 78)',
+  scrim: 'oklch(0.09 0.006 240 / 0.72)',
 };
 
 /**
@@ -74,32 +75,32 @@ export const COLOR_OKLCH: Record<ColorToken, string> = {
  * `theme-color` meta, the Mantine theme's color tuples, OG image generation, `<canvas>`.
  * In the DOM, use `color()`.
  *
- * Every value here is inside the sRGB gamut as authored -- no channel is clipped -- so what a
- * browser paints is what `scripts/contrast.mjs` measured.
+ * Gamut-clipped the way a display clips, which is also what `scripts/contrast.mjs` measures, so the
+ * ratio in the audit is the ratio a browser paints.
  */
 export const COLOR_SRGB: Record<ColorToken, `#${string}`> = {
-  bg: '#f3f6f7',
-  surface: '#ffffff',
-  'surface-2': '#eef3f5',
-  'surface-3': '#e4ebed',
-  line: '#dae1e3',
-  'line-strong': '#bdc6c8',
-  ink: '#182123',
-  'ink-2': '#475255',
-  'ink-3': '#60696c',
-  'ink-inverse': '#fafcfd',
-  accent: '#036a79',
-  'accent-hover': '#045764',
-  'accent-ink': '#fafcfc',
-  'accent-soft': '#d7f3f9',
-  'accent-dim': '#7bbdcb',
-  pos: '#1b763a',
-  'pos-soft': '#dcf5e0',
-  neg: '#bc2826',
-  'neg-soft': '#fee9e6',
-  warn: '#8f5d14',
-  'warn-soft': '#fcedcd',
-  scrim: '#182123',
+  bg: '#0a0d0f',
+  surface: '#111517',
+  'surface-2': '#191d20',
+  'surface-3': '#22272a',
+  line: '#292f32',
+  'line-strong': '#42494e',
+  ink: '#f1f4f6',
+  'ink-2': '#abb0b4',
+  'ink-3': '#8d9398',
+  'ink-inverse': '#0a0e10',
+  accent: '#4ed5d5',
+  'accent-hover': '#65e9e8',
+  'accent-ink': '#031010',
+  'accent-soft': '#043030',
+  'accent-dim': '#1c5757',
+  pos: '#66d288',
+  'pos-soft': '#112d1a',
+  neg: '#f36567',
+  'neg-soft': '#3f1919',
+  warn: '#e6b463',
+  'warn-soft': '#362508',
+  scrim: '#020303',
 };
 
 /** `color('accent')` -> `'var(--accent)'`. */
@@ -138,78 +139,87 @@ export type ColorRamp = readonly [
 ];
 
 export const RAMPS = {
-  /** The accent. Hue 212 — deliberately not the 245-250 every library ships as its default. */
+  /**
+   * The accent. Hue 195 — deliberately not the 245-250 every library ships as its default.
+   *
+   * The ramp still runs light to dark, because that is the order Mantine's variant maths assumes.
+   * On a dark scheme it reads the *light* end for text and the dark end for fills, which is why the
+   * bright accent sits at 4 rather than at 8: `--mantine-color-petrol-light-color` resolves to
+   * shade 3, and `-light` tints with shade 8 at low alpha over the near-black body.
+   */
   petrol: [
-    '#f1fafc', // 0  oklch(0.980 0.010 212)
-    '#d7f3f9', // 1  oklch(0.945 0.030 212)   = --accent-soft
-    '#b9e6ef', // 2  oklch(0.895 0.048 212)
-    '#9cd4e0', // 3  oklch(0.835 0.060 212)
-    '#7bbdcb', // 4  oklch(0.760 0.070 212)   = --accent-dim
-    '#5aa5b4', // 5  oklch(0.680 0.078 212)
-    '#388d9d', // 6  oklch(0.600 0.084 212)
-    '#207b8b', // 7  oklch(0.540 0.085 212)
-    '#036a79', // 8  oklch(0.480 0.083 212)   = --accent          (primaryShade)
-    '#045764', // 9  oklch(0.420 0.072 212)   = --accent-hover
+    '#daf7f6', // 0  oklch(0.955 0.030 195)
+    '#b3eeee', // 1  oklch(0.910 0.060 195)
+    '#65e9e8', // 2  oklch(0.860 0.115 195)   = --accent-hover
+    '#5adfde', // 3  oklch(0.830 0.115 195)
+    '#4ed5d5', // 4  oklch(0.800 0.115 195)   = --accent
+    '#47b6b6', // 5  oklch(0.715 0.100 195)
+    '#379797', // 6  oklch(0.620 0.088 195)
+    '#207070', // 7  oklch(0.500 0.075 195)
+    '#1c5757', // 8  oklch(0.420 0.060 195)   = --accent-dim
+    '#043030', // 9  oklch(0.280 0.045 195)   = --accent-soft
   ],
   /** The neutrals. Overrides Mantine's `gray`, which is otherwise a warm-blue default. */
   slate: [
-    '#f9fafb', // 0  oklch(0.985 0.002 215)
-    '#f3f6f7', // 1  oklch(0.972 0.004 215)   = --bg
-    '#e4ebed', // 2  oklch(0.935 0.008 215)   = --surface-3
-    '#dae1e3', // 3  oklch(0.905 0.008 215)   = --line
-    '#bdc6c8', // 4  oklch(0.820 0.010 215)   = --line-strong
-    '#96a0a3', // 5  oklch(0.700 0.012 215)
-    '#60696c', // 6  oklch(0.515 0.012 215)   = --ink-3
-    '#475255', // 7  oklch(0.430 0.014 215)   = --ink-2
-    '#2d373a', // 8  oklch(0.330 0.014 215)
-    '#182123', // 9  oklch(0.240 0.014 215)   = --ink
+    '#f1f4f6', // 0  oklch(0.965 0.004 240)   = --ink
+    '#dbdfe2', // 1  oklch(0.900 0.006 240)
+    '#c0c5c8', // 2  oklch(0.820 0.007 240)
+    '#abb0b4', // 3  oklch(0.755 0.008 240)   = --ink-2
+    '#93999d', // 4  oklch(0.680 0.009 240)
+    '#8d9398', // 5  oklch(0.660 0.010 240)   = --ink-3
+    '#5e6469', // 6  oklch(0.500 0.011 240)
+    '#42494e', // 7  oklch(0.400 0.012 240)   = --line-strong
+    '#292f32', // 8  oklch(0.300 0.010 240)   = --line
+    '#111517', // 9  oklch(0.192 0.007 240)   = --surface
   ],
   /** Positive. Gains, fills received, a coverage check that passed. */
   moss: [
-    '#f3fbf4', // 0  oklch(0.980 0.012 150)
-    '#dcf5e0', // 1  oklch(0.945 0.038 150)   = --pos-soft
-    '#c0e9c7', // 2  oklch(0.895 0.062 150)
-    '#a0d7aa', // 3  oklch(0.830 0.085 150)
-    '#7fc48e', // 4  oklch(0.760 0.105 150)
-    '#59ae6e', // 5  oklch(0.680 0.125 150)
-    '#369653', // 6  oklch(0.600 0.135 150)
-    '#278645', // 7  oklch(0.550 0.132 150)
-    '#1b763a', // 8  oklch(0.500 0.125 150)   = --pos
-    '#15632f', // 9  oklch(0.440 0.110 150)
+    '#dcf7e2', // 0  oklch(0.950 0.040 152)
+    '#baedc6', // 1  oklch(0.900 0.075 152)
+    '#99e6ad', // 2  oklch(0.860 0.110 152)
+    '#7fdc9a', // 3  oklch(0.820 0.130 152)
+    '#66d288', // 4  oklch(0.780 0.145 152)   = --pos
+    '#4fb772', // 5  oklch(0.700 0.140 152)
+    '#359658', // 6  oklch(0.600 0.130 152)
+    '#186f3b', // 7  oklch(0.480 0.115 152)
+    '#0e4926', // 8  oklch(0.360 0.085 152)
+    '#112d1a', // 9  oklch(0.270 0.050 152)   = --pos-soft
   ],
   /** Negative. Losses, a revert, a quote the wallet cannot deliver. */
   ember: [
-    '#fff7f6', // 0  oklch(0.982 0.009 27)
-    '#fee9e6', // 1  oklch(0.950 0.024 27)    = --neg-soft
-    '#fed2cc', // 2  oklch(0.900 0.050 27)
-    '#fdb6ad', // 3  oklch(0.840 0.085 27)
-    '#fa9489', // 4  oklch(0.770 0.125 27)
-    '#f46f64', // 5  oklch(0.700 0.165 27)
-    '#e74a43', // 6  oklch(0.630 0.195 27)
-    '#d43632', // 7  oklch(0.575 0.195 27)
-    '#bc2826', // 8  oklch(0.520 0.185 27)    = --neg
-    '#a01f1e', // 9  oklch(0.460 0.165 27)
+    '#ffddda', // 0  oklch(0.930 0.045 22)
+    '#ffc3c0', // 1  oklch(0.880 0.080 22)
+    '#ffa9a6', // 2  oklch(0.830 0.115 22)
+    '#ff8785', // 3  oklch(0.760 0.150 22)
+    '#f36567', // 4  oklch(0.685 0.175 22)    = --neg
+    '#de4d52', // 5  oklch(0.620 0.180 22)
+    '#c5353e', // 6  oklch(0.550 0.180 22)
+    '#99212b', // 7  oklch(0.450 0.155 22)
+    '#681a1f', // 8  oklch(0.350 0.110 22)
+    '#3f1919', // 9  oklch(0.270 0.060 22)    = --neg-soft
   ],
   /** Warning. A stale read, a thin wallet, a simulation label. */
   amber: [
-    '#fff8f0', // 0  oklch(0.982 0.013 70)
-    '#ffebd5', // 1  oklch(0.950 0.037 70)
-    '#fdd7ac', // 2  oklch(0.900 0.070 70)
-    '#f4c287', // 3  oklch(0.845 0.095 70)
-    '#eaad64', // 4  oklch(0.790 0.115 70)
-    '#d8953d', // 5  oklch(0.720 0.130 70)
-    '#c17f21', // 6  oklch(0.650 0.130 70)
-    '#a86d19', // 7  oklch(0.585 0.118 70)
-    '#8f5d14', // 8  oklch(0.520 0.105 70)    = --warn
-    '#784e10', // 9  oklch(0.460 0.092 70)
+    '#fdeed7', // 0  oklch(0.955 0.035 78)
+    '#f8ddb5', // 1  oklch(0.910 0.060 78)
+    '#f5cd90', // 2  oklch(0.870 0.090 78)
+    '#efc178', // 3  oklch(0.835 0.105 78)
+    '#e6b463', // 4  oklch(0.800 0.115 78)    = --warn
+    '#ca9c4e', // 5  oklch(0.720 0.110 78)
+    '#a77e39', // 6  oklch(0.620 0.100 78)
+    '#7e5d24', // 7  oklch(0.500 0.085 78)
+    '#553e15', // 8  oklch(0.380 0.065 78)
+    '#362508', // 9  oklch(0.280 0.050 78)    = --warn-soft
   ],
 } as const satisfies Record<string, ColorRamp>;
 
 export type RampName = keyof typeof RAMPS;
 
 /**
- * The shade Mantine fills a primary surface with. 8, not the library default 6: a fill that also
- * has to carry white text at 4.5:1 has to be dark, and shade 6 of this ramp measures 3.1:1.
+ * The shade Mantine fills a non-primary surface with. 8, not the library default 6: on a dark
+ * scheme a `filled` variant paints shade 8 and writes white on it, and only the dark end of these
+ * ramps carries white at 4.5:1. The primary colour never reaches this — `cssVariablesResolver`
+ * overrides `--mantine-primary-color-filled` with `--accent` directly.
  */
 export const PRIMARY_SHADE = 8;
 
@@ -258,8 +268,8 @@ export const FONT_STACK = {
 /** 8px base grid; 4px is allowed only inside dense controls. */
 export const GRID_PX = 8;
 export const CONTENT_MAX_PX = 1280;
-/** The one card on the landing screen. Uniswap's is 480; ours holds one more line of English. */
-export const CARD_MAX_PX = 480;
+/** The ticket beside the chart. LAYOUT.md fixes it at 380. */
+export const CARD_MAX_PX = 380;
 export const GUTTER_PX = 24;
 /** Table row height, fixed so streaming values never shift the layout. */
 export const ROW_HEIGHT_PX = 44;
