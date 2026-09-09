@@ -21,7 +21,7 @@ import { Axis } from '../Axis';
 import { CurveLine } from '../CurveLine';
 import { Grid } from '../Grid';
 import { MarkerLayer, type MarkerSpec } from '../Marker';
-import { padDomain } from '../geometry';
+import { estimateMonoTextWidth, padDomain } from '../geometry';
 import { formatChartNumber } from '../format';
 import { round, type ChartGeometry } from '../types';
 import { Crosshair, UnitTag } from './Crosshair';
@@ -178,6 +178,20 @@ export function PayoffView({
            */
           const compact = geometry.inner.width < 460;
 
+          /*
+           * A cheap leg puts the strike and the cap within a few dollars of each other, which on a
+           * thousand-pixel axis is two rules one pixel apart carrying two labels that touch. The
+           * cap is the one that answers the question -- it is the strike plus what the wait pays --
+           * so when they collide the strike keeps its rule and loses its label.
+           */
+          const labelWidth = estimateMonoTextWidth(
+            `cap ${formatChartNumber(anchors.capSpot, { significantDigits: 6 })}`,
+            12,
+          );
+          const crowded =
+            Math.abs(xFor(anchors.capSpot, domain, geometry) - xFor(anchors.strike, domain, geometry)) <
+            labelWidth;
+
           const forgone = forgonePoints(anchors, domain);
           const forgonePath =
             forgone.length === 3
@@ -188,7 +202,10 @@ export function PayoffView({
             {
               id: 'strike',
               value: anchors.strike,
-              label: compact ? undefined : `K ${formatChartNumber(anchors.strike, { significantDigits: 6 })}`,
+              label:
+                compact || crowded
+                  ? undefined
+                  : `K ${formatChartNumber(anchors.strike, { significantDigits: 6 })}`,
               stroke: 'ink-3',
               labelColor: 'ink-2',
             },
@@ -268,6 +285,13 @@ export function PayoffView({
       </Plot>
     </div>
   );
+}
+
+/** Where a domain value lands in px, without building the scale twice. */
+function xFor(value: number, domain: readonly [number, number], geometry: ChartGeometry): number {
+  const [lo, hi] = domain;
+  const span = hi - lo || 1;
+  return geometry.inner.x + (geometry.inner.width * (value - lo)) / span;
 }
 
 /** Money reads to the cent. Two places, always, so a column of them lines up. */

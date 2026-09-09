@@ -71,7 +71,16 @@ export function TerminalChart({
   };
 
   return (
-    <div className={cn('flex h-full min-h-0 min-w-0 flex-col', className)}>
+    /*
+     * The gutter belongs to the chart, not to the page.
+     *
+     * A pane that hands this component its full width leaves the readout's first label sitting on
+     * the viewport edge, and at 390px the leading character of `spot` was clipped by it. The plot's
+     * own axis margins inset the marks, but the strip above them has no margins of its own, so it
+     * carries the padding here. A page that wants a different gutter passes it in `className`,
+     * which lands last.
+     */
+    <div className={cn('flex h-full min-h-0 min-w-0 flex-col px-3 py-2', className)}>
       {active === 'payoff' ? <PayoffView {...shared} spot={spot} /> : null}
       {active === 'curve' ? <CurveView {...shared} /> : null}
       {active === 'decay' ? <DecayView {...shared} nowSeconds={nowSeconds} /> : null}

@@ -108,13 +108,24 @@ export function DecayView({
         {
           label: stable.symbol,
           icon: stable.icon,
-          value: formatChartNumber(shown.stable, { significantDigits: 6, sign: 'always' }),
+          // Significant digits, not a fixed two: one series sweeps four orders of magnitude
+          // between the first minute and the tau floor, and `+0.01` at the near end is not a
+          // reading of anything.
+          value: formatChartNumber(shown.stable, {
+            significantDigits: 4,
+            maxFractionDigits: 4,
+            sign: 'always',
+          }),
           tone: 'accent',
         },
         {
           label: risky.symbol,
           icon: risky.icon,
-          value: formatChartNumber(shown.risky, { significantDigits: 4, sign: 'always' }),
+          value: formatChartNumber(shown.risky, {
+            significantDigits: 4,
+            maxFractionDigits: 6,
+            sign: 'always',
+          }),
           tone: 'ink-2',
         },
       ]
