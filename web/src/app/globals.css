@@ -208,6 +208,12 @@
 
 /* --- utilities ------------------------------------------------------------ */
 
+/* What is NOT here any more: `stat-row`, `top-header` and `h-header`. All three were written for
+   `/surface` and `/receipt` — a row of KPI tiles, and a table header pinned under the app bar —
+   and those routes were deleted. A utility that generates nothing is invisible in the build and
+   very visible to the next person reading this file for what the app is made of. `--header-h`
+   survives as a token, because the terminal's own bar still reads it. */
+
 /* Every number, address, hash and byte string carries this. */
 @utility tnum {
   font-variant-numeric: tabular-nums slashed-zero;
@@ -230,13 +236,6 @@
 @utility z-app-bar {
   z-index: var(--z-app-bar);
 }
-/* Pins directly under the app bar rather than under the top of the viewport. */
-@utility top-header {
-  top: var(--header-h);
-}
-@utility h-header {
-  height: var(--header-h);
-}
 @utility z-modal-backdrop {
   z-index: var(--z-modal-backdrop);
 }
@@ -248,43 +247,6 @@
 }
 @utility z-tooltip {
   z-index: var(--z-tooltip);
-}
-
-/* A row of stat tiles separated by hairlines rather than by card borders.
-   Real CSS rather than stacked arbitrary variants: the divider has to vanish at the
-   start of each row and come back one breakpoint later, and expressing that as
-   `[&>*+*]:border-l` + `[&>*:nth-child(2n+1)]:border-l-0` +
-   `md:[&>*:nth-child(2n+1)]:border-l` left the first tile with a border added by one
-   utility and no colour from any of them, so it fell back to `currentColor` and drew a
-   1px near-black stripe down the left of the first tile on four screens. Here the
-   colour travels with the border and the last rule wins by source order, which is mine. */
-@utility stat-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 1.5rem;
-  row-gap: 1.5rem;
-
-  & > * {
-    border-left: 1px solid var(--line);
-    padding-left: 1.5rem;
-  }
-  & > *:nth-child(2n + 1) {
-    border-left: 0;
-    padding-left: 0;
-  }
-
-  @media (width >= 48rem) {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-
-    & > *:nth-child(2n + 1) {
-      border-left: 1px solid var(--line);
-      padding-left: 1.5rem;
-    }
-    & > *:nth-child(4n + 1) {
-      border-left: 0;
-      padding-left: 0;
-    }
-  }
 }
 
 /* For custom controls that must show the ring on a wrapper rather than the
