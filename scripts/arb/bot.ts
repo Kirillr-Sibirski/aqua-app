@@ -36,7 +36,7 @@ import { strikelineViewsAbi } from '../../web/src/components/curve/rmm.ts';
 import { assertFork, die, loadDeployments, publicClient, walletFor, type Deployments } from '../fork/lib.ts';
 import { awaitReceipt, PATHS as STORY_PATHS } from '../story/lib.ts';
 import { warpBy } from './clock.ts';
-import { discoverLegs, legMatches, legName, type DiscoveredLeg } from './discover.ts';
+import { discoverLegs, FEE_SCALE, grossForNet, legMatches, legName, netOfFee, type DiscoveredLeg } from './discover.ts';
 import { referencePriceWad, syncFeed } from './feed.ts';
 import { SELF_TEST_TOLERANCE, selfTest } from './gauss.ts';
 import {
@@ -111,8 +111,10 @@ export interface Plan {
   side: Side;
   tokenIn: Address;
   tokenOut: Address;
-  /** Raw units. */
+  /** Raw units: what the taker sends (gross of any `FeeProtocol` input fee). */
   amountIn: bigint;
+  /** Raw units that reach the curve after the input fee. Equal to `amountIn` on a fee-less leg. */
+  netIn: bigint;
   predictedOut: bigint;
   /** Normalised: where the curve says the reserves should be, and where they are. */
   targetXWad: bigint;
@@ -192,7 +194,13 @@ export async function plan(leg: DiscoveredLeg, d: PlanDeps): Promise<Plan> {
   const balanceOut = side === 'riskyIn' ? y0 : x0;
   const eps = epsOutWad(p, side);
 
-  const skeleton: Omit<Plan, 'amountIn' | 'predictedOut' | 'newInWad' | 'newOutWad' | 'edgeBps' | 'calls' | 'coverage' | 'cappedByCoverage'> = {
+  // `FeeProtocol` (when the leg carries one) takes its cut of the input before the curve runs, or of the
+  // output after it. Size the NET input to the analytic target and send the gross that nets to it.
+  const inFeeBps = leg.fee.isTokenIn ? leg.fee.bps : 0n;
+  const outFeeBps = leg.fee.isTokenIn ? 0n : leg.fee.bps;
+  const afterOutFee = (out: bigint) => out - (out * outFeeBps) / FEE_SCALE;
+
+  const skeleton: Omit<Plan, 'amountIn' | 'netIn' | 'predictedOut' | 'newInWad' | 'newOutWad' | 'edgeBps' | 'calls' | 'coverage' | 'cappedByCoverage'> = {
     leg,
     name: legName(leg),
     side,
@@ -208,6 +216,7 @@ export async function plan(leg: DiscoveredLeg, d: PlanDeps): Promise<Plan> {
   const skip = (reason: string, calls: number): Plan => ({
     ...skeleton,
     amountIn: 0n,
+    netIn: 0n,
     predictedOut: 0n,
     newInWad: 0n,
     newOutWad: 0n,
@@ -242,13 +251,16 @@ export async function plan(leg: DiscoveredLeg, d: PlanDeps): Promise<Plan> {
 
   // ---- the taker's own inventory ----
   const held = await d.inventory(tokenIn);
+  let netIn = amountIn;
+  amountIn = grossForNet(netIn, inFeeBps);
   if (held < amountIn) {
     amountIn = held;
-    if (amountIn === 0n) return skip(`the bot holds no ${tokenIn === leg.risky ? 'risky' : 'stable'} token`, calls);
+    netIn = netOfFee(held, inFeeBps);
+    if (netIn === 0n) return skip(`the bot holds no ${tokenIn === leg.risky ? 'risky' : 'stable'} token`, calls);
   }
 
   // ---- the output, exactly as RmmSwap will compute it ----
-  let newIn = balanceIn + amountIn * rateIn;
+  let newIn = balanceIn + netIn * rateIn;
   let newOut = side === 'riskyIn' ? await stableFor(d.router, p, newIn) : await riskyFor(d.router, p, newIn);
   calls++;
   let predicted = predictExactIn({ balanceInWad: balanceIn, balanceOutWad: balanceOut, newOutWad: newOut, epsOutWad: eps, rateOut });
@@ -274,24 +286,30 @@ export async function plan(leg: DiscoveredLeg, d: PlanDeps): Promise<Plan> {
     const requiredIn = side === 'riskyIn' ? await riskyFor(d.router, p, cappedOutReserve) : await stableFor(d.router, p, cappedOutReserve);
     calls++;
     if (requiredIn <= balanceIn) return skip('the coverage bound is below the current reserve point', calls);
-    amountIn = ceilDiv(requiredIn - balanceIn, rateIn);
-    if (amountIn > held) amountIn = held;
-    newIn = balanceIn + amountIn * rateIn;
+    netIn = ceilDiv(requiredIn - balanceIn, rateIn);
+    amountIn = grossForNet(netIn, inFeeBps);
+    if (amountIn > held) {
+      amountIn = held;
+      netIn = netOfFee(held, inFeeBps);
+    }
+    newIn = balanceIn + netIn * rateIn;
     newOut = side === 'riskyIn' ? await stableFor(d.router, p, newIn) : await riskyFor(d.router, p, newIn);
     calls++;
     predicted = predictExactIn({ balanceInWad: balanceIn, balanceOutWad: balanceOut, newOutWad: newOut, epsOutWad: eps, rateOut });
     if (predicted.insideSpreadShortfall !== undefined) return skip(`RmmInsideSpread(${predicted.insideSpreadShortfall}) after the coverage clamp`, calls);
   }
   if (predicted.amountOut === 0n) return skip('the trade returns nothing after the guard band', calls);
+  const takerOut = afterOutFee(predicted.amountOut);
 
   // ---- is it worth doing? ----
   const paidWad = side === 'riskyIn' ? (amountIn * rateIn * d.spotWad) / WAD : amountIn * rateIn;
-  const gotWad = side === 'riskyIn' ? predicted.amountOut * rateOut : (predicted.amountOut * rateOut * d.spotWad) / WAD;
+  const gotWad = side === 'riskyIn' ? takerOut * rateOut : (takerOut * rateOut * d.spotWad) / WAD;
   const edgeBps = paidWad === 0n ? 0 : Number(((gotWad - paidWad) * 10_000n * 1000n) / paidWad) / 1000;
   const full: Plan = {
     ...skeleton,
     amountIn,
-    predictedOut: predicted.amountOut,
+    netIn,
+    predictedOut: takerOut,
     newInWad: newIn,
     newOutWad: newOut,
     coverage,
@@ -370,12 +388,14 @@ export async function execute(p: Plan, ctx: { router: Address; taker: Address; t
   const rateOut = p.side === 'riskyIn' ? p2.rateStable : p2.rateRisky;
   const balanceIn = p.side === 'riskyIn' ? p.leg.xWad : p.leg.yWad;
   const balanceOut = p.side === 'riskyIn' ? p.leg.yWad : p.leg.xWad;
-  const newIn = balanceIn + p.amountIn * rateIn;
+  const newIn = balanceIn + p.netIn * rateIn;
   const newOutAtBlock =
     p.side === 'riskyIn'
       ? await stableFor(ctx.router, p2, newIn, receipt.blockNumber)
       : await riskyFor(ctx.router, p2, newIn, receipt.blockNumber);
   const repredicted = predictExactIn({ balanceInWad: balanceIn, balanceOutWad: balanceOut, newOutWad: newOutAtBlock, epsOutWad: p.epsOut, rateOut });
+  const outFeeBps = p.leg.fee.isTokenIn ? 0n : p.leg.fee.bps;
+  repredicted.amountOut -= (repredicted.amountOut * outFeeBps) / FEE_SCALE;
 
   return {
     plan: p,
@@ -517,7 +537,10 @@ export function describe(p: Plan): string {
   const outSym = symbolFor(p.tokenOut, p.leg);
   return (
     `${head}${fmtRaw(p.amountIn, p.tokenIn, p.leg)} ${inSym} -> ${fmtRaw(p.predictedOut, p.tokenOut, p.leg)} ${outSym}  ` +
-    `edge ${p.edgeBps.toFixed(1)}bps  ${p.calls} eth_calls${p.cappedByCoverage ? '  [clamped to coverage]' : ''}`
+    `edge ${p.edgeBps.toFixed(1)}bps  ${p.calls} eth_calls${p.cappedByCoverage ? '  [clamped to coverage]' : ''}` +
+    (p.leg.fee.bps > 0n
+      ? `  fee ${(Number(p.leg.fee.bps) / 1e5).toFixed(2)}% ${p.leg.fee.isTokenIn ? `in (${fmtRaw(p.amountIn - p.netIn, p.tokenIn, p.leg)} ${inSym})` : 'out'}`
+      : '')
   );
 }
 

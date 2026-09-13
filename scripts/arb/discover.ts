@@ -12,7 +12,7 @@
  */
 import { decodeAbiParameters, decodeEventLog, getAbiItem, type Address, type Hex, type PublicClient } from 'viem';
 import { ORDER_TUPLE_ABI, aquaAbi, decodeOrder, orderHashAqua, type Order } from '../../web/src/lib/swapvm/index.ts';
-import { findRmmArgs } from '../../web/src/components/curve/program.ts';
+import { explainProgram, findRmmArgs } from '../../web/src/components/curve/program.ts';
 import { decodeRmmSwapArgs, type RmmArgs } from '../../web/src/components/curve/rmm.ts';
 import type { CurveParams } from './rmm.ts';
 
@@ -39,6 +39,66 @@ export interface DiscoveredLeg {
   xWad: bigint;
   yWad: bigint;
   shippedAtBlock: bigint;
+  /** SwapVM `FeeProtocol` on the leg, if any: total flat fee (1e7 == 100%) and which side it charges. */
+  fee: LegFee;
+}
+
+export interface LegFee {
+  bps: bigint;
+  isTokenIn: boolean;
+}
+
+/** `FeeProtocol` units, as `FeeReceiverLib.BPS`. */
+export const FEE_SCALE = 10_000_000n;
+
+/**
+ * Read the flat protocol fee out of a program's `FeeProtocol` instruction, the way `FeeProtocol.exec`
+ * parses it: header byte (bit 7 = isTokenIn, low nibble = count), then per receiver a flags byte
+ * (bit 7 provider, bit 6 flat fee, bit 5 surplus fee), a 20-byte target, and a 3-byte bps per taken fee.
+ * A fee-less program returns 0 bps, so legs shipped without a fee size exactly as before.
+ */
+export function parseLegFee(program: Hex): LegFee {
+  let args: Hex | undefined;
+  try {
+    args = explainProgram(program).find((i) => i.name === 'FeeProtocol')?.args;
+  } catch {
+    args = undefined;
+  }
+  if (!args || args === '0x') return { bps: 0n, isTokenIn: true };
+  const bytes = Buffer.from(args.slice(2), 'hex');
+  const header = bytes[0];
+  const isTokenIn = (header & 0x80) !== 0;
+  let count = header & 0x0f;
+  let shift = 1;
+  let total = 0n;
+  while (count-- > 0 && shift < bytes.length) {
+    const flags = bytes[shift];
+    const isProvider = (flags & 0x80) !== 0;
+    const flat = (flags & 0x40) !== 0;
+    const surplus = (flags & 0x20) !== 0;
+    shift += 21;
+    if (isProvider) throw new Error('FeeProtocol provider receivers are not supported by the bot');
+    if (flat) {
+      total += BigInt((bytes[shift] << 16) | (bytes[shift + 1] << 8) | bytes[shift + 2]);
+      shift += 3;
+    }
+    if (surplus) shift += 3;
+  }
+  return { bps: total, isTokenIn };
+}
+
+/** What reaches the curve from a gross exact-in amount: `amountIn - floor(amountIn * bps / 1e7)`. */
+export function netOfFee(gross: bigint, bps: bigint): bigint {
+  return gross - (gross * bps) / FEE_SCALE;
+}
+
+/** The smallest gross input whose net, after `FeeProtocol`'s floor-division fee, is at least `net`. */
+export function grossForNet(net: bigint, bps: bigint): bigint {
+  if (bps === 0n) return net;
+  let gross = (net * FEE_SCALE + (FEE_SCALE - bps) - 1n) / (FEE_SCALE - bps);
+  while (gross > 0n && netOfFee(gross - 1n, bps) >= net) gross--;
+  while (netOfFee(gross, bps) < net) gross++;
+  return gross;
 }
 
 export interface DiscoverOptions {
@@ -115,6 +175,7 @@ export async function discoverLegs(o: DiscoverOptions): Promise<DiscoveredLeg[]>
       xWad: rawRisky * args.rateRisky,
       yWad: rawStable * args.rateStable,
       shippedAtBlock: log.blockNumber ?? 0n,
+      fee: parseLegFee(split.program),
     });
   }
   return legs;
