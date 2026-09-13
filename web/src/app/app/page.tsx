@@ -2,11 +2,9 @@ import type { Metadata } from 'next';
 import { TerminalScreen } from '@/components/terminal';
 
 export const metadata: Metadata = {
-  /* Spelled out rather than left to the root layout's `%s · Strikeline`: a title template does not
-     apply to the segment that declares it, and `app/page.tsx` is that segment, so relying on it
-     puts a bare `WETH/USDC` in the tab. The pair leads because that is what someone with nine tabs
-     open is scanning for. */
-  title: 'WETH/USDC · Strikeline',
+  /* The root layout's `%s · Strikeline` template applies here, since `/app` is a child segment, so
+     the pair alone reads `WETH/USDC · Strikeline` in the tab. */
+  title: 'WETH/USDC',
   description:
     'Write covered calls as price curves inside 1inch Aqua. The collateral never leaves the wallet, several offers stand behind one balance, and every figure is read from the router at one block.',
 };

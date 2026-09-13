@@ -39,9 +39,21 @@ export const metadata: Metadata = {
     default: "Strikeline — covered calls",
     template: "%s · Strikeline",
   },
-  description:
-    "Covered calls written as price curves inside 1inch Aqua. No vault, no option token, no oracle and no keeper: the collateral stays in the maker's wallet and several offers stand behind one balance.",
+  description: "Name a price to sell your ETH at and get paid to wait. Your ETH never leaves your wallet.",
   applicationName: "Strikeline",
+  metadataBase: new URL("https://strikeline-mu.vercel.app"),
+  openGraph: {
+    title: "Strikeline",
+    description: "Name a price to sell your ETH at and get paid to wait. Your ETH never leaves your wallet.",
+    siteName: "Strikeline",
+    type: "website",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Strikeline",
+    description: "Name a price to sell your ETH at and get paid to wait. Your ETH never leaves your wallet.",
+  },
 };
 
 export const viewport: Viewport = {
