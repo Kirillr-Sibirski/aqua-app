@@ -84,7 +84,7 @@ their reserves. See [`docs/PROTOCOL-FEE.md`](docs/PROTOCOL-FEE.md).
 | Expiry settles at the strike | `test_Expiry_SettlesAtStrikeOneWay` |
 | Rolling an offer moves zero tokens | `test_Roll_MovesNoTokensAndCanRepeatParameters` |
 | Quotes match swaps | `testFuzz_QuoteEqualsSwap`, 256 runs |
-| Works with real liquidity | Offers live on the official Aqua registry and fill through our redeployed SwapVM router; fork tests also fill real third-party WETH/USDC liquidity through the unmodified 1inch router |
+| Works with real liquidity | Offers live on the official Aqua registry and fill through the redeployed SwapVM router; fork tests also fill real third-party WETH/USDC liquidity through the unmodified 1inch router |
 
 **147 offline tests pass** (`make test`), plus 11 fork tests. The router is 23,851 bytes, under the
 EIP-170 limit, and a fill costs 211k gas (about a cent on Base).
