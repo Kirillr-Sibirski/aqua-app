@@ -7,6 +7,7 @@
  * every figure below it — the spot, the curve, the ticket's premium, every positions row — was read
  * at that block, and saying which one is the only way that claim is checkable.
  */
+import Link from 'next/link';
 import { WalletButton } from '@/components/sell';
 import { WordmarkMark } from '@/components/shell';
 import { TokenPair } from '@/components/token';
@@ -85,6 +86,9 @@ export function TerminalHeader({ base, quote, spot, window: spotWindow, blockNum
       </div>
 
       <div className={classes.barEnd}>
+        <Link href="/docs" className={classes.docsLink}>
+          Docs
+        </Link>
         {blockNumber === undefined ? null : (
           <span
             className={classes.block}
