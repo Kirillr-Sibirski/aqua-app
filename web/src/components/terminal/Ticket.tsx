@@ -94,6 +94,9 @@ export function Ticket({
   const quote = useHeldQuote(draft);
   const premiumWad = useTweenedBigInt(quote?.premium);
   const cappedWad = useTweenedBigInt(quote?.capped);
+  /* A quote the router refused is a figure that is never coming, so it says so instead of shimmering. */
+  const quoteRefused =
+    quote === undefined && !draft.sizing.isLoading && draft.sizing.error ? 'router refused this quote' : undefined;
 
   const label = (() => {
     if (!hydrated) return 'Publish offer';
@@ -392,6 +395,8 @@ export function Ticket({
                 sign="always"
                 tone="money"
               />
+            ) : quoteRefused ? (
+              <span className={classes.legendFigure}>{quoteRefused}</span>
             ) : (
               <Bar width={96} />
             )}
@@ -422,6 +427,8 @@ export function Ticket({
                 icon={false}
                 unit="none"
               />
+            ) : quoteRefused ? (
+              <span className={classes.legendFigure}>{quoteRefused}</span>
             ) : (
               <Bar width={96} />
             )}

@@ -39,7 +39,7 @@ export function TerminalHeader({ base, quote, spot, window: spotWindow, blockNum
     <header className={classes.bar}>
       <span className={classes.brand}>
         <WordmarkMark size={18} />
-        <span className={classes.brandText}>strikeline</span>
+        <span className={classes.brandText}>koers</span>
       </span>
 
       <div className={classes.instrument}>

@@ -11,7 +11,7 @@ node scripts/contrast.mjs   # all 36 design-token pairs against their contrast f
 ```
 
 The app needs a local Base fork to show anything: `make fork && make bootstrap` from the repo root.
-Without one it renders its disconnected and empty states, which is deliberate — see DESIGN.md.
+Without one it renders its disconnected and empty states, which is deliberate.
 No variables are required.
 
 ## Routes

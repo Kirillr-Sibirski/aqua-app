@@ -32,7 +32,7 @@ import {
 import { floorToTokenDigits, tokenFractionDigits } from '@/components/token';
 import { aquaFork } from '@/lib/chain';
 import type { Deployments } from '@/lib/contracts';
-import { formatUnits, parseDecimalInput, toDecimalString } from '@/lib/ui';
+import { formatTenor, formatUnits, parseDecimalInput, toDecimalString } from '@/lib/ui';
 
 /** How far above today's price the ticket opens. A price below it would be taken immediately. */
 const DEFAULT_OVER_SPOT = 0.05;
@@ -284,7 +284,13 @@ export function useTicketDraft({
     maturity,
     volIsMeasured: volDraft === undefined && measuredVol !== undefined,
     measuredVol,
-    volUnavailable: realised.unavailable,
+    // A measurement shorter than a day is not allowed to set the default, and it is never coming
+    // back longer on this fork, so it is reported as unavailable rather than left loading.
+    volUnavailable:
+      realised.unavailable ??
+      (realised.vol && !volSpanIsEnough
+        ? `The feed's readable history spans ${formatTenor(realised.vol.spanSeconds)}, less than the day a measurement needs.`
+        : undefined),
     volSpanSeconds: realised.vol?.spanSeconds,
     offer: sizing.offer,
     sizing: { isLoading: sizing.isLoading, error: sizing.error },

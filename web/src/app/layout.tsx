@@ -36,12 +36,12 @@ export const metadata: Metadata = {
      to change when the name does. The icon beside it is `icon.svg`, with `favicon.ico`
      redrawn from the same file by `scripts/favicon.mjs` for everything that still asks for one. */
   title: {
-    default: "Strikeline — covered calls",
-    template: "%s · Strikeline",
+    default: "Koers — covered calls",
+    template: "%s · Koers",
   },
   description:
     "Covered calls written as price curves inside 1inch Aqua. No vault, no option token, no oracle and no keeper: the collateral stays in the maker's wallet and several offers stand behind one balance.",
-  applicationName: "Strikeline",
+  applicationName: "Koers",
 };
 
 export const viewport: Viewport = {
