@@ -1656,3 +1656,100 @@
     height: 2.75rem;
   }
 }
+
+/* --- refresh: surface, rhythm and press states ----------------------------------------------
+ *
+ * Polish only; no layout moves outside the ticket column. The ticket gains a faint lift off the
+ * ground so it reads as the one panel you act in, its vertical rhythm tightens by a few pixels so
+ * the primary action sits inside a 900px window again (the protocol-fee row had pushed it under
+ * the fold), and the controls you press get a press. Every duration is a token, so reduced motion
+ * (globals.css) collapses all of it.
+ */
+
+.ticket {
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--surface) 70%, var(--bg)) 0%, var(--bg) 22rem);
+  box-shadow: inset 1px 0 0 color-mix(in oklab, var(--ink) 4%, transparent);
+  padding-top: 0.75rem;
+}
+
+@media (max-width: 60rem) {
+  .ticket {
+    box-shadow: none;
+  }
+}
+
+.legend {
+  margin-bottom: 0.3125rem;
+}
+
+.group + .group {
+  margin-top: 0.625rem;
+}
+
+.well {
+  height: 2.625rem;
+  background: color-mix(in oklab, var(--surface) 88%, var(--bg));
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--ink) 3%, transparent);
+}
+
+.well:focus-within {
+  border-color: color-mix(in oklab, var(--accent) 35%, var(--line));
+}
+
+.chips {
+  background: color-mix(in oklab, var(--surface) 88%, var(--bg));
+}
+
+.chip {
+  transition-property: color, background-color, box-shadow;
+}
+
+.chip[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 28%, transparent);
+}
+
+.chip:active:not([aria-pressed='true']) {
+  background: var(--surface-3);
+}
+
+.figures {
+  margin-top: 0.75rem;
+  padding-top: 0.625rem;
+}
+
+.figure {
+  min-height: 1.625rem;
+}
+
+.action {
+  margin-top: 0.625rem;
+  transition:
+    background-color var(--duration-fast) var(--ease-out-quart),
+    box-shadow var(--duration-base) var(--ease-out-quart),
+    transform var(--duration-fast) var(--ease-out-quart);
+}
+
+.action:hover:not(:disabled),
+.action:focus-visible:not(:disabled) {
+  box-shadow: 0 0.5rem 1.5rem -0.75rem color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+.action:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 0.25rem 0.75rem -0.5rem color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+/* The positions strip: a quieter header and a hover that tints toward the accent, not grey. */
+.table thead th {
+  background: color-mix(in oklab, var(--surface) 35%, var(--bg));
+}
+
+.row:hover,
+.row:hover .cellStart {
+  background: color-mix(in oklab, var(--accent-soft) 22%, var(--surface));
+}
+
+.table thead .cellStart {
+  background: color-mix(in oklab, var(--surface) 35%, var(--bg));
+}
