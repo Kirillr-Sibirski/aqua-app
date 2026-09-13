@@ -9,7 +9,6 @@ import {
   createPublicClient,
   createTestClient,
   createWalletClient,
-  custom,
   defineChain,
   formatUnits,
   http,
@@ -29,9 +28,8 @@ export const PATHS = {
   root: resolve(HERE, '../..'),
   contracts: resolve(HERE, '../../contracts'),
   web: resolve(HERE, '../../web'),
-  // Overridable so a hosted fork writes its own manifests and never clobbers the local demo's.
-  deploymentsLocal: process.env.DEPLOYMENTS ? resolve(process.env.DEPLOYMENTS) : resolve(HERE, 'deployments.local.json'),
-  deploymentsWeb: process.env.WEB_DEPLOYMENTS ? resolve(process.env.WEB_DEPLOYMENTS) : resolve(HERE, '../../web/public/deployments/local.json'),
+  deploymentsLocal: resolve(HERE, 'deployments.local.json'),
+  deploymentsWeb: resolve(HERE, '../../web/public/deployments/local.json'),
   snapshotFile: resolve(HERE, '.snapshot.json'),
   // StrikelineRouter, not ProbeRouter: the app reads `tauNow`/`coverage`/`bandFor` and settles through
   // opcodes 0x55 and 0x93, none of which exist on the probe. Both land at the same deterministic
@@ -54,45 +52,8 @@ export const anvilBase: Chain = defineChain({
   contracts: { multicall3: { address: '0xca11bde05977b3631167028862be2a173976ca11' } },
 });
 
-/**
- * `CHAIN_BACKEND=tenderly` points every script at a Tenderly Virtual TestNet's ADMIN RPC instead of anvil.
- * Cheatcodes are translated to Tenderly's names, and the ones only a retake needs (state dumps, automine,
- * a fixed block interval, explicit impersonation) become no-ops. Unset, nothing below changes a byte.
- */
-export const IS_TENDERLY = process.env.CHAIN_BACKEND === 'tenderly';
-
-const TENDERLY_RENAME: Record<string, string> = {
-  anvil_setBalance: 'tenderly_setBalance',
-  anvil_setStorageAt: 'tenderly_setStorageAt',
-  anvil_setCode: 'tenderly_setCode',
-  anvil_mine: 'evm_increaseBlocks',
-};
-const TENDERLY_NOOP = new Set([
-  'anvil_impersonateAccount',
-  'anvil_stopImpersonatingAccount',
-  'anvil_autoImpersonateAccount',
-  'anvil_setBlockTimestampInterval',
-  'anvil_removeBlockTimestampInterval',
-  'anvil_setTime',
-  'evm_setAutomine',
-  'anvil_dumpState',
-  'anvil_loadState',
-]);
-
-function translate(method: string, params: unknown[]): { method: string; params: unknown[] } | null {
-  if (!IS_TENDERLY) return { method, params };
-  if (TENDERLY_NOOP.has(method)) return null;
-  // Tenderly has no `evm_mine`; one empty block is `evm_increaseBlocks(1)`.
-  if (method === 'evm_mine') return { method: 'evm_increaseBlocks', params: ['0x1'] };
-  return { method: TENDERLY_RENAME[method] ?? method, params };
-}
-
-const tenderlyTransport = custom({ request: ({ method, params }) => rpc(method, (params as unknown[]) ?? []) });
-
 export const publicClient = createPublicClient({ chain: anvilBase, transport: http(RPC_URL) });
-export const testClient = IS_TENDERLY
-  ? createTestClient({ mode: 'anvil', chain: anvilBase, transport: tenderlyTransport })
-  : createTestClient({ mode: 'anvil', chain: anvilBase, transport: http(RPC_URL) });
+export const testClient = createTestClient({ mode: 'anvil', chain: anvilBase, transport: http(RPC_URL) });
 
 /** Wallet client for a local private key (anvil accounts). */
 export function walletFor(privateKey: Hex) {
@@ -106,12 +67,10 @@ export function impersonated(address: Address) {
 
 /** Raw JSON-RPC (for anvil_* methods viem does not wrap, and for exact control over params). */
 export async function rpc<T = unknown>(method: string, params: unknown[] = []): Promise<T> {
-  const call = translate(method, params);
-  if (!call) return null as T;
   const res = await fetch(RPC_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: call.method, params: call.params }),
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   });
   const json = (await res.json()) as { result?: T; error?: { code: number; message: string } };
   if (json.error) throw new Error(`${method}: ${json.error.code} ${json.error.message}`);
