@@ -40,6 +40,3 @@ in the repo; see [`docs/IN-DEPTH.md`](../docs/IN-DEPTH.md).
 | `src/components/token/` | The token marks, the pair, and `TokenAmount` — the one way this app prints a quantity |
 | `src/components/sell/` | What stands behind the ticket: `useOffer` (sizing, through `stableFor`), `usePublish`, the realised-vol measurement, the date arithmetic, the wallet control |
 | `src/app/globals.css` | The OKLCH tokens. Nothing in the app hard-codes a colour |
-
-`AGENTS.md` is not ours: `next dev` regenerates it on every run, and it is committed so the tree
-stays clean. `CLAUDE.md` includes it.
