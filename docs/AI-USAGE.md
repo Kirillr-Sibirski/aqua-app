@@ -8,7 +8,7 @@ prompts and planning artifacts that directed them. This is that disclosure.
 **The code was mostly written by AI.** Claude Code (Anthropic), running parallel sub-agents, wrote
 the great majority of `contracts/`, `web/`, `scripts/` and `subgraph/`. No other AI tool was used.
 
-**The project was run by one person, Kirill Rybkov (@Kirillr-Sibirski), who made the decisions:**
+**The project was run by one person, @Kirillr-Sibirski, who made the decisions:**
 
 - **The idea and the direction.** Choosing to build on 1inch Aqua, and choosing covered calls
   written as a pricing curve from the candidates explored, over the alternatives.
