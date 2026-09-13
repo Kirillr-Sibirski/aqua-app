@@ -144,7 +144,7 @@ function LadderArt() {
 
 function PayoffArt() {
   return (
-    <svg viewBox="0 0 320 220" role="img" aria-label="Just holding rises forever; with your offer the line goes flat after break-even">
+    <svg viewBox="0 0 320 220" role="img" aria-label="If nobody trades before expiry: with your offer you match just holding below break-even, and your gains stop above it">
       <path d="M30 196 H300 M30 196 V18" className={classes.axis} />
       <path d="M30 186 L300 40" className={classes.dash} />
       <path d="M30 186 L190 100 H300" className={classes.acThick} />
@@ -247,7 +247,7 @@ export default function DocsPage() {
         <Connector />
 
         <Panel n={4} title="Where you end up" art={<PayoffArt />} flip>
-          <p>Below break-even you&apos;re level with holding. Above it your gains stop: break-even = your price + premium per WETH.</p>
+          <p>If nobody trades before expiry: below break-even you end up level with holding; above it your gains stop. Break-even = your price + premium per WETH. Trades along the way add to what you earn.</p>
         </Panel>
         <Connector flip />
 
@@ -276,6 +276,7 @@ export default function DocsPage() {
             <aside className={classes.paper}>
               <span className={classes.paperKicker}>The curve comes from</span>
               <p className={classes.paperTitle}>Replicating Market Makers</p>
+              <p className={classes.paperTitle}>Replicating Monotonic Payoffs Without Oracles</p>
               <p className={classes.paperAuthors}>Angeris, Evans &amp; Chitra · 2021</p>
               <p className={classes.paperLinks}>
                 <a href="https://arxiv.org/abs/2103.14769">arXiv:2103.14769</a>

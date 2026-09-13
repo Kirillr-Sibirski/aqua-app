@@ -124,9 +124,9 @@ is published rather than the flattering one:
 | 75% | 23 | 1,102.08 | +253.02 | +241.70 | +230.75 | 23.0% |
 | 90% | 4 | 1,637.74 | +257.20 | +245.88 | +234.93 | 15.7% |
 
-Written at 15%, below what the market actually did, the leg is a very tight fee-less AMM and **an
+Written at 15%, far below what the market actually did (46.6%), the leg is a very tight fee-less AMM and **an
 ordinary pool beats it.** That is the condition under which this loses and it is the one the theory
-predicts: sell vol below realised and the arbitrageur takes more than the decay pays. The sweep also
+predicts: sell vol far below realised and the arbitrageur takes more than the decay pays. The sweep also
 shows the tension that decides everything in between — a higher written vol puts more time value on
 offer *and* a wider spread in front of it, so less and less of it is ever collected.
 

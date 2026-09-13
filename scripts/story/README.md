@@ -22,7 +22,7 @@ make story-0 ... make story-6
 |---|---|---|---|
 | **0** | `make story-0` | This is the real Aqua, not a mock with the same name | Three strategies that **other people** shipped, filled through the **official unmodified v1.0.2 router** `0x111111338c…`, settling against the **official registry** `0x1111113CCf…`. Real WETH out of a taker, real USDC out of a stranger's wallet. `filled 3 strategies, 0.1005 WETH in, 132.69 USDC out / ours none of it` |
 | **1** | `make story-1` | One wallet writes a whole book, and shipping moves nothing | `Shipped x4  Pushed x8`, **0 ERC-20 Transfer logs**, one block, 326,900 gas. Aqua then believes in 30.7395 WETH of depth against a 10.4 WETH wallet: **2.96x over-allocated**, 32 WETH of call notional |
-| **2** | `make story-2` | A fill on one leg shrinks its siblings' deliverable depth in the same block | `coverage(maker, WETH)` 10.4 → 9.336371, and two untouched legs flip from `its own reserve` to **`THE WALLET`**. Same call, one block apart: filled at 50946043, `NotCovered(needed=…, free=…)` at 50946044 |
+| **2** | `make story-2` | A fill on one leg shrinks its siblings' deliverable depth in the same block | `coverage(maker, WETH)` 10.4 → 9.336371, and two untouched legs flip from `its own reserve` to **`THE WALLET`**. Same call, one block apart: filled at the earlier block, `NotCovered(needed=…, free=…)` at the next |
 | **3** | `make story-3` | Time decay is the premium, and it accrues with no transaction | One **empty** block moves the clock three days. τ 0.018436 → 0.010216, and the 2,600 leg's buy-side toll opens from 0 to **226.47 USDC**. 461.82 USDC across the book, paid by whoever re-opens the curve |
 | **4** | `make story-4` | Over-allocation is refused at quote time, with both numbers | `NotCovered(needed=9925125269064564480, free=9336371101174893524)`. Ask for `free` and it fills first time; ask for `free + 1 wei` and it refuses. Then the **control**: the same leg with `Coverage` deleted quotes 9.925125 WETH, and the fill dies inside `Aqua.pull`'s `transferFrom` with `SafeTransferFromFailed()`, 53,751 gas burnt and **no events at all** |
 | **5** | `make story-5` | Settlement needs no oracle, no keeper, no option token | Past maturity τ is **exactly zero** and `stableFor(X) == K·(L−X)` to the wei at five points. The mirror direction reverts `RmmSettlementOneWay()`. Second assignment prices at **exactly 2,600 USDC per WETH**. Settlement costs 134,585 gas against 227,708 for the live curve: **93,123 gas** of Gaussian that is simply gone |
@@ -153,7 +153,7 @@ Both are proved with a block that is mined and then rewound, so the check costs 
 
 **What reproducibility buys, measured.** Scene 2 was run on two different anvil processes, from two
 different `story-setup` runs whose anchors differed by nine seconds. Both filled at **tape step 14**,
-for **2,644.81 USDC in → 1.063629 WETH out**, in block **50946044**, for **227,708 gas**. Only the
+for **2,644.81 USDC in → 1.063629 WETH out**, in the same block on both, for **227,708 gas**. Only the
 transaction hash differed.
 
 ---
@@ -220,7 +220,7 @@ they differ by one wei:
 
 ```
     predicted 1063629202262614236  ==  router.quote() 1063629202262614236   (exact, 0 wei apart)
-    re-derived at block 50946044 == Swapped.amountOut (1063628898825106476); theta collected in the
+    re-derived at the fill block == Swapped.amountOut (1063628898825106476); theta collected in the
     one second between quote and fill: 303437507760 raw units
 ```
 
