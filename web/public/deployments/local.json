@@ -2,11 +2,11 @@
   "chainId": 31337,
   "rpcUrl": "http://127.0.0.1:8545",
   "blockNumber": 50946000,
-  "bootstrapBlock": 50946321,
+  "bootstrapBlock": 50946001,
   "forkChainId": 8453,
   "aqua": "0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a",
   "officialRouter": "0x111111338c5091e8440b67b168bae16a668ac0de",
-  "router": "0xa33C658ab72249B3D578D5871D072dB4aeA30877",
+  "router": "0x59675EAF89150aA8732244986cA32982389a8c87",
   "routerName": "StrikelineRouter",
   "routerEip712": {
     "name": "Strikeline",
@@ -55,21 +55,21 @@
   ],
   "funding": {
     "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266:ETH": "anvil_setBalance",
-    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266:WETH": "already funded",
-    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266:USDC": "already funded",
-    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266:cbBTC": "already funded",
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266:WETH": "whale 0xD4a0…8bb7",
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266:USDC": "whale 0xBBBB…FFCb",
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266:cbBTC": "whale 0xBdb9…8EE6",
     "0x70997970C51812dc3A010C7d01b50e0d17dc79C8:ETH": "anvil_setBalance",
     "0x70997970C51812dc3A010C7d01b50e0d17dc79C8:WETH": "whale 0xD4a0…8bb7",
     "0x70997970C51812dc3A010C7d01b50e0d17dc79C8:USDC": "whale 0xBBBB…FFCb",
-    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8:cbBTC": "already funded",
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8:cbBTC": "whale 0xBdb9…8EE6",
     "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC:ETH": "anvil_setBalance",
-    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC:WETH": "already funded",
-    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC:USDC": "already funded",
-    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC:cbBTC": "already funded",
+    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC:WETH": "whale 0xD4a0…8bb7",
+    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC:USDC": "whale 0xBBBB…FFCb",
+    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC:cbBTC": "whale 0xBdb9…8EE6",
     "0x90F79bf6EB2c4f870365E785982E1f101E93b906:ETH": "anvil_setBalance",
-    "0x90F79bf6EB2c4f870365E785982E1f101E93b906:WETH": "already funded",
+    "0x90F79bf6EB2c4f870365E785982E1f101E93b906:WETH": "whale 0xD4a0…8bb7",
     "0x90F79bf6EB2c4f870365E785982E1f101E93b906:USDC": "whale 0xBBBB…FFCb",
-    "0x90F79bf6EB2c4f870365E785982E1f101E93b906:cbBTC": "already funded"
+    "0x90F79bf6EB2c4f870365E785982E1f101E93b906:cbBTC": "whale 0xBdb9…8EE6"
   },
-  "generatedAt": "2026-09-08T20:26:59.382Z"
+  "generatedAt": "2026-09-13T09:22:16.855Z"
 }
