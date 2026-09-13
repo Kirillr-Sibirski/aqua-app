@@ -13,7 +13,7 @@ import { formatUnits, type Address, type Hex } from 'viem';
 import { buildTakerTraits, swapVmAbi } from '../../web/src/lib/swapvm/index.ts';
 import { FLAG_POST_EXPIRY_OUT_IS_RISKY, strikelineViewsAbi } from '../../web/src/components/curve/rmm.ts';
 import { assertFork, die, erc20Abi, loadDeployments, publicClient, walletFor } from '../fork/lib.ts';
-import { awaitReceipt, PATHS as STORY_PATHS } from '../story/lib.ts';
+import { awaitReceipt, label, labelDeployment, printReceiptOf, PATHS as STORY_PATHS } from '../story/lib.ts';
 import { discoverLegs, FEE_SCALE, legMatches, type DiscoveredLeg } from './discover.ts';
 import { existsSync, readFileSync } from 'node:fs';
 
@@ -118,8 +118,13 @@ async function main(): Promise<void> {
       ? `Bought ${fmt(amountOut, Number(riskyDec), 4)} WETH from the ${strikeLabel} offer for ${fmt(amountIn, Number(stableDec), 2)} USDC${feeText}`
       : `Sold ${fmt(amountIn, Number(riskyDec), 4)} WETH into the ${strikeLabel} buy offer for ${fmt(amountOut, Number(stableDec), 2)} USDC${feeText}`;
   process.stdout.write(
-    `\n  ${line1}\n  block ${receipt.blockNumber} · tx ${txHash.slice(0, 10)}… · maker wallet now ${fmt(makerWeth, Number(riskyDec), 4)} WETH\n\n`,
+    `\n  ${line1}\n  block ${receipt.blockNumber} · maker wallet now ${fmt(makerWeth, Number(riskyDec), 4)} WETH\n\n  what moved on-chain:\n`,
   );
+  labelDeployment(d);
+  label(leg.maker, 'maker (you)');
+  label(story.taker, 'buyer');
+  printReceiptOf(receipt, 'swap');
+  process.stdout.write('\n');
 }
 
 main().catch((e: unknown) => die(e instanceof Error ? (e.stack ?? e.message) : String(e)));
