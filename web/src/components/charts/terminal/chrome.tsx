@@ -233,9 +233,9 @@ const TONE: Record<NonNullable<ReadoutItem['tone']>, string> = {
  */
 export function Readout({ items }: { items: readonly ReadoutItem[] }) {
   return (
-    <dl className="flex min-w-0 shrink-0 flex-wrap items-baseline justify-end gap-x-4 gap-y-1">
+    <dl className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-x-4 gap-y-1">
       {items.map((item) => (
-        <div key={item.label} className="flex items-baseline gap-1.5">
+        <div key={item.label} className="flex items-center gap-1.5">
           <dt className="flex items-center gap-1 text-micro whitespace-nowrap text-ink-3">
             {item.icon ? (
               <span aria-hidden="true" className="flex shrink-0 items-center">

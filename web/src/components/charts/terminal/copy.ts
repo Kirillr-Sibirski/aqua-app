@@ -47,8 +47,12 @@ export interface ViewCopy {
 export const VIEW_COPY: Record<TerminalView, ViewCopy> = {
   premium: {
     label: 'premium',
-    caption: () => 'how much a buyer pays you for waiting',
-    note: () => 'The extra a buyer pays you, growing each day nobody takes the offer.',
+    caption: (_risky, _stable, side) =>
+      side === 'buy' ? 'how much a seller gives you for waiting' : 'how much a buyer pays you for waiting',
+    note: (_risky, _stable, side) =>
+      side === 'buy'
+        ? 'The extra a seller gives you, growing each day nobody takes the offer.'
+        : 'The extra a buyer pays you, growing each day nobody takes the offer.',
   },
   payoff: {
     label: 'payoff',

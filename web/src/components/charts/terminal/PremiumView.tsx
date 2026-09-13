@@ -94,6 +94,16 @@ export function PremiumView({
 
   const points = band.points;
 
+  /*
+   * Which side closes the gap is which side the offer faces. A sell offer is crossed by a buyer who
+   * brings the stable; a buy offer is crossed by a seller who brings the risky, so its premium is
+   * counted in the risky token, the token the positions strip already reports it earning in.
+   */
+  const buying = leg?.side === 'buy';
+  const unit = buying ? risky : stable;
+  const valueOf = (p: DecayPoint) => (buying ? p.risky : p.stable);
+  const who = buying ? 'a seller gives you' : 'a buyer pays you';
+
   let resolved: TerminalState = state;
   if (state === 'ready') {
     if (!leg) resolved = 'empty';
@@ -128,12 +138,12 @@ export function PremiumView({
           // the `8d` in the positions row, from `formatTenor`. It used to read `after 8.69 d`.
           { label: 'after', value: formatTenor(shown.days * 86_400) },
           {
-            label: stable.symbol,
-            icon: stable.icon,
+            label: unit.symbol,
+            icon: unit.icon,
             // The token's own two places, and `<0.01` rather than `0.00` where the band is still
             // thinner than a cent. The series sweeps four orders of magnitude and that shape is the
             // chart's job; the readout is a figure, and this app prints a USDC figure one way.
-            value: formatChartToken(shown.stable, tokenFractionDigits(stable.symbol), {
+            value: formatChartToken(valueOf(shown), tokenFractionDigits(unit.symbol), {
               sign: 'always',
             }),
             tone: 'accent',
@@ -146,7 +156,7 @@ export function PremiumView({
       <Readout items={readout} />
       <Plot
         title="Premium"
-        description={`The smallest trade that clears this leg, against how long nobody has taken it. The axis counts the extra ${stable.symbol} a buyer must pay the maker. Every point is a bandFor read on a leg with the same reserves and that much less time left. The reserves are held fixed: a trade in between resets the gap to nothing.`}
+        description={`The smallest trade that clears this leg, against how long nobody has taken it. The axis counts the extra ${unit.symbol} ${buying ? 'a seller must bring' : 'a buyer must pay'} the maker. Every point is a bandFor read on a leg with the same reserves and that much less time left. The reserves are held fixed: a trade in between resets the gap to nothing.`}
         margin={MARGIN}
         panelId={panelId}
         panelLabelledBy={tabId}
@@ -170,7 +180,7 @@ export function PremiumView({
 
           const compact = geometry.inner.width < COMPACT_WIDTH;
           const x = daysScale(geometry, points);
-          const stableMax = Math.max(...points.map((p) => p.stable));
+          const stableMax = Math.max(...points.map(valueOf));
 
           const yStable = scaleLinear()
             .domain([0, (stableMax || 1) * 1.08])
@@ -178,7 +188,7 @@ export function PremiumView({
 
           const stablePoints: ChartPoint[] = points.map((p) => ({
             x: p.days,
-            y: p.stable,
+            y: valueOf(p),
           }));
 
           return (
@@ -219,14 +229,14 @@ export function PremiumView({
               </AxisBand>
               <Axis geometry={geometry} scale={yStable} orientation="left" count={4} />
               <AxisName geometry={geometry} side="left" swatch="accent" className={classes.fade}>
-                {compact ? `you get · ${stable.symbol}` : `extra a buyer pays you · ${stable.symbol}`}
+                {compact ? `you get · ${unit.symbol}` : `extra ${who} · ${unit.symbol}`}
               </AxisName>
               {index !== null && shown ? (
                 <Crosshair
                   geometry={geometry}
                   x={x(shown.days)}
                   dots={[
-                    { id: 'stable', y: yStable(shown.stable), color: 'accent' },
+                    { id: 'stable', y: yStable(valueOf(shown)), color: 'accent' },
                   ]}
                   label={formatTenor(shown.days * 86_400)}
                 />
