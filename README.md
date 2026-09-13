@@ -55,6 +55,22 @@ same block**.
 | **1inch Aqua + SwapVM** | The product: offers are SwapVM programs on the official Aqua registry, priced by the two instructions above | [`contracts/`](contracts/) |
 | **Uniswap v4** | The same curve as a v4 hook, a controlled comparison against Aqua, and developer feedback backed by tests | [`contracts/src/hooks/`](contracts/src/hooks/), [`FEEDBACK.md`](FEEDBACK.md) |
 
+### Uniswap v4: where to look
+
+The same RMM-01 curve runs as a v4 hook with custom swap accounting:
+
+- Hook and permissions: [`StrikelineHook.sol#L61`](contracts/src/hooks/StrikelineHook.sol#L61), [`#L116`](contracts/src/hooks/StrikelineHook.sol#L116)
+- Opening and closing an offer: [`write` #L134](contracts/src/hooks/StrikelineHook.sol#L134), [`retire` #L157](contracts/src/hooks/StrikelineHook.sol#L157)
+- Pricing the swap: [`_beforeSwap` #L294-L360](contracts/src/hooks/StrikelineHook.sol#L294-L360), [`quoteSwap` #L231](contracts/src/hooks/StrikelineHook.sol#L231)
+- The curve: [`RmmPricer.sol` `price` #L59](contracts/src/hooks/RmmPricer.sol#L59), [`stableFor` #L118](contracts/src/hooks/RmmPricer.sol#L118), [`riskyFor` #L123](contracts/src/hooks/RmmPricer.sol#L123)
+- Same price as the Aqua offer, fuzzed: [`CurveParity.t.sol#L106`](contracts/test/hook/CurveParity.t.sol#L106)
+- v4 pool vs Aqua, same capital: [`VenueExperiment.t.sol#L131`](contracts/test/hook/VenueExperiment.t.sol#L131) (capital), [`#L376`](contracts/test/hook/VenueExperiment.t.sol#L376) (gas)
+- The two test-backed feedback findings: [`StrikelineHook.t.sol#L231`](contracts/test/hook/StrikelineHook.t.sol#L231), [`#L264`](contracts/test/hook/StrikelineHook.t.sol#L264)
+
+```bash
+cd contracts && forge test --match-path 'test/hook/*'
+```
+
 ## Evidence
 
 | Claim | Proof |
