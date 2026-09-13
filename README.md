@@ -7,6 +7,10 @@ never leaves your wallet.**
 
 Built for ETHGlobal ETHOnline 2026 on **1inch Aqua**.
 
+**Live demo: [strikeline-mu.vercel.app](https://strikeline-mu.vercel.app)** · click **Connect wallet → Demo wallet**.
+The demo runs on a hosted fork of Base mainnet (an anvil node on a cloud VM) against the official
+Aqua registry and real WETH/USDC balances, so anyone can publish and withdraw offers without funds.
+
 ![The Strikeline app: premium chart, ticket and positions](docs/screenshot.png)
 
 ## The idea
