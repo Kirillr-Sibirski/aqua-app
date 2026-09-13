@@ -49,32 +49,32 @@ export interface ViewCopy {
 export const VIEW_COPY: Record<TerminalView, ViewCopy> = {
   premium: {
     label: 'premium',
-    caption: () => 'what a taker has to pay you, against days waited',
+    caption: () => 'how much a buyer pays you for waiting',
     term: 'time decay, read from bandFor',
-    note: (risky, stable) => [
-      `Your offer sits exactly on its own price curve the day you publish it, and every day nobody trades, time pushes the curve away from where your ${risky} is.`,
-      `A taker now has to cross that gap before a trade will go through, and the gap is what you are paid for the wait: the left axis counts it in ${stable} if they are buying from you, the right in ${risky} if they are selling to you.`,
-      'It is not cash until somebody crosses it. This line is what is on the table, not what has been banked.',
+    note: (_risky, stable) => [
+      `The day you post the offer, a buyer pays nothing extra. Every day nobody takes it, the extra ${stable} a buyer has to pay you grows, with no transaction from you.`,
+      'The line is that extra amount against the days since you posted, up to expiry.',
+      'It is not cash until somebody trades. This is what is on the table, not what has been banked.',
     ],
   },
   payoff: {
     label: 'payoff',
-    caption: (risky) => `what you are left holding at expiry, against the ${risky} price then`,
+    caption: (risky) => `what you end up with at expiry, depending on the ${risky} price`,
     term: 'payoff at expiry, priced at tau = 0',
     note: (risky) => [
-      `This is what you end up with on the day the offer expires, drawn against every price ${risky} could be at by then.`,
-      `Below your strike nothing has changed and the two lines are one line: your position is holding. Above it your value stops climbing, because that is where somebody buys the ${risky} at the price you named.`,
-      'The flat part is the trade you made. The premium is the small step at the corner where the two lines part, and it is printed there rather than shaded, because it is a few dollars against a position worth thousands.',
+      `Both lines show what you are worth on the day the offer expires, for every price ${risky} could be at by then.`,
+      `Below the break-even price they are the same line: the offer changes nothing. Above it your value stops climbing, because a buyer has taken your ${risky} at your price plus the premium.`,
+      'The flat part is the trade you chose. The shaded red area is what you would have made by just holding instead.',
     ],
   },
   price: {
     label: 'price',
-    caption: (risky, stable) => `${stable} held against ${risky} still unsold, and where this offer sits`,
-    term: 'the leg’s trading function, y(x)',
+    caption: (risky) => `the price each ${risky} sells at, as buyers take more`,
+    term: 'marginal price along the trading function',
     note: (risky, stable) => [
-      `The curve is the offer itself: for every amount of ${risky} you have not sold yet, it says how much ${stable} you should be holding, and the slope between two points is the price a taker gets.`,
-      `The dot is where this offer stands right now, and the arrow is the way a fill moves it — ${risky} out, ${stable} in.`,
-      'The dashed line is the same offer at expiry. The shaded hump between the two, on the right-hand axis, is the premium still left to earn.',
+      `Read left to right as buyers keep taking ${risky} from your offer: the line is the ${stable} you get for each next ${risky}.`,
+      'Today the first slices sell near the current price and later ones sell higher, which is how the offer earns on a rising market.',
+      'The dashed line is the same offer at expiry, when every slice sells at your strike.',
     ],
   },
 };

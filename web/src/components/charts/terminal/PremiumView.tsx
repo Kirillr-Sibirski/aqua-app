@@ -13,21 +13,11 @@
  * band; what the band IS, to the person writing the offer, is income. The note behind the ⓘ leads
  * with `time decay` for a reader who wants the term.
  *
- * WHY THIS CHART HAS ITS OWN AXES, and why that is not a stylistic choice. On the price view's
- * y-domain of zero to `K*L`, the band on a freshly published leg is a few ten-thousandths of one
- * pixel: a previous version of this shaded it there and drew a path with a zero-by-zero bounding
- * box while the legend advertised the wedge. The honest fix is not a thicker stroke. It is axes
- * that start at nothing and measure outward in the units a taker would actually bring — which is
- * what makes the growth from a hundredth of a cent to three figures visible as a shape.
- *
- * TWO UNITS, TWO AXES, AND WHY THE TWO LINES OVERLAP. A taker can close the gap from either side,
- * and the two sides are counted in different tokens, so they get different scales: the stable side
- * on the left, the risky side on the right. Putting both on one axis would be a chart whose y value
- * means two things. Each series is then normalised to its own maximum, so the two lines trace
- * nearly the same path — which is not a rendering fault but the fact itself: they are ONE gap,
- * quoted in two currencies. That was unreadable while the axes said `USDC` and `WETH`; it is
- * legible now that they say who brings which, in that series' own colour and dash. The axis is the
- * legend, which is also what let the strip above give its row back to the readout.
+ * ONE SERIES, ONE AXIS. The gap can be closed from either side, in either token, and this view
+ * used to draw both on two y-axes. They trace the same path — one gap quoted in two currencies — so
+ * the second line added a scale to read and nothing to learn. It now draws only what a buyer pays
+ * the maker, in the stable, against the days since the offer was posted. The axis starts at zero
+ * because on the price view's scale the band is a fraction of a pixel.
  */
 import { useState } from 'react';
 import { scaleLinear } from 'd3-scale';
@@ -64,11 +54,8 @@ export interface PremiumViewProps {
   refusedMessage?: string;
 }
 
-/**
- * The right margin carries a second axis, so it is as wide as the left one. The bottom carries the
- * axis band — `today`, `days waited`, `expiry` — on a line below the ticks.
- */
-const MARGIN = { top: 26, right: 58, bottom: 42, left: 58 };
+/** The bottom carries the axis band — `today`, `days since you posted`, `expiry` — below the ticks. */
+const MARGIN = { top: 26, right: 24, bottom: 42, left: 58 };
 
 /** Points across the remaining life. Each is one `eth_call` inside one multicall. */
 const BAND_SAMPLES = 25;
@@ -139,7 +126,7 @@ export function PremiumView({
       ? [
           // One tenor format in the app: `8d` here is the `8d` the ticket's expiry legend prints and
           // the `8d` in the positions row, from `formatTenor`. It used to read `after 8.69 d`.
-          { label: 'waited', value: formatTenor(shown.days * 86_400) },
+          { label: 'after', value: formatTenor(shown.days * 86_400) },
           {
             label: stable.symbol,
             icon: stable.icon,
@@ -151,14 +138,6 @@ export function PremiumView({
             }),
             tone: 'accent',
           },
-          {
-            label: risky.symbol,
-            icon: risky.icon,
-            value: formatChartToken(shown.risky, tokenFractionDigits(risky.symbol), {
-              sign: 'always',
-            }),
-            tone: 'ink-2',
-          },
         ]
       : [];
 
@@ -167,7 +146,7 @@ export function PremiumView({
       <Readout items={readout} />
       <Plot
         title="Premium"
-        description={`The smallest trade that clears this leg, against how long nobody has taken it. The left axis counts the ${stable.symbol} a buyer must bring; the right counts the ${risky.symbol} a seller must bring. Every point is a bandFor read on a leg with the same reserves and that much less time left. The reserves are held fixed: a trade in between resets the gap to nothing.`}
+        description={`The smallest trade that clears this leg, against how long nobody has taken it. The axis counts the extra ${stable.symbol} a buyer must pay the maker. Every point is a bandFor read on a leg with the same reserves and that much less time left. The reserves are held fixed: a trade in between resets the gap to nothing.`}
         margin={MARGIN}
         panelId={panelId}
         panelLabelledBy={tabId}
@@ -182,7 +161,7 @@ export function PremiumView({
           },
           index,
           onIndex: setIndex,
-          label: 'days waited',
+          label: 'days since you posted',
           valueText: readout.map((item) => `${item.label} ${item.value}`).join(', '),
         }}
       >
@@ -192,22 +171,14 @@ export function PremiumView({
           const compact = geometry.inner.width < COMPACT_WIDTH;
           const x = daysScale(geometry, points);
           const stableMax = Math.max(...points.map((p) => p.stable));
-          const riskyMax = Math.max(...points.map((p) => p.risky));
 
           const yStable = scaleLinear()
             .domain([0, (stableMax || 1) * 1.08])
-            .range([geometry.inner.y + geometry.inner.height, geometry.inner.y]);
-          const yRisky = scaleLinear()
-            .domain([0, (riskyMax || 1) * 1.08])
             .range([geometry.inner.y + geometry.inner.height, geometry.inner.y]);
 
           const stablePoints: ChartPoint[] = points.map((p) => ({
             x: p.days,
             y: p.stable,
-          }));
-          const riskyPoints: ChartPoint[] = points.map((p) => ({
-            x: p.days,
-            y: p.risky,
           }));
 
           return (
@@ -222,15 +193,6 @@ export function PremiumView({
                     baseline={0}
                     fill="accent"
                     tint={12}
-                  />
-                  <CurveLine
-                    points={riskyPoints}
-                    xScale={x}
-                    yScale={yRisky}
-                    stroke="ink-2"
-                    strokeWidth={1.5}
-                    dash="dashed"
-                    endDot
                   />
                   <CurveLine
                     points={stablePoints}
@@ -253,42 +215,17 @@ export function PremiumView({
                   `0d` and `8d` are the ticks; `today` and `expiry` are what they mean, and they are
                   why the curve starts at nothing. */}
               <AxisBand geometry={geometry} start="today" end="expiry">
-                days waited
+                days since you posted
               </AxisBand>
               <Axis geometry={geometry} scale={yStable} orientation="left" count={4} />
-              <Axis
-                geometry={geometry}
-                scale={yRisky}
-                orientation="right"
-                count={4}
-                textColor="ink-3"
-              />
-              {/*
-                * Each axis names the series that lives on it, in that series' colour and dash.
-                *
-                * `USDC` and `WETH` over two columns of numbers said what unit and not what quantity,
-                * on a chart where the quantity is the entire point and where two lines sit on top of
-                * each other because they are one gap in two currencies. This is the legend, standing
-                * on the scale it belongs to.
-                */}
               <AxisName geometry={geometry} side="left" swatch="accent" className={classes.fade}>
-                {compact ? `buyer · ${stable.symbol}` : `a buyer brings · ${stable.symbol}`}
-              </AxisName>
-              <AxisName
-                geometry={geometry}
-                side="right"
-                swatch="ink-2"
-                dash="dashed"
-                className={classes.fade}
-              >
-                {compact ? `seller · ${risky.symbol}` : `a seller brings · ${risky.symbol}`}
+                {compact ? `you get · ${stable.symbol}` : `extra a buyer pays you · ${stable.symbol}`}
               </AxisName>
               {index !== null && shown ? (
                 <Crosshair
                   geometry={geometry}
                   x={x(shown.days)}
                   dots={[
-                    { id: 'risky', y: yRisky(shown.risky), color: 'ink-2' },
                     { id: 'stable', y: yStable(shown.stable), color: 'accent' },
                   ]}
                   label={formatTenor(shown.days * 86_400)}

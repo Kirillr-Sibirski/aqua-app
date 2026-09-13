@@ -152,7 +152,7 @@ export function PayoffView({
 
   /* Nothing is read out of a plot that is not being drawn: a refusal must not leave last frame's
      figures standing in the strip above an empty box. */
-  const readout: ReadoutItem[] = anchors && resolved === 'ready' ? readoutAt(at, anchors) : [];
+  const readout: ReadoutItem[] = anchors && resolved === 'ready' ? readoutAt(at, anchors, risky.symbol) : [];
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
@@ -244,7 +244,7 @@ export function PayoffView({
                   {
                     id: 'cap',
                     value: anchors.capSpot,
-                    label: compact ? undefined : `cap ${money(anchors.capSpot)}`,
+                    label: compact ? undefined : `break-even ${money(anchors.capSpot)}`,
                     stroke: 'accent-dim' as const,
                     labelColor: 'ink' as const,
                   },
@@ -255,7 +255,7 @@ export function PayoffView({
                   {
                     id: 'spot',
                     value: spot,
-                    label: compact ? undefined : `spot ${money(spot)}`,
+                    label: compact ? undefined : `${risky.symbol} now ${money(spot)}`,
                     stroke: 'ink-2' as const,
                     labelColor: 'ink-2' as const,
                     dash: 'solid' as const,
@@ -349,7 +349,7 @@ export function PayoffView({
                     tone="ink-2"
                     className={classes.fade}
                   >
-                    holding
+                    {`just holding ${risky.symbol}`}
                   </SeriesLabel>
                   <SeriesLabel
                     x={geometry.inner.x + geometry.inner.width - 4}
@@ -358,7 +358,7 @@ export function PayoffView({
                     tone="accent"
                     className={classes.fade}
                   >
-                    position
+                    with your offer
                   </SeriesLabel>
                 </Wipe>
               </PlotArea>
@@ -378,7 +378,7 @@ export function PayoffView({
               {/* No swatch: both lines share this axis, so a rule in one of their colours would be
                   a claim the other does not live here. */}
               <AxisName geometry={geometry} side="left" className={classes.fade}>
-                {`position value · ${stable.symbol}`}
+                {`what you end up with · ${stable.symbol}`}
               </AxisName>
               {/* 12px between labels rather than the default 8: `K 2,600.00` and `cap 2,605.68`
                   are dodged apart from rules five dollars apart, and at 8px the two figures read
@@ -462,20 +462,14 @@ function money(value: number, sign: 'auto' | 'always' = 'auto'): string {
  * `Premium +59.08`, so the product's headline benefit appeared to be nothing and its cost appeared
  * to be the only thing on the chart; and it named neither of the two regions actually drawn.
  */
-function readoutAt(at: number, a: PayoffAnchors): ReadoutItem[] {
+function readoutAt(at: number, a: PayoffAnchors, riskySymbol: string): ReadoutItem[] {
   const position = positionValue(at, a);
   const hold = holdValue(at, a);
-  const givenUp = Math.max(0, hold - position);
   return [
-    { label: 'spot', value: money(at) },
-    { label: 'position', value: money(position), tone: 'accent' },
-    // `holding`, matching the word written on the dashed line itself. One mark, one name.
-    { label: 'holding', value: money(hold), tone: 'ink-2' },
+    { label: `${riskySymbol} price at expiry`, value: money(at) },
+    { label: 'with your offer', value: money(position), tone: 'accent' },
+    // The same words written on the two lines themselves. One mark, one name.
+    { label: 'just holding', value: money(hold), tone: 'ink-2' },
     { label: 'premium', value: money(a.earned, 'always'), tone: 'pos' },
-    {
-      label: 'given up',
-      value: money(givenUp),
-      tone: givenUp > 0 ? 'neg' : 'ink-2',
-    },
   ];
 }

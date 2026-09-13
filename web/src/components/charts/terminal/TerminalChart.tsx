@@ -100,7 +100,7 @@ export function TerminalChart({
         }
       />
       {active === 'payoff' ? <PayoffView {...shared} spot={spot} /> : null}
-      {active === 'price' ? <PriceView {...shared} /> : null}
+      {active === 'price' ? <PriceView {...shared} spot={spot} /> : null}
       {active === 'premium' ? <PremiumView {...shared} nowSeconds={nowSeconds} /> : null}
     </div>
   );
