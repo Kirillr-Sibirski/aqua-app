@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <title>Koers</title>
+  <title>Strikeline</title>
   <!--
     The wordmark at favicon scale: a covered call's payoff, rising with spot until the strike and
     flat above it. The white leg is the inventory the maker keeps; the cyan leg is the strike, which

@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 128" width="340" height="128">
-  <title>Koers</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 128" width="520" height="128">
+  <title>Strikeline</title>
   <!-- The favicon mark (web/src/app/icon.svg) at 4x beside the wordmark. Colours are the app palette. -->
-  <rect width="340" height="128" rx="24" fill="#0a0d0f"/>
+  <rect width="520" height="128" rx="24" fill="#0a0d0f"/>
   <g transform="translate(0 0) scale(4)">
     <path d="M6.16 21.74 14.91 10.26" fill="none" stroke="#f1f4f6" stroke-width="3.6" stroke-linecap="round"/>
     <path d="M14.91 10.26H25.84" fill="none" stroke="#4ed5d5" stroke-width="3.6" stroke-linecap="round"/>
   </g>
-  <text x="140" y="81" fill="#f1f4f6" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="52" font-weight="600" letter-spacing="-1">koers</text>
+  <text x="140" y="81" fill="#f1f4f6" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="52" font-weight="600" letter-spacing="-1">strikeline</text>
 </svg>

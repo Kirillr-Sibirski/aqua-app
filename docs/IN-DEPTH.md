@@ -1,8 +1,7 @@
-# Koers in depth
+# Strikeline in depth
 
 The long form behind the [README](../README.md): the two instructions, the read layer, the Uniswap v4
-comparison, the replay study, the test evidence, the limits and prior art. The contracts keep the
-project's working title, Strikeline.
+comparison, the replay study, the test evidence, the limits and prior art.
 
 ## The two custom SwapVM instructions
 

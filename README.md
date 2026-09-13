@@ -1,21 +1,20 @@
-<p align="center"><img src="docs/logo.svg" alt="Koers" width="260"></p>
+<p align="center"><img src="docs/logo.svg" alt="Strikeline" width="400"></p>
 
-# Koers
+# Strikeline
 
 **Name a price you'd be happy to sell your ETH at. Whoever takes it pays you for the wait. The ETH
 never leaves your wallet.**
 
-*Koers* is Dutch for "price", as in the rate something trades at, and also for "course", the heading
-you set. Built for ETHGlobal ETHOnline 2026 on **1inch Aqua**.
+Built for ETHGlobal ETHOnline 2026 on **1inch Aqua**.
 
-![The Koers app: premium chart, ticket and positions](docs/screenshot.png)
+![The Strikeline app: premium chart, ticket and positions](docs/screenshot.png)
 
 ## The idea
 
 If you put ETH in a liquidity pool, you have already agreed to sell it at prices you never chose, for
 a fee that mostly goes to arbitrage bots.
 
-Koers lets you say *"I will sell my ETH at $2,800 if it gets there, and be paid to wait."* You pick the
+Strikeline lets you say *"I will sell my ETH at $2,800 if it gets there, and be paid to wait."* You pick the
 price, the date and the volatility. Your offer is a quote inside 1inch Aqua, and it costs a taker a
 little more to fill each day nobody takes it. The ETH stays in your wallet until someone does.
 
@@ -110,8 +109,6 @@ and checks its own claim; the [runbook](scripts/story/README.md) lists them.
 - [`docs/OPCODES.md`](docs/OPCODES.md): byte layouts and gas
 - [`contracts/`](contracts/README.md), [`web/`](web/README.md), [`subgraph/`](subgraph/README.md),
   [`scripts/`](scripts/README.md): per-package READMEs
-
-The contracts keep the project's working title, Strikeline (`StrikelineRouter`, `StrikelineViews`).
 
 ## License and AI usage
 
