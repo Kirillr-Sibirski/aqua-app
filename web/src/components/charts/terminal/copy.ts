@@ -57,8 +57,7 @@ export const VIEW_COPY: Record<TerminalView, ViewCopy> = {
   payoff: {
     label: 'payoff',
     caption: (risky) => `what you end up with at expiry, depending on the ${risky} price`,
-    note: (risky, stable, side) =>
-      `What you end up with at expiry, compared with just holding ${side === 'buy' ? stable : risky}.`,
+    note: () => 'If nobody trades before expiry: level with holding below break-even, capped above it.',
   },
   price: {
     label: 'price',

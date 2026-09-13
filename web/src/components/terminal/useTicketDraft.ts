@@ -116,8 +116,10 @@ export interface TicketDraft {
   spot?: number;
   /** Unix seconds, 08:00 UTC on the chosen day. */
   maturity?: number;
-  /** What expiries count from: the later of the chain's clock and the browser's. */
+  /** What the picker's floor and presets count from: the later of the chain's clock and the browser's. */
   clockSeconds?: number;
+  /** The chain's clock. Every displayed tenor counts from it, so the ticket agrees with the chart and positions. */
+  chainSeconds?: number;
   /** The first day the picker allows, `YYYY-MM-DD`. */
   minDate?: string;
   /** True while the IV field is showing a measurement rather than the maker's own number. */
@@ -366,6 +368,7 @@ export function useTicketDraft({
     spot,
     maturity,
     clockSeconds,
+    chainSeconds: nowSeconds,
     minDate: minMaturity === undefined ? undefined : dateStringFor(minMaturity),
     volIsMeasured: volDraft === undefined && measuredVol !== undefined,
     measuredVol,

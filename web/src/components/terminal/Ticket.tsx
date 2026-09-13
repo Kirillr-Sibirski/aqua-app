@@ -33,6 +33,7 @@ import { dateStringFor, maturityAt, type OfferPair } from '@/components/sell';
 import { TokenAmount, TokenIcon } from '@/components/token';
 import { Reveal, useTweenedBigInt } from '@/lib/motion';
 import { explainError, formatTenor } from '@/lib/ui';
+import { TICKET_NOTES } from './ticketCopy';
 import { Bar, FigureRow } from './bits';
 import { Explain, Labelled } from './Explain';
 import { offerFigures, useMoment } from './Moment';
@@ -252,8 +253,8 @@ export function Ticket({
         <div className={classes.legend}>
           <span>Expiry</span>
           <span className={classes.legendFigure} title="08:00 UTC, on the chain's clock.">
-            {draft.maturity !== undefined && draft.clockSeconds !== undefined
-              ? formatTenor(draft.maturity - draft.clockSeconds)
+            {draft.maturity !== undefined && draft.chainSeconds !== undefined
+              ? formatTenor(draft.maturity - draft.chainSeconds)
               : '—'}
           </span>
         </div>
@@ -312,7 +313,7 @@ export function Ticket({
           <Labelled>
             <span>IV</span>
             <Explain term="Implied volatility" position="top-start">
-              <p>{`How much you expect ${riskySymbol ?? 'the price'} to move. Higher means a bigger premium.`}</p>
+              <p>{TICKET_NOTES.iv(riskySymbol ?? 'the price')}</p>
             </Explain>
           </Labelled>
           {/* `Realised`, not `Real`. One is the opposite of implied, which is what this figure is;
@@ -399,7 +400,7 @@ export function Ticket({
           unit={draft.offer ? stableSymbol : undefined}
           explain={
             <Explain term="Premium" position="top-start">
-              <p>What buyers pay you in total if they take the whole offer by expiry.</p>
+              <p>{TICKET_NOTES.premium(buying ? 'buy' : 'sell')}</p>
             </Explain>
           }
         >
@@ -463,7 +464,7 @@ export function Ticket({
             wide
             explain={
               <Explain term="Protocol fee" position="top-start">
-                <p>Paid by the buyer on each fill, on top of your premium.</p>
+                <p>{TICKET_NOTES.protocolFee(buying ? 'buy' : 'sell')}</p>
               </Explain>
             }
           >

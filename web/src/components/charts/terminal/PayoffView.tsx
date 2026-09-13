@@ -165,6 +165,7 @@ export function PayoffView({
           named in the readout, in their own colours, with the figure each is worth attached — which
           is what a swatch in a box could never say. */}
       <Readout items={readout} />
+      <p className={classes.assumption}>assumes no trades before expiry</p>
       <Plot
         title="Payoff at expiry"
         description={`Value of this position at expiry against spot, in ${stable.symbol}, beside the value of simply holding the same ${risky.symbol} and ${stable.symbol}. Both lines are pinned to the router's own settlement branch, read on chain: the position stops rising at ${anchors ? formatChartNumber(anchors.cap, { significantDigits: 8 }) : 'its cap'} ${stable.symbol}, which is where a taker assigns it.`}

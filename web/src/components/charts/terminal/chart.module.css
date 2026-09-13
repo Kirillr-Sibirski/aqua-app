@@ -114,3 +114,13 @@
 .caption {
   animation: fade var(--duration-base) var(--ease-out-quart) both;
 }
+
+/* The payoff model's one assumption, said where the chart is read rather than only behind the ⓘ. */
+.assumption {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+  text-align: right;
+}
