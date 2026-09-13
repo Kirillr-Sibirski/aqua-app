@@ -119,6 +119,34 @@ export function formatChartNumber(value: number, opts: ChartNumberOptions = {}):
  * @example formatChartToken(0.0000123, 4) // '<0.0001'
  * @example formatChartToken(12.3, 4)      // '12.3000'
  */
+/**
+ * A token figure times spot: the other token's size of the same value, for a secondary readout.
+ * `≈ 127.80`. Undefined until the feed answers. No option maths: one multiplication at today's price.
+ */
+export function formatAtSpot(
+  amount: number,
+  spot: number | undefined,
+  fractionDigits: number,
+): string | undefined {
+  if (spot === undefined || !Number.isFinite(spot) || !(spot > 0) || !Number.isFinite(amount)) return undefined;
+  const value = formatChartToken(amount * spot, fractionDigits);
+  return value === '' ? undefined : `≈ ${value}`;
+}
+
+/**
+ * A token figure divided by spot: the other token's size of the same value. `≈ 0.5500`.
+ * Undefined until the feed answers.
+ */
+export function formatOverSpot(
+  amount: number,
+  spot: number | undefined,
+  fractionDigits: number,
+): string | undefined {
+  if (spot === undefined || !Number.isFinite(spot) || !(spot > 0) || !Number.isFinite(amount)) return undefined;
+  const value = formatChartToken(amount / spot, fractionDigits);
+  return value === '' ? undefined : `≈ ${value}`;
+}
+
 export function formatChartToken(
   value: number,
   fractionDigits: number,

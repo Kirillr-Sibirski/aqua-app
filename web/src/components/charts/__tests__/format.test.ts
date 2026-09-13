@@ -8,7 +8,7 @@
  * degenerate domain can arrive from any view and a repeated label is a lie about the scale.
  */
 import { describe, expect, it } from 'vitest';
-import { tickFormatter } from '../format';
+import { formatAtSpot, formatOverSpot, tickFormatter } from '../format';
 
 describe('tickFormatter', () => {
   it('keeps compact labels distinct by spending more significant figures', () => {
@@ -38,5 +38,18 @@ describe('tickFormatter', () => {
 
   it('does not chase distinctness through a single tick', () => {
     expect([1_000_000].map(tickFormatter([1_000_000]))).toEqual(['1M']);
+  });
+});
+
+describe('formatAtSpot / formatOverSpot', () => {
+  it('prices a WETH premium in USDC at spot', () => {
+    expect(formatAtSpot(0.0523, 2443.5, 2)).toBe('≈ 127.80');
+  });
+  it('sizes a USDC premium in WETH at spot', () => {
+    expect(formatOverSpot(1340.22, 2442.43, 4)).toBe('≈ 0.5487');
+  });
+  it('stays silent until the feed answers', () => {
+    expect(formatAtSpot(1, undefined, 2)).toBeUndefined();
+    expect(formatOverSpot(1, 0, 4)).toBeUndefined();
   });
 });

@@ -520,6 +520,15 @@
   color: var(--ink-3);
 }
 
+.figureNote {
+  margin-top: -0.25rem;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: var(--text-mini);
+  color: var(--ink-3);
+}
+
 .legendFigure {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums slashed-zero;

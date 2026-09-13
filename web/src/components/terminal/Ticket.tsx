@@ -29,6 +29,7 @@ import { Loader, NumberInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { Minus, Plus } from 'lucide-react';
 import { formatProtocolFee } from '@/components/curve';
+import { formatOverSpot } from '@/components/charts/format';
 import { dateStringFor, maturityAt, type OfferPair } from '@/components/sell';
 import { TokenAmount, TokenIcon } from '@/components/token';
 import { Reveal, useTweenedBigInt } from '@/lib/motion';
@@ -100,6 +101,10 @@ export function Ticket({
    */
   const quote = useHeldQuote(draft);
   const premiumWad = useTweenedBigInt(quote?.premium);
+  const premiumInRisky =
+    buying && premiumWad !== undefined && riskySymbol
+      ? formatOverSpot(Number(premiumWad) / 1e18, draft.spot, 4)
+      : undefined;
   const cappedWad = useTweenedBigInt(quote?.capped);
   /* A quote the router refused is a figure that is never coming, so it says so instead of shimmering. */
   const quoteRefused =
@@ -417,6 +422,9 @@ export function Ticket({
             )}
           </Reveal>
         </FigureRow>
+        {/* A buy offer's premium is quoted here in USDC but earned in WETH, which is the unit the
+            premium chart and the positions strip count it in. Both units, on both surfaces. */}
+        {premiumInRisky ? <p className={classes.figureNote}>{`${premiumInRisky} ${riskySymbol} at spot`}</p> : null}
 
         <FigureRow
           label={buying ? 'Buys at' : 'Capped at'}

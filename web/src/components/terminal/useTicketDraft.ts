@@ -112,6 +112,8 @@ export interface TicketDraft {
   strikeRefusal?: string;
   /** `(strike - spot) / spot`. Undefined until the feed answers. */
   moneyness?: number;
+  /** Today's price from the feed. Undefined until it answers. */
+  spot?: number;
   /** Unix seconds, 08:00 UTC on the chosen day. */
   maturity?: number;
   /** What expiries count from: the later of the chain's clock and the browser's. */
@@ -361,6 +363,7 @@ export function useTicketDraft({
     belowSpot,
     strikeRefusal: refusal,
     moneyness,
+    spot,
     maturity,
     clockSeconds,
     minDate: minMaturity === undefined ? undefined : dateStringFor(minMaturity),

@@ -28,7 +28,7 @@ import { Axis } from '../Axis';
 import { AreaFill } from '../AreaFill';
 import { CurveLine } from '../CurveLine';
 import { Grid } from '../Grid';
-import { formatChartNumber, formatChartToken } from '../format';
+import { formatAtSpot, formatChartNumber, formatChartToken } from '../format';
 import type { ChartGeometry, ChartPoint } from '../types';
 import { tokenFractionDigits } from '@/components/token';
 import classes from './chart.module.css';
@@ -49,6 +49,8 @@ export interface PremiumViewProps {
   risky: TerminalToken;
   stable: TerminalToken;
   nowSeconds?: number;
+  /** Today's price, for the stable value of a buy offer's WETH premium. */
+  spot?: number;
   state: TerminalState;
   errorMessage?: string;
   refusedMessage?: string;
@@ -72,6 +74,7 @@ export function PremiumView({
   risky,
   stable,
   nowSeconds,
+  spot,
   state,
   errorMessage,
   refusedMessage,
@@ -131,6 +134,11 @@ export function PremiumView({
    * row is the cursor, so it prints the token and the figure and nothing else. The tone and the
    * token's own mark are what tie an entry to its axis, which is what a legend swatch does anyway.
    */
+  const atSpot =
+    buying && shown
+      ? formatAtSpot(valueOf(shown), spot, tokenFractionDigits(stable.symbol))?.replace('≈ ', '')
+      : undefined;
+
   const readout: ReadoutItem[] =
     shown && resolved === 'ready'
       ? [
@@ -148,6 +156,9 @@ export function PremiumView({
             }),
             tone: 'accent',
           },
+          // A buy offer's premium is counted in WETH, and the ticket prices the offer in USDC. The
+          // same figure at today's price is what lets the two be read as one number.
+          ...(atSpot ? [{ label: '≈', value: `${atSpot} ${stable.symbol}`, tone: 'ink-2' as const }] : []),
         ]
       : [];
 
@@ -229,7 +240,9 @@ export function PremiumView({
               </AxisBand>
               <Axis geometry={geometry} scale={yStable} orientation="left" count={4} />
               <AxisName geometry={geometry} side="left" swatch="accent" className={classes.fade}>
-                {compact ? `you get · ${unit.symbol}` : `extra ${who} · ${unit.symbol}`}
+                {compact
+                  ? `you get · ${unit.symbol}`
+                  : `extra ${who} · ${unit.symbol}${buying ? ` (≈ ${stable.symbol} at spot)` : ''}`}
               </AxisName>
               {index !== null && shown ? (
                 <Crosshair
