@@ -69,7 +69,6 @@ export function Ticket({
   id,
   draft,
   pair,
-  nowSeconds,
   address,
   wrongNetwork = false,
   hydrated,
