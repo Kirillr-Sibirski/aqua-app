@@ -317,3 +317,10 @@
   .reveal[data-reveal='in'] .draw { animation: none; }
   .anchor { transition: none; }
 }
+
+/* Tables wider than the column scroll inside their frame; a fade on the right edge says so. */
+.tableWrap {
+  background:
+    linear-gradient(var(--bg), var(--bg)) local right / 28px 100% no-repeat,
+    linear-gradient(to left, color-mix(in oklch, var(--accent) 22%, transparent), transparent) scroll right / 28px 100% no-repeat;
+}

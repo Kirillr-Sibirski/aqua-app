@@ -2101,3 +2101,17 @@
 @media (prefers-reduced-motion: reduce) {
   .placed, .placed * { animation: none !important; }
 }
+
+/* Narrow windows scroll the positions table sideways under its sticky first column: give that column
+   an opaque edge and a little room, so scrolled figures slide cleanly beneath it. */
+@media (max-width: 640px) {
+  .cellStart {
+    padding-right: 0.75rem !important;
+    background-color: var(--bg);
+    box-shadow: 8px 0 12px -8px color-mix(in oklch, var(--bg) 90%, black);
+    background-clip: padding-box;
+  }
+  .row:hover .cellStart {
+    background-color: var(--surface);
+  }
+}
