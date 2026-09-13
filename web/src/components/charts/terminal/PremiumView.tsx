@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * PREMIUM — what a taker has to pay you, growing every day nobody takes it.
+ * PREMIUM — the gap a taker must cross before the offer trades, widening every day in both directions.
  *
  * A leg's reserves sit exactly on its curve the moment it is published. Time then moves the curve
  * away from them, in both directions at once, and a trade only clears once it is big enough to
@@ -105,7 +105,7 @@ export function PremiumView({
   const buying = leg?.side === 'buy';
   const unit = buying ? risky : stable;
   const valueOf = (p: DecayPoint) => (buying ? p.risky : p.stable);
-  const who = buying ? 'a seller gives you' : 'a buyer pays you';
+  const who = buying ? 'gap a seller must cross' : 'gap a buyer must cross';
 
   let resolved: TerminalState = state;
   if (state === 'ready') {
@@ -242,7 +242,7 @@ export function PremiumView({
               <AxisName geometry={geometry} side="left" swatch="accent" className={classes.fade}>
                 {compact
                   ? `you get · ${unit.symbol}`
-                  : `extra ${who} · ${unit.symbol}${buying ? ` (≈ ${stable.symbol} at spot)` : ''}`}
+                  : `${who} · ${unit.symbol}${buying ? ` (≈ ${stable.symbol} at spot)` : ''}`}
               </AxisName>
               {index !== null && shown ? (
                 <Crosshair

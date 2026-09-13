@@ -9,8 +9,8 @@ export const TICKET_NOTES = {
   iv: (risky: string) => `Higher means you expect ${risky} to move more, and it raises the premium.`,
   premium: (side: TicketSide) =>
     side === 'buy'
-      ? 'What sellers pay you in total if they fill the whole offer by expiry.'
-      : 'What buyers pay you in total if they take the whole offer by expiry.',
+      ? 'The option value this offer earns you from sellers over its life.'
+      : 'The option value this offer earns you from buyers over its life.',
   protocolFee: (side: TicketSide) =>
-    side === 'buy' ? 'Paid by the seller on each fill, on top of your premium.' : 'Paid by the buyer on each fill, on top of your premium.',
+    side === 'buy' ? 'Paid by the seller on each fill.' : 'Paid by the buyer on each fill.',
 } as const;

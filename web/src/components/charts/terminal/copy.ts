@@ -16,7 +16,7 @@
  * WHY THESE THREE NAMES. `decay`, `payoff` and `curve` named the mechanism: two of them are terms
  * of art and the third is a shape. What a reader wants to know is which question a view answers.
  *
- *   `premium`  what a buyer has to pay you, and how it grows. This is the income, and "premium" is
+ *   `premium`  the gap a taker must cross, and how it widens with time. This is the income, and "premium" is
  *              simultaneously the plain word for it, the word the ticket already prints beside the
  *              publish button, and the correct options term. It survives both audiences without
  *              translation, which is the test.
@@ -48,11 +48,11 @@ export const VIEW_COPY: Record<TerminalView, ViewCopy> = {
   premium: {
     label: 'premium',
     caption: (_risky, _stable, side) =>
-      side === 'buy' ? 'how much a seller gives you for waiting' : 'how much a buyer pays you for waiting',
-    note: (_risky, _stable, side) =>
+      side === 'buy' ? 'the gap a seller must cross, growing each day' : 'the gap a buyer must cross, growing each day',
+    note: (risky, _stable, side) =>
       side === 'buy'
-        ? 'The extra a seller gives you, growing each day nobody takes the offer.'
-        : 'The extra a buyer pays you, growing each day nobody takes the offer.',
+        ? `How far ${risky} must move before a seller will trade with your offer.`
+        : `How far ${risky} must move before a buyer will trade with your offer.`,
   },
   payoff: {
     label: 'payoff',

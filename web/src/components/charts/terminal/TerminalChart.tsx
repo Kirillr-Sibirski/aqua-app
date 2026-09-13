@@ -3,7 +3,7 @@
 /**
  * The chart, and it is the whole left half of the app.
  *
- * Three views behind one control, all sampled from the chain: what a taker has to pay for the wait,
+ * Three views behind one control, all sampled from the chain: the gap a taker must cross before the offer trades,
  * what the position is worth at expiry against holding, and where the leg's curve is right now.
  * Options justify a real chart; this is one.
  *

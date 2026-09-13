@@ -6,7 +6,7 @@ import classes from './landing.module.css';
 export const metadata: Metadata = {
   title: 'Strikeline · Name your price. Get paid to wait.',
   description:
-    'Sell your ETH at a price you choose. Buyers pay you more every day it waits. Your ETH never leaves your wallet.',
+    'Name a price. When ETH moves, 1inch resolvers trade your offer, and you earn from every swing. Your ETH never leaves your wallet.',
 };
 
 const REPO = 'https://github.com/Kirillr-Sibirski/strikeline';
@@ -54,7 +54,7 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className={classes.sub}>
-              Sell your ETH at a price you choose. Buyers pay you more every day it waits. Your ETH never
+              Name a price. When ETH moves, 1inch resolvers trade your offer, and you earn from every swing. Your ETH never
               leaves your wallet.
             </p>
             <div className={classes.actions}>
@@ -83,8 +83,8 @@ export default function LandingPage() {
               <circle cx="12" cy="12" r="9" />
               <path d="M12 7v10M9 9.5h4.5a2 2 0 0 1 0 4H10a2 2 0 0 0 0 4h5" />
             </svg>
-            <h2>Who pays you</h2>
-            <p>Traders on 1inch Aqua. Buying from you costs more each day nobody does.</p>
+            <h2>Who trades with you</h2>
+            <p>1inch resolvers, only after ETH moves. A gap widens daily, so small wiggles never trade.</p>
           </article>
           <article className={classes.block}>
             <svg viewBox="0 0 24 24" aria-hidden="true" className={classes.glyph}>

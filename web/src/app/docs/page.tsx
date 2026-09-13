@@ -6,7 +6,7 @@ import classes from './docs.module.css';
 
 export const metadata: Metadata = {
   title: 'Docs',
-  description: 'What Strikeline does, who pays you, and how it works — in seven panels.',
+  description: 'What Strikeline does, who trades with you, and how it works — in seven panels.',
 };
 
 const REPO = 'https://github.com/Kirillr-Sibirski/strikeline';
@@ -98,26 +98,25 @@ function WalletArt() {
 }
 
 function PayArt() {
-  const stacks = [1, 2, 3, 5];
+  const gaps = [10, 20, 32, 46];
   return (
-    <svg viewBox="0 0 320 220" role="img" aria-label="Each day on the calendar, a buyer has to bring a taller stack of coins">
-      {stacks.map((h, i) => {
-        const x = 44 + i * 64;
+    <svg viewBox="0 0 320 220" role="img" aria-label="Each day the gap around your quote widens both ways; a resolver trades only when ETH moves past it">
+      <path d="M20 120 H300" className={classes.ln} />
+      {gaps.map((g, i) => {
+        const x = 50 + i * 66;
         return (
           <g key={i}>
-            <rect x={x - 22} y="24" width="48" height="44" rx="6" className={classes.ln} />
-            <path d={`M${x - 22} 36 H${x + 26}`} className={classes.ln} />
-            <text x={x + 2} y="60" textAnchor="middle" className={classes.tiny}>
+            <text x={x} y="30" textAnchor="middle" className={classes.tiny}>
               day {i + 1}
             </text>
-            {Array.from({ length: h }).map((_, j) => (
-              <ellipse key={j} cx={x + 2} cy={188 - j * 12} rx="17" ry="5" className={classes.coin} />
-            ))}
+            <path d={`M${x} ${120 - g} V${120 + g}`} className={classes.ln} markerStart="url(#docs-arrow)" markerEnd="url(#docs-arrow)" />
           </g>
         );
       })}
-      <path d="M36 180 C 110 170, 190 150, 290 96" className={`${classes.ac} ${classes.draw}`} markerEnd="url(#docs-arrow)" />
-      <text x="206" y="92" className={classes.tagSmall}>premium</text>
+      <path d="M20 150 C 80 140, 120 132, 170 118 S 250 40, 300 44" className={`${classes.ac} ${classes.draw}`} />
+      <circle cx="290" cy="46" r="5" className={classes.coin} />
+      <text x="200" y="210" className={classes.tagSmall}>gap widens daily</text>
+      <text x="196" y="36" className={classes.tagSmall}>resolver trades</text>
     </svg>
   );
 }
@@ -234,9 +233,9 @@ export default function DocsPage() {
         </Panel>
         <Connector />
 
-        <Panel n={2} title="Buyers pay for the wait" art={<PayArt />} flip>
-          <p>Traders and bots on Aqua can buy from you. Every day nobody does, buying costs more — that gap is your premium.</p>
-          <p className={classes.note}>No trade, no pay.</p>
+        <Panel n={2} title="Resolvers trade after big moves" art={<PayArt />} flip>
+          <p>1inch resolvers trade your offer only after ETH moves elsewhere by more than a gap that widens daily, both ways.</p>
+          <p className={classes.note}>No trades, no earnings.</p>
         </Panel>
         <Connector flip />
 
@@ -247,7 +246,7 @@ export default function DocsPage() {
         <Connector />
 
         <Panel n={4} title="Where you end up" art={<PayoffArt />} flip>
-          <p>If nobody trades before expiry: below break-even you end up level with holding; above it your gains stop. Break-even = your price + premium per WETH. Trades along the way add to what you earn.</p>
+          <p>If nobody trades before expiry: below break-even you end up level with holding; above it your gains stop. Break-even = your price + premium per WETH. Trades along the way add to that, or subtract if ETH swings more than you priced.</p>
         </Panel>
         <Connector flip />
 

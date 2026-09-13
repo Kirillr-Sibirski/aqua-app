@@ -2,7 +2,7 @@
 
 # Strikeline
 
-**Name a price you'd be happy to sell your ETH at. Whoever takes it pays you for the wait. The ETH
+**Name a price you'd be happy to sell your ETH at. Earn from how ETH moves while you wait. The ETH
 never leaves your wallet.**
 
 Built for ETHGlobal ETHOnline 2026 on **1inch Aqua**.
@@ -17,21 +17,22 @@ relay that blocks admin commands, so anyone can publish and withdraw offers with
 ## The idea
 
 You hold ETH and you'd be happy to sell it at, say, $2,600. Strikeline lets you post that as an offer
-with an expiry date. Until then the ETH stays in your wallet, and you get paid for the wait.
+with an expiry date. Until then the ETH stays in your wallet, and you earn from how ETH moves.
 
-## Who pays you, and why
+## Where your earnings come from
 
-- **Who:** traders and arbitrage bots. Your offer is a quote on 1inch Aqua, so anyone swapping through
-  Aqua can buy WETH from it.
-- **Why they pay more over time:** the quote gets a little more expensive for a buyer every day nobody
-  takes it. That growing gap is your **premium**.
-- **When they trade:** when ETH moves enough that crossing the gap is still worth it, for example ETH
-  rises and a bot buys your WETH to resell it elsewhere.
-- **The catch:** you are paid only when someone trades. If nobody does, you keep your ETH and earn
-  nothing.
+- **Who:** 1inch resolvers. Your offer is a quote on 1inch Aqua, and it never updates itself.
+- **When they trade:** only after ETH has moved elsewhere, when your offer beats other markets by more
+  than a gap. That gap widens every day, in both directions, so small wiggles never trade.
+- **What each trade does:** as ETH rises, a resolver buys a little of your ETH; as it falls, one sells
+  some back to you. Nobody pays more than the market: resolvers only trade when it pays them.
+- **How you earn (your premium):** like selling insurance. You come out ahead of just holding when ETH
+  moves less than the volatility you chose.
+- **The catch:** no trades, no earnings. If ETH swings more than you priced, you can end up behind
+  holding.
 
-**At expiry:** if ETH is below your price, you keep your ETH plus whatever trades paid you. If ETH is
-above it, your ETH is sold at your price and you miss the upside beyond it.
+**At expiry:** if ETH is above your price, the rest sells at exactly your price. If it is below, you
+keep your ETH. Either way you keep what you earned along the way.
 
 *For options traders:* each offer is a covered call written as a pricing curve. The premium arrives as
 a spread that widens with theta, not as an up-front credit. No vault, no option token, no oracle, no

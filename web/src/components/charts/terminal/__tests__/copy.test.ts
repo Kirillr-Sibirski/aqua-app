@@ -81,8 +81,8 @@ describe('view copy', () => {
     expect(VIEW_COPY.price.caption(RISKY, STABLE, 'buy')).toBe('you buy a little at a time as the price falls');
     expect(VIEW_COPY.price.caption(RISKY, STABLE, 'sell')).toBe('you sell a little at a time as the price rises');
     expect(VIEW_COPY.payoff.note(RISKY, STABLE, 'buy')).toMatch(/nobody trades before expiry/);
-    expect(VIEW_COPY.premium.caption(RISKY, STABLE, 'buy')).toBe('how much a seller gives you for waiting');
-    expect(VIEW_COPY.premium.caption(RISKY, STABLE, 'sell')).toBe('how much a buyer pays you for waiting');
+    expect(VIEW_COPY.premium.caption(RISKY, STABLE, 'buy')).toBe('the gap a seller must cross, growing each day');
+    expect(VIEW_COPY.premium.caption(RISKY, STABLE, 'sell')).toBe('the gap a buyer must cross, growing each day');
     for (const view of TERMINAL_VIEWS) {
       const note = VIEW_COPY[view].note(RISKY, STABLE, 'buy');
       expect(sentences(note)).toHaveLength(1);
