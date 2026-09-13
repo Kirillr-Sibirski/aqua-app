@@ -137,9 +137,7 @@ which shipped it to a live Aqua, plus the terms it must decode to:
 | Margined | `true` — the program carries `Coverage` |
 
 The Solidity test and the AssemblyScript here both read **that one file**, so a one-byte disagreement
-between the two decoders fails a test instead of putting a wrong price on screen. (A third,
-TypeScript copy of that check lived in `web/src/components/surface/`, which has since been deleted;
-test 7 below still looks for it.)
+between the two decoders fails a test instead of putting a wrong price on screen.
 
 What the harness does **not** model, stated so nobody reads more into it: graph-node's `store.set`
 copies an entity into Postgres, while the test store keeps the pointer, so a handler that mutated an
@@ -256,7 +254,7 @@ cd subgraph
 npm install
 npm run codegen        # graph codegen
 npm run build          # graph build   -> build/subgraph.yaml
-npm test               # 18 tests, the mappings run in WebAssembly (17 pass; test 7, above)
+npm test               # 17 tests, the mappings run in WebAssembly
 ```
 
 Real output of the two graph commands:

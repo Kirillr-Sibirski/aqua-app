@@ -14,7 +14,7 @@
  *   node --test tests/           (or: npm test)
  */
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -94,17 +94,3 @@ test('declines a payload that is not an abi.encode(Order) at all', () => {
   assert.equal(wasm.run(), NOT_AN_ORDER, 'a payload too short to be an order is refused');
 });
 
-test('the browser decoder is pinned to this same file, not to a copy of it', () => {
-  // A drift guard. Two decoders tested against two transcriptions of the same bytes will agree
-  // right up until someone edits one of them, which is the failure this is here to prevent.
-  const path = join(root, '../web/src/components/surface/__tests__/decode.test.ts');
-  assert.ok(
-    existsSync(path),
-    `${path} is gone. If the browser decoder's test moved, point this guard at it; if the decoder ` +
-      'itself moved, the two are no longer pinned to one vector.',
-  );
-  assert.ok(
-    readFileSync(path, 'utf8').includes('subgraph/tests/golden.json'),
-    'web/src/components/surface/__tests__/decode.test.ts must read tests/golden.json, not inline the vector',
-  );
-});

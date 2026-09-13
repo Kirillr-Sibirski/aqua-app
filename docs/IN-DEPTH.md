@@ -93,7 +93,7 @@ vol, and its size is margined against its wallet rather than merely advertised.
 
 That response is a **transcript from the test harness, not from a deployed index.** `subgraph/tests/` runs the mappings
 themselves — compiled with the exact `asc` arguments `graph build` uses, against an in-memory store
-playing graph-node's host — and writes the answer out. 18 tests: seven pin the decode to one real
+playing graph-node's host — and writes the answer out. 17 tests: six pin the decode to one real
 `abi.encode(Order)` captured from the Foundry suite (K, σ, maturity, L, plus the six inputs it must
 decline rather than guess at), and eleven ship, push, pull, fill and dock a book of four offers from
 three makers and assert the entity graph that comes out.
