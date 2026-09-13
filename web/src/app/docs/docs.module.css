@@ -309,6 +309,38 @@
 }
 .cta:hover { background: var(--accent-hover); }
 
+
+/* ------------------------------------------------------------ technical docs entry */
+.barLinks { display: flex; align-items: center; gap: 0.9rem; }
+.techLink { color: var(--ink-2); text-decoration: none; font-size: var(--text-meta); }
+.techLink:hover { color: var(--accent); }
+.techLink:focus-visible, .deeperLink:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.deeper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  border: 1px dashed var(--accent-dim);
+  border-radius: 16px;
+  background: color-mix(in oklch, var(--accent) 5%, var(--surface));
+  padding: clamp(1.25rem, 3vw, 2rem);
+  margin-top: 2.5rem;
+}
+.deeper h2 { font-size: 1.375rem; font-weight: 600; letter-spacing: -0.015em; margin-top: 0.35rem; }
+.deeper p { color: var(--ink-2); margin-top: 0.4rem; max-width: 52ch; line-height: 1.6; }
+.deeperLink {
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.deeperLink:hover { background: color-mix(in oklch, var(--accent) 14%, transparent); }
+@media (max-width: 520px) { .techLink { display: none; } }
+
 /* ------------------------------------------------------------ responsive + motion */
 
 @media (max-width: 760px) {

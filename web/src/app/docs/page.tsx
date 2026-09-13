@@ -209,9 +209,14 @@ export default function DocsPage() {
           <WordmarkMark size={18} />
           strikeline
         </Link>
-        <Link href="/app" className={classes.back}>
-          Back to app →
-        </Link>
+        <nav className={classes.barLinks} aria-label="Docs">
+          <Link href="/docs/technical" className={classes.techLink}>
+            Technical docs →
+          </Link>
+          <Link href="/app" className={classes.back}>
+            Back to app →
+          </Link>
+        </nav>
       </header>
 
       <main className={classes.body}>
@@ -304,6 +309,19 @@ export default function DocsPage() {
                 <span>Offers can be pulled at any time. The demo runs on a hosted fork of Base.</span>
               </li>
             </ul>
+          </section>
+        </Reveal>
+
+        <Reveal className={classes.panelWrap}>
+          <section className={classes.deeper} aria-labelledby="deeper">
+            <div>
+              <span className={classes.paperKicker}>Want the details?</span>
+              <h2 id="deeper">The technical deep dive</h2>
+              <p>The SwapVM program byte by byte, the RMM-01 maths, Coverage, the protocol fee, gas, tests and how to run it.</p>
+            </div>
+            <Link href="/docs/technical" className={classes.deeperLink}>
+              Read the technical docs →
+            </Link>
           </section>
         </Reveal>
 
