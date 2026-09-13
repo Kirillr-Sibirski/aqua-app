@@ -117,7 +117,7 @@ test-fork:
 # published on Base over a 10.7-day capture through the demo book, on the real router and the real Aqua
 # registry, against holding the same coins and against a constant-product position on identical capital.
 # Prints the table, the volatility sweep and the eight-window sweep, then publishes the numbers the
-# `/receipt` screen renders. Needs no fork and no RPC.
+# README reports. Needs no fork and no RPC.
 
 markout: $(TSX)
 	cd $(ROOT) && $(TSX) scripts/markout/tape.ts --check
@@ -129,7 +129,7 @@ markout: $(TSX)
 web:
 	cd $(ROOT)web && npm run dev
 
-# The five product screens plus /dev, /dev/theme and /dev/diag. Those three are debugging surfaces:
+# The one product screen plus /dev, /dev/theme and /dev/diag. Those three are debugging surfaces:
 # their files are named page.dev.tsx / route.dev.ts and next.config.ts only counts those extensions
 # as routes when DEV_ROUTES=1, so a production build cannot ship them.
 web-dev-routes:

@@ -394,7 +394,7 @@ subgraph/           The Graph. Decodes the shipped bytes in the mapping into Leg
                     Fill / SurfacePoint. schema.graphql, subgraph.yaml, src/*.ts (AssemblyScript).
   tests/            the mappings run in WebAssembly against a Node host: 18 tests, one golden
                     abi.encode(Order) shared with the Solidity and TypeScript decoders.
-web/                Next.js 16 / React 19 / Mantine 9 / wagmi 3, light theme, one card first.
+web/                Next.js 16 / React 19 / Mantine 9 / Tailwind 4 / wagmi 3, dark, one screen.
                     Verified TypeScript SwapVM encoder. No option maths anywhere in it:
                     every curve value and preview number is a router call.
 scripts/fork/       anvil Base fork, bootstrap, oracle mock, time warp, smoke test.
@@ -433,18 +433,15 @@ only exist as routes under `make web-dev-routes`; a production build cannot ship
   away 4,409 times because the spread was wider than its edge. The book still ended
   ahead of holding on that path, but it collected only 31.1% of the time value it had
   written.
-- **`Coverage` reverts rather than partially filling**, which is honest to the maker
-  and a cost to the taker: someone who asks for more than the wallet can deliver
-  gets nothing instead of getting some, and may route elsewhere. A clamped partial
-  fill would need a second `runLoop` in exact-out mode.
 - This is **vol-selling market making, not a written contract**. `dock` is unconditional and instant,
   so a maker can withdraw quotes at any time. A buyer cannot rely on the option the way they can rely
   on a Deribit contract.
 - The position is **short volatility**. It loses when realised vol exceeds the implied vol you chose,
   and the sweep above shows the other edge of that: written *below* realised vol it is beaten by an
   ordinary constant-product pool, by 10.57 (5 bp) and 21.52 (30 bp) on the replayed week.
-- `Coverage` **reverts rather than clamping**. A partial fill would need a second `runLoop` in
-  exact-out mode. The quote refuses instead of lying, and the error carries both numbers.
+- `Coverage` **reverts rather than partially filling**. That is honest to the maker and a cost to the
+  taker: someone who asks for more than the wallet can deliver gets nothing and may route elsewhere.
+  A clamped partial fill would need a second `runLoop` in exact-out mode. The error carries both numbers.
 - The curve uses an **approximated** Φ. That implies a documented minimum trade size rather than an
   unbounded relative error on dust; the epsilon is sized from the measured composite error, not from
   the textbook erf bound.

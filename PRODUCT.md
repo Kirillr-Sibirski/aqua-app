@@ -7,13 +7,14 @@ Design serves the numbers; there is no hero section anywhere in the app.
 
 ## What it is
 
-Strikeline is a vol-selling desk built on 1inch Aqua. A maker writes a ladder of option-shaped
-liquidity legs (covered calls above spot, cash-secured puts below) directly from their own wallet.
-Each leg is a SwapVM program whose pricing curve *is* the option: the RMM-01 replicating market
-maker, whose shape decays with the block clock, so holding it is short an option struck where the
-maker chose, at an implied vol the maker chose.
+Strikeline lets someone holding ETH name a price they would sell at and be paid to wait, without
+the ETH leaving their wallet. Each offer is a covered call written as a SwapVM program whose
+pricing curve *is* the option: the RMM-01 replicating market maker, whose shape decays with the
+block clock, so holding it is short a call struck where the maker chose, at an implied vol the
+maker chose. The app writes covered calls on WETH/USDC. The same instruction is a cash-secured put
+when the reserves start stable-heavy, but the ticket does not offer that side.
 
-One wallet balance backs the whole ladder at once. A custom instruction proves, inside the same
+One wallet balance backs every offer at once. A custom instruction proves, inside the same
 call that prices the trade, that every quote is actually deliverable from the real wallet, so
 over-allocating across legs becomes portfolio margin rather than phantom depth.
 
