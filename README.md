@@ -97,24 +97,29 @@ plain pool beats it, and the price never reached the strike, so assignment is un
 - **You are not paid up front.** The premium is only realised when someone crosses the spread.
 - **It is short volatility.** It loses when the market moves more than the vol you chose.
 - **Offers can be withdrawn at any moment**, so a buyer cannot rely on one like an exchange-listed option.
-- **The app writes covered calls on WETH/USDC.** The instruction is pair-agnostic and becomes a
-  cash-secured put when the reserves start in USDC; the ticket does not offer that side yet.
-
 ## Running it
 
 ```bash
 make install       # once
 make fork          # terminal 1: anvil fork of Base at block 50,946,000, using the real Aqua registry
 make story-setup   # terminal 2: deploy the router, fund the demo wallets, freeze the state
-make story-load    # rewind to the frozen state (about a second)
-make story-1       # four live offers from one wallet
-make web           # http://localhost:3000 (the app is at /app)
+make story-load    # rewind to a clean wallet (10.4 WETH, no offers), about a second
+make web           # http://localhost:3000 (landing), /app (the app), /docs and /docs/technical
 ```
 
-In the app, **Connect wallet → Demo wallet** signs with the same local test account the scenes use. The ✕ on a position withdraws it in one click.
+In the app, **Connect wallet → Demo wallet**, pick Sell or Buy WETH, and publish an offer. Then act
+as a buyer from the terminal:
 
-`make story-0` to `make story-6` are the scripted demo. Each scene makes a real transaction on the fork
-and checks its own claim; the [runbook](scripts/story/README.md) lists them.
+```bash
+make buy ARGS="2600 1"   # buy 1 WETH from your 2,600 offer; prints the receipt, decoded transfers and USDC per WETH
+```
+
+The positions table updates live: REMAINING, FILLED (progress and average price) and DELIVERABLE
+(what the shared wallet can still cover), with an "Offer filled" card. The ✕ withdraws an offer in one
+click and moves no tokens.
+
+Optional: `make story-0` to `make story-6` are scripted scenes that each make a real transaction on
+the fork and check their own claim; the [runbook](scripts/story/README.md) lists them.
 
 ## Further reading
 

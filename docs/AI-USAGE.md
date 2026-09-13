@@ -3,25 +3,25 @@
 ETHOnline 2026 asks every submission to say where and how AI tools were used, and to include the
 prompts and planning artifacts that directed them. This is that disclosure.
 
-## Who did what
+## Who decided what
 
-**The code was mostly written by AI.** Claude Code (Anthropic), running parallel sub-agents, wrote
-the great majority of `contracts/`, `web/` and `scripts/`. No other AI tool was used.
+The project was designed and run by one person, @Kirillr-Sibirski:
 
-**The project was run by one person, @Kirillr-Sibirski, who made the decisions:**
+- **The idea.** Covered calls written as an RMM-01 pricing curve on 1inch Aqua, chosen over the
+  alternatives explored.
+- **The design.** The Coverage check that lets one wallet back many offers (portfolio margin), the
+  protocol fee, the buy side, and what the product should and should not do.
+- **Scope, UX and visual direction.** The one-screen app, the landing and docs pages, the
+  animations, and what to cut.
+- **The demo.** The hosted fork, the demo wallet and the recorded walkthrough.
+- **Verification.** Testing everything end to end, and catching and correcting explanations that
+  were wrong (for example the premium economics and the charts) before submission.
 
-- **The idea and the direction.** Choosing to build on 1inch Aqua, and choosing covered calls
-  written as a pricing curve from the candidates explored, over the alternatives.
-- **Scope and priorities.** What the product is for, who it is for, what ships and what gets cut:
-  for example collapsing the app to one screen, dropping routes and features that did not serve
-  it, and deciding which sponsor prizes the work genuinely fits.
-- **Managing the build.** Breaking the work into stages, directing and re-directing the agents,
-  and setting the bar each stage had to meet before moving on.
-- **Making sure it executed.** Running the app and the demo, reporting what was broken or unclear
-  (for example the charts, which were redesigned on that feedback), and rejecting claims that did
-  not hold up.
-- **What the submission says.** The README, the pitch and the
-  claims in the video were reviewed and approved by him, and several were corrected after checks.
+## How AI was used
+
+Claude Code (Anthropic) was used as a coding assistant, including its sub-agents: much of the
+implementation code (contracts, scripts, frontend), refactors and codebase research was generated
+with it under my direction and review. No other AI tool was used.
 
 ## How the work was directed
 
