@@ -17,6 +17,8 @@ import { useCallback, useState } from 'react';
 import type { Address } from 'viem';
 import {
   dateStringFor,
+  earliestMaturity,
+  expiryClock,
   moneynessOf,
   nextFridayAfter,
   strikeFrom,
@@ -84,6 +86,10 @@ export interface TicketDraft {
   moneyness?: number;
   /** Unix seconds, 08:00 UTC on the chosen day. */
   maturity?: number;
+  /** What expiries count from: the later of the chain's clock and the browser's. */
+  clockSeconds?: number;
+  /** The first day the picker allows, `YYYY-MM-DD`. */
+  minDate?: string;
   /** True while the IV field is showing a measurement rather than the maker's own number. */
   volIsMeasured: boolean;
   /**
@@ -120,6 +126,8 @@ export function useTicketDraft({
   const [strikeDraft, setStrikeDraft] = useState<string>();
   const [dateDraft, setDateDraft] = useState<string | null>();
   const [volDraft, setVolDraft] = useState<string>();
+  /** The browser's clock, read once per mount so the default date cannot move under the maker. */
+  const [wallAnchor] = useState(() => Math.floor(Date.now() / 1000));
 
   /*
    * MAX, and the field it fills, at the precision this token is printed to everywhere else.
@@ -179,7 +187,18 @@ export function useTicketDraft({
   // the read it came from, and no effect that overwrites something typed a frame earlier.
   const amount = amountDraft ?? maxAmount ?? '1';
   const strike = strikeDraft ?? (spot === undefined ? '' : String(strikeFrom(spot, DEFAULT_OVER_SPOT)));
-  const date = dateDraft ?? (nowSeconds === undefined ? null : dateStringFor(nextFridayAfter(nowSeconds)));
+  /* Expiries count from the later of the chain's clock and the browser's, so nobody is offered a day
+     that has gone: on the demo fork the chain runs days behind the calendar. A draft that has fallen
+     behind that floor is pulled up to the first day allowed rather than refused. */
+  const clockSeconds = nowSeconds === undefined ? undefined : expiryClock(nowSeconds, wallAnchor);
+  const minMaturity = clockSeconds === undefined ? undefined : earliestMaturity(clockSeconds);
+  const pickedDate =
+    dateDraft ?? (clockSeconds === undefined ? null : dateStringFor(nextFridayAfter(clockSeconds)));
+  const pickedMaturity = maturityForDateString(pickedDate);
+  const date =
+    pickedMaturity !== undefined && minMaturity !== undefined && pickedMaturity < minMaturity
+      ? dateStringFor(minMaturity)
+      : pickedDate;
   const maturity = maturityForDateString(date);
 
   const volSpanIsEnough = !!realised.vol && realised.vol.spanSeconds >= MIN_VOL_SPAN_SECONDS;
@@ -282,6 +301,8 @@ export function useTicketDraft({
     belowSpot,
     moneyness,
     maturity,
+    clockSeconds,
+    minDate: minMaturity === undefined ? undefined : dateStringFor(minMaturity),
     volIsMeasured: volDraft === undefined && measuredVol !== undefined,
     measuredVol,
     // A measurement shorter than a day is not allowed to set the default, and it is never coming

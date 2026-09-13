@@ -157,17 +157,7 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
             <Labelled>
               Promised
               <Explain term="Promised" position="top-end">
-                <p>
-                  {`What every live offer has promised, over what the one wallet behind them can actually deliver — its ${signature.symbol} balance, or its Aqua allowance where that is smaller.`}
-                </p>
-                <p>
-                  Nothing moved to write them. Each offer is a quote priced against the wallet, and
-                  the on-chain Coverage guard refuses any fill the balance cannot honour.
-                </p>
-                <p>
-                  That is why one wallet can stand behind several offers at once — and why a fill on
-                  any of them shrinks what the rest can deliver, in the same block.
-                </p>
+                <p>All your open offers added up, against what your wallet holds.</p>
               </Explain>
             </Labelled>
             {/* Both halves at the same fixed precision. Trimming trailing zeros independently put
@@ -225,15 +215,7 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
                 <Labelled className={classes.headLabel}>
                   Deliverable
                   <Explain term="Deliverable" position="top-end">
-                    <p>
-                      How much of what this offer advertises the wallet could hand over right now —
-                      the bound the on-chain Coverage guard itself reported when the offer was
-                      probed for the whole of it.
-                    </p>
-                    <p>
-                      Every offer draws on the same balance, so one fill shrinks its siblings in the
-                      same block. 100% is an offer nothing has eaten into yet.
-                    </p>
+                    <p>How much of this offer your wallet can still cover right now.</p>
                   </Explain>
                 </Labelled>
               </th>
@@ -460,7 +442,7 @@ function rowFigures(leg: BookLeg): RowFigures {
 function Columns() {
   return (
     <colgroup>
-      <col style={{ width: '3.5rem' }} />
+      <col style={{ width: '4.5rem' }} />
       <col style={{ width: '22%' }} />
       <col style={{ width: '15%' }} />
       <col style={{ width: '10%' }} />
@@ -531,8 +513,11 @@ function Row({
       <td className={classes.cellStart}>
         <span className={classes.mark}>
           <TokenIcon symbol={delivers.symbol} size={18} dim={withdrawn} />
-          <span className={classes.side} title={leg.kind === 'call' ? 'Covered call' : 'Cash-secured put'}>
-            {leg.kind === 'call' ? 'C' : 'P'}
+          <span
+            className={classes.side}
+            title={leg.kind === 'call' ? `Sells ${leg.risky.symbol} at the strike` : `Buys ${leg.risky.symbol} at the strike`}
+          >
+            {leg.kind === 'call' ? 'sell' : 'buy'}
           </span>
         </span>
       </td>

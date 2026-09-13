@@ -61,6 +61,22 @@ export function maturityAt(blockTimestamp: number, days: number): number {
 }
 
 /**
+ * The clock an expiry is counted from: the later of the chain's and the browser's.
+ *
+ * The demo fork's clock runs days behind the wall clock, and a date still in the future on that
+ * chain is already in the past on the calendar. Counting from the later of the two means nobody is
+ * offered a day that has gone.
+ */
+export function expiryClock(chainSeconds: number, wallSeconds: number): number {
+  return Math.max(chainSeconds, wallSeconds);
+}
+
+/** The earliest maturity the ticket accepts: the first 08:00 UTC at least a day after `clock`. */
+export function earliestMaturity(clock: number): number {
+  return maturityAt(clock + DAY, 0);
+}
+
+/**
  * The card's default date: the next Friday 08:00 UTC that is at least {@link MIN_TENOR_SECONDS}
  * away. Arrive on a Sunday and you get this Friday; arrive on a Thursday evening and you get the
  * one after, because the nearer one would expire inside two days.

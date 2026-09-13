@@ -103,12 +103,6 @@
  * body styles every paragraph as prose. This one is not prose: it is the options term for the plot,
  * set in mono so a reader who already knows it can find it and skip the three sentences under it.
  */
-.noteTerm {
-  font-family: var(--font-mono);
-  font-size: var(--text-micro);
-  letter-spacing: normal;
-  color: var(--ink-3);
-}
 
 /*
  * The caption under the control, on a view change.

@@ -215,8 +215,8 @@ export function Ticket({
         <div className={classes.legend}>
           <span>Expiry</span>
           <span className={classes.legendFigure} title="08:00 UTC, on the chain's clock.">
-            {draft.maturity !== undefined && nowSeconds !== undefined
-              ? formatTenor(draft.maturity - nowSeconds)
+            {draft.maturity !== undefined && draft.clockSeconds !== undefined
+              ? formatTenor(draft.maturity - draft.clockSeconds)
               : '—'}
           </span>
         </div>
@@ -230,8 +230,10 @@ export function Ticket({
               onChange={(next) => draft.setDate(typeof next === 'string' ? next : null)}
               valueFormat="D MMM"
               placeholder="date"
-              minDate={nowSeconds !== undefined ? dateStringFor(nowSeconds + 86_400) : undefined}
-              maxDate={nowSeconds !== undefined ? dateStringFor(nowSeconds + 180 * 86_400) : undefined}
+              minDate={draft.minDate}
+              maxDate={
+                draft.clockSeconds !== undefined ? dateStringFor(draft.clockSeconds + 180 * 86_400) : undefined
+              }
               popoverProps={{ radius: 'md', shadow: 'md' }}
               style={{ width: '100%' }}
             />
@@ -239,7 +241,9 @@ export function Ticket({
           <div className={classes.chips}>
             {TENORS.map((tenor) => {
               const target =
-                nowSeconds === undefined ? undefined : dateStringFor(maturityAt(nowSeconds, tenor.days));
+                draft.clockSeconds === undefined
+                  ? undefined
+                  : dateStringFor(maturityAt(draft.clockSeconds, tenor.days));
               return (
                 <button
                   key={tenor.days}
@@ -271,18 +275,7 @@ export function Ticket({
           <Labelled>
             <span>IV</span>
             <Explain term="Implied volatility" position="top-start">
-              <p>
-                The volatility you are selling, and the one number on this ticket the chain cannot
-                supply.
-              </p>
-              <p>
-                A higher figure widens the spread a taker has to cross, so every day of waiting is
-                worth more — and fewer takers ever cross it.
-              </p>
-              <p>
-                <b>Realised</b> is what this price feed has actually done over the window the chain
-                would serve. Pressing it adopts that measurement.
-              </p>
+              <p>{`How much you expect ${riskySymbol ?? 'the price'} to move. Higher means a bigger premium.`}</p>
             </Explain>
           </Labelled>
           {/* `Realised`, not `Real`. One is the opposite of implied, which is what this figure is;
@@ -369,18 +362,7 @@ export function Ticket({
           unit={draft.offer ? stableSymbol : undefined}
           explain={
             <Explain term="Premium" position="top-start">
-              <p>
-                What a taker pays on top of your strike to be assigned the whole amount. It is the
-                total for this offer, not a rate.
-              </p>
-              <p>
-                It is not credited up front: it accrues inside the spread as the curve decays, and
-                you collect it only if somebody trades.
-              </p>
-              <p>
-                Both terms behind it are router reads — the quote at your date, and the same quote
-                at expiry.
-              </p>
+              <p>What buyers pay you in total if they take the whole offer by expiry.</p>
             </Explain>
           }
         >
@@ -408,13 +390,7 @@ export function Ticket({
           unit={draft.offer ? stableSymbol : undefined}
           explain={
             <Explain term="Capped at" position="top-start">
-              <p>
-                {`What the sale works out at per ${riskySymbol ?? 'unit'}: your strike, plus the premium spread across the amount on offer.`}
-              </p>
-              <p>
-                It is a ceiling, not a target. If the price runs past your strike you sell there and
-                the rest of the move is not yours.
-              </p>
+              <p>{`Above this ${riskySymbol ?? ''} price you'd have done better just holding.`}</p>
             </Explain>
           }
         >

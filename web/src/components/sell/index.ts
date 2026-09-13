@@ -18,6 +18,8 @@ export {
   maturityAt,
   maturityForDateString,
   nextFridayAfter,
+  expiryClock,
+  earliestMaturity,
 } from './expiry';
 export type { ExpiryPreset } from './expiry';
 

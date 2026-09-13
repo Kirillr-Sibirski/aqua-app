@@ -3,7 +3,7 @@
  *
  * LAYOUT.md bans explanatory sentences from the resting screen, and this pass deliberately added
  * the first prose the app has ever carried. The whole defence of that is the container: a caption
- * is one clause and is always visible; a note is two or three sentences and is not on screen until
+ * is one clause and is always visible; a note is one short sentence and is not on screen until
  * somebody asks for it. Those two limits are the difference between progressive disclosure and a
  * paragraph that crept onto a trading terminal, and neither of them is enforced by anything else —
  * a caption that grows a second sentence still compiles, still renders and still looks fine to
@@ -51,23 +51,13 @@ describe('view copy', () => {
     expect(first === first.toLowerCase() || first === first.toUpperCase()).toBe(true);
   });
 
-  it.each(TERMINAL_VIEWS)('%s: the note is two or three sentences, and is prose', (view) => {
+  it.each(TERMINAL_VIEWS)('%s: the note is one short sentence', (view) => {
     const note = VIEW_COPY[view].note(RISKY, STABLE);
 
-    expect(note.length).toBeGreaterThanOrEqual(2);
-    expect(note.length).toBeLessThanOrEqual(3);
-
-    const all = note.flatMap(sentences);
-    expect(all.length).toBeLessThanOrEqual(6);
-    for (const sentence of all) {
-      expect(sentence).toMatch(/^[A-Z]/);
-      expect(sentence).toMatch(/[.!?]$/);
-    }
-  });
-
-  it.each(TERMINAL_VIEWS)('%s: the precise term is there for a reader who knows it', (view) => {
-    expect(VIEW_COPY[view].term.length).toBeGreaterThan(4);
-    expect(VIEW_COPY[view].term.length).toBeLessThanOrEqual(48);
+    expect(sentences(note)).toHaveLength(1);
+    expect(note).toMatch(/^[A-Z]/);
+    expect(note).toMatch(/[.!?]$/);
+    expect(note.split(/\s+/).length).toBeLessThanOrEqual(15);
   });
 
   /**
@@ -76,14 +66,14 @@ describe('view copy', () => {
    */
   it.each(TERMINAL_VIEWS)('%s: no token symbol is hard-coded into the copy', (view) => {
     const copy = VIEW_COPY[view];
-    const rendered = [copy.caption('AAA', 'BBB'), ...copy.note('AAA', 'BBB')].join(' ');
+    const rendered = [copy.caption('AAA', 'BBB'), copy.note('AAA', 'BBB')].join(' ');
     expect(rendered).not.toMatch(/WETH|USDC|ETH\b/);
   });
 
   /** A template hole that was written in a single-quoted string renders as `${risky}` verbatim. */
   it.each(TERMINAL_VIEWS)('%s: every interpolation was actually interpolated', (view) => {
     const copy = VIEW_COPY[view];
-    const rendered = [copy.caption(RISKY, STABLE), ...copy.note(RISKY, STABLE)].join(' ');
+    const rendered = [copy.caption(RISKY, STABLE), copy.note(RISKY, STABLE)].join(' ');
     expect(rendered).not.toContain('${');
   });
 });

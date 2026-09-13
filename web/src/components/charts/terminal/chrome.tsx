@@ -139,8 +139,7 @@ export function Segmented({ value, onChange, panelId, idPrefix }: SegmentedProps
  * skips `components/terminal/index.ts` so the chart does not close a cycle with the screen that
  * renders it.
  *
- * The first line inside is the precise term, in mono. Someone who already trades options reads that
- * line, knows exactly which plot they are looking at, and stops reading.
+ * One plain sentence, and nothing after it.
  */
 export function ViewNote({
   view,
@@ -154,10 +153,7 @@ export function ViewNote({
   const copy = VIEW_COPY[view];
   return (
     <Explain term={copy.label} position="bottom-start">
-      <p className={classes.noteTerm}>{copy.term}</p>
-      {copy.note(risky, stable).map((sentence) => (
-        <p key={sentence.slice(0, 24)}>{sentence}</p>
-      ))}
+      <p>{copy.note(risky, stable)}</p>
     </Explain>
   );
 }
