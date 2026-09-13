@@ -479,6 +479,13 @@ function FilledCell({ leg, symbol, decimals, dim }: { leg: BookLeg; symbol: stri
         </Num>
         <Num tone={filled > ZERO ? undefined : 'dim'}>{formatPercent(share, { fractionDigits: 0 })}</Num>
       </span>
+      {leg.avgPrice !== undefined ? (
+        <span className={classes.filledAvg}>
+          {leg.deliversRisky ? 'avg' : 'avg paid'}{' '}
+          {(Number(leg.avgPrice) / 10 ** leg.stable.decimals).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
+          {leg.stable.symbol}
+        </span>
+      ) : null}
       <span className={classes.filledTrack} aria-hidden="true">
         <span className={classes.filledBar} style={{ width: `${Math.max(0, Math.min(1, share)) * 100}%` }} />
       </span>

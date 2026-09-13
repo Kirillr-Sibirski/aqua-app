@@ -2160,3 +2160,14 @@
   .filledBar { transition: none; }
   .filled[data-flash] { animation: none; }
 }
+
+/* The average price of what has been filled so far, under the FILLED figure. */
+.filledAvg {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

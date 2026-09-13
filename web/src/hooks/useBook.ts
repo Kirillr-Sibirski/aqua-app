@@ -178,6 +178,8 @@ export interface BookLeg {
   /** What the offer held of the token it hands over before its first fill, and how much of it buyers have taken since. */
   offered: bigint;
   filled: bigint;
+  /** Average price of what has been filled so far, in raw stable units per one whole risky token; net of the protocol fee. */
+  avgPrice?: bigint;
 }
 
 export interface BookKpis {
@@ -557,6 +559,18 @@ export function useBook(maker: Address | undefined, options: UseBookOptions = {}
       }
       const offered = firstFill ? (leg.deliversRisky ? firstFill.reserveRiskyBefore : firstFill.reserveStableBefore) : written;
       const filled = offered > written ? offered - written : ZERO;
+      // What came back in the other token since the first fill: the average price the maker traded at.
+      let avgPrice: bigint | undefined;
+      if (firstFill && filled > ZERO) {
+        const oneRisky = BigInt(10) ** BigInt(riskyToken.decimals);
+        if (leg.deliversRisky) {
+          const received = state.reserveStable > firstFill.reserveStableBefore ? state.reserveStable - firstFill.reserveStableBefore : ZERO;
+          avgPrice = received > ZERO ? (received * oneRisky) / filled : undefined;
+        } else {
+          const bought = state.reserveRisky > firstFill.reserveRiskyBefore ? state.reserveRisky - firstFill.reserveRiskyBefore : ZERO;
+          avgPrice = bought > ZERO ? (filled * oneRisky) / bought : undefined;
+        }
+      }
 
       // A taker sweeping this leg pays the other token, so that is the side of the band they cross.
       // Ceiled: this is a minimum, and flooring it publishes an amount one raw unit short of what
@@ -604,6 +618,7 @@ export function useBook(maker: Address | undefined, options: UseBookOptions = {}
         lastFill,
         offered: offered > written ? offered : written,
         filled,
+        avgPrice,
       } satisfies BookLeg;
     });
   }, [staticLegs, legState, tokens, tokenIndex, twoData, two.isLoading, probeReady, blockTimestamp, fillsQuery.byLeg, fillsQuery.fills]);
