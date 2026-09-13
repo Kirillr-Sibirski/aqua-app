@@ -111,13 +111,11 @@ test-fork:
 # A SIMULATION, labelled as one everywhere it appears. Replays every Chainlink ETH/USD round the feed
 # published on Base over a 10.7-day capture through the demo book, on the real router and the real Aqua
 # registry, against holding the same coins and against a constant-product position on identical capital.
-# Prints the table, the volatility sweep and the eight-window sweep, then publishes the numbers the
-# README reports. Needs no fork and no RPC.
+# Prints the table, the volatility sweep and the eight-window sweep. Needs no fork and no RPC.
 
 markout: $(TSX)
 	cd $(ROOT) && $(TSX) scripts/markout/tape.ts --check
 	cd $(ROOT)contracts && forge test --match-path 'test/markout/*' -vv
-	cd $(ROOT) && $(TSX) scripts/markout/publish.ts
 
 # ---------------------------------------------------------------------------- web
 

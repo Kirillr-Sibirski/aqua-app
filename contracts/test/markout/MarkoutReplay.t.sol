@@ -1006,7 +1006,7 @@ contract MarkoutReplayTest is AquaSwapVMTestBase {
         );
     }
 
-    /// @dev The screen at `/receipt` plots exactly these arrays. It renders nothing it did not get here.
+    /// @dev Writes the replay series to test/markout/replay.json, the numbers the README reports.
     function _writeJson(Run memory r) private {
         string memory tape = "markout.tape";
         vm.serializeString(tape, "feed", tapeFeed);
