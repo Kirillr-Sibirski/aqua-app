@@ -16,7 +16,7 @@ this repository.
 
 | Stage | Artifact | What it produced |
 |---|---|---|
-| 1. Research | [`docs/workflows/01-research.js`](workflows/01-research.js) | 14 parallel researchers, a completeness critic and a gap-filling round wrote `docs/research/` (removed from the tree before submission; [kept in history](https://github.com/Kirillr-Sibirski/aqua-app/tree/6912633/docs/research)) — protocol internals read from source, hackathon rules, prior-winner analysis, market evidence, UX benchmarks, fork recipes. |
+| 1. Research | [`docs/workflows/01-research.js`](workflows/01-research.js) | 14 parallel researchers, a completeness critic and a gap-filling round wrote `docs/research/` (removed from the tree before submission; [kept in history](https://github.com/Kirillr-Sibirski/strikeline/tree/6912633/docs/research)) — protocol internals read from source, hackathon rules, prior-winner analysis, market evidence, UX benchmarks, fork recipes. |
 | 2. Design | [`docs/workflows/02-design-workshop.js`](workflows/02-design-workshop.js) | 10 ideators working from distinct lenses proposed 20 product concepts; each was attacked by three adversarial critics (protocol judge / staff engineer / skeptical founder); three judges ranked the survivors; a synthesizer produced the concept brief. |
 | 3. Infrastructure | [`03-prep-harness-encoder.js`](workflows/03-prep-harness-encoder.js), [`04-prep-fork-infra.js`](workflows/04-prep-fork-infra.js) | The Foundry harness, the TypeScript SwapVM encoder with byte-for-byte Solidity cross-checks, the Base-fork demo stack, and the live-liquidity proof. Each ran with an independent verifier that re-executed every claim from scratch. |
 | 4. Build | see commit history | Implementation of the chosen position, its custom SwapVM instructions, tests and UI. |
@@ -32,7 +32,7 @@ of `docs/research/`. That output was not taken on trust:
 - **Every factual claim in the research was re-derived from source.** Protocol behaviour is
   cited to file and line in the vendored `@1inch/aqua` and `@1inch/swap-vm` packages, or
   verified on-chain with `cast` against the live deployments. Contradictions between agents
-  were resolved by a critic pass reading the source ([`completeness-review.md`](https://github.com/Kirillr-Sibirski/aqua-app/tree/6912633/docs/research/completeness-review.md)).
+  were resolved by a critic pass reading the source ([`completeness-review.md`](https://github.com/Kirillr-Sibirski/strikeline/tree/6912633/docs/research/completeness-review.md)).
 - **Every design claim was attacked before it was accepted.** Three independent critics per
   concept, instructed to refute rather than improve. Several concepts were killed by critics
   who read our own contracts and reproduced the numbers; one caught a 10-15x gas error, one

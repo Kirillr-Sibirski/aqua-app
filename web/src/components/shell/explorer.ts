@@ -38,7 +38,7 @@ export function addressUrl(explorer: Explorer, address: string): string {
 }
 
 /** The project's source, linked from the footer and from the commit tag. */
-export const REPO_URL = 'https://github.com/Kirillr-Sibirski/aqua-app';
+export const REPO_URL = 'https://github.com/Kirillr-Sibirski/strikeline';
 
 /**
  * Commit the running bundle was built from. Both keys are referenced literally so Next can inline

@@ -1,211 +1,139 @@
 # Uniswap v4 hook developer feedback
 
-Written while porting an existing production-shaped contract onto v4: an RMM-01 covered-call curve
-(Angeris–Evans–Chitra 2021 §3.3) that already ran as a custom 1inch SwapVM instruction. The port is
-`contracts/src/hooks/StrikelineHook.sol` (12,845 B runtime), a full custom-accounting hook —
-`beforeSwapReturnDelta` consumes the entire swap, concentrated liquidity is refused, and the hook
-keeps its own reserve ledger. Tests are in `contracts/test/hook/`. Versions: `@uniswap/v4-core`
-1.0.2, `@uniswap/v4-periphery` 1.0.3, Foundry `1.0.0-dev` (7461390), solc 0.8.30.
+Strikeline (ETHGlobal ETHOnline 2026) ported an RMM-01 covered-call curve onto v4 as a custom-accounting
+hook: `contracts/src/hooks/StrikelineHook.sol`. `beforeSwap` returns a delta that takes over the whole
+swap, and the hook keeps its own reserves. We compared it with the same curve on 1inch Aqua in
+`contracts/test/hook/VenueExperiment.t.sol`.
 
-Everything below is something that cost time or that I had to derive from source. The ranking at the
-end is what I would actually change.
+Versions: `@uniswap/v4-core` 1.0.2, `@uniswap/v4-periphery` 1.0.3, solc 0.8.30 (exact pin), `via_ir`.
+Paths below are relative to `node_modules/@uniswap/`.
 
 ---
 
-## 1. `PoolManager.sol` is pinned to an exact pragma, and it is the only file that is
+## 1. `PoolManager.sol` is the only exactly-pinned file
 
-Every other file in `v4-core/src` is `^0.8.0`, `^0.8.20` or `^0.8.24`. `PoolManager.sol` alone says
-`pragma solidity 0.8.26;`. Because the pin is exact, **no file on a newer exact pragma can import
-it** — this is a resolver error, not a compiler downgrade:
+**What we hit.** Our project pins solc `0.8.30` exactly. Our test files could not import `PoolManager`
+because Foundry reported incompatible versions.
 
-```
-Error: Found incompatible versions:
-test/hook/Spike.t.sol =0.8.30 imports:
-    node_modules/@uniswap/v4-core/src/PoolManager.sol =0.8.26
-```
+**Evidence.** `v4-core/src/PoolManager.sol:2` is `pragma solidity 0.8.26;`. Every other file in
+`v4-core/src` uses a caret range. The hook itself is fine, since it only imports interfaces and libraries.
 
-Dropping our own `solc_version` pin does not help, because the *importing test file* still declares
-`0.8.30` and also imports our own `0.8.30`-pinned contracts. There is no version that satisfies both
-graphs.
+**Suggestion.** The pin may be deliberate. If so, a short note on how to deploy `PoolManager` in tests
+from a project on a newer exact compiler would help. If not, relaxing it to `^0.8.26` would remove the
+problem.
 
-The hook itself is unaffected — it only needs `IPoolManager` and the libraries, all of which are
-caret ranges. But every hook project has tests, and every hook test needs a real `PoolManager`. The
-constraint therefore hits 100% of integrators while looking like it hits none of them.
+## 2. With `via_ir`, some optimizer settings fail with stack-too-deep
 
-**Fix:** `^0.8.26`. If the exact pin is deliberate (reproducible deployed bytecode), say so in
-`README.md` and ship a `PoolManagerDeployer` shim, because right now everyone writes their own.
+**What we hit.** Our project uses `optimizer_runs = 700`. Compiling v4-core there failed with
+`Yul exception: Variable ... is 1 too deep in the stack`, and the error does not point at optimizer
+settings.
 
-## 2. v4-core does not compile at ordinary optimizer settings
+**Evidence.** With `via_ir`, v4-core 1.0.2 compiled at 200, 10,000, 1,000,000 and 44,444,444 runs, and
+failed at 500, 700 and 1,000. So whether a setting works is hard to predict. `v4-core/foundry.toml`
+uses 44,444,444.
 
-Removing our version pin surfaced the second wall. At `optimizer_runs = 700` with `via_ir = true`:
+**Suggestion.** List the compiler settings that are known to work for integrators who compile v4-core
+from source.
 
-```
-Error: Yul exception: Variable memPtr_1 is 1 too deep in the stack
-  [ memPtr_1 _4 var_self_5349_slot var_amountToProtocol expr var_swapFee _3
-    var_amountCalculated var_params_5352_mpos RET var_amountSpecifiedRemaining ... ]
-```
+## 3. The npm package ships a prebuilt `PoolManager` artifact
 
-That is `Pool.swap`. `v4-core/foundry.toml` builds at `optimizer_runs = 44444444`, so that number is
-effectively part of the source contract — but it appears in neither the docs nor the package README,
-and the failure mode is a Yul internal error with no mention of optimizer settings. An integrator
-whose repo runs at 200 or 700 runs (i.e. anyone optimising for deploy cost, which is the normal
-choice for a contract near EIP-170) will hit this and have no idea why.
+**What we hit.** Deploying from that artifact avoided both §1 and §2. We found it by looking through
+`node_modules`.
 
-**Fix:** one line in the hook docs — "v4-core requires `optimizer_runs` in the millions; scope it
-with `compilation_restrictions` if your own contracts need fewer" — plus the ready-made TOML block.
-That block took me three attempts to get right and is not obvious from Foundry's docs either.
-
-## 3. The escape hatch is undocumented, and it is the best route
-
-Both npm packages ship a full vendored `lib/` (forge-std, openzeppelin-contracts, solmate, permit2)
-**and a prebuilt `out/`**: 42 MB and 77 MB unpacked. `node_modules/@uniswap/v4-core/out/
-PoolManager.sol/PoolManager.json` contains the canonical 24,009-byte runtime, built with Uniswap's
-own settings. Deploying *that* sidesteps §1 and §2 completely:
+**Evidence.** `v4-core/out/PoolManager.sol/PoolManager.json` is 24,009 B runtime, built with solc
+0.8.26 at 44,444,444 runs. Periphery ships `foundry-out/`, not `out/`, and its `lib/` contains `permit2`
+and `v4-core`. Unpacked sizes are about 43 MB (core) and 79 MB (periphery).
 
 ```solidity
-pm = IPoolManager(deployCode(
-    "node_modules/@uniswap/v4-core/out/PoolManager.sol/PoolManager.json", abi.encode(owner)
-));
+pm = IPoolManager(deployCode("node_modules/@uniswap/v4-core/out/PoolManager.sol/PoolManager.json", abi.encode(owner)));
 ```
 
-It is also more faithful than compiling it yourself, since it is the bytecode you would meet on
-mainnet. Nothing in the docs mentions that the artifacts are shipped. This should be the documented
-default for hook test suites.
+**Suggestion.** If this is supported, a line in the hook testing docs would save people time.
 
-## 4. `CurrencySettler` — the load-bearing helper — lives in a test directory
+## 4. Unclear whether to copy `CurrencySettler` or use `DeltaResolver`
 
-The whole custom-accounting pattern routes through `settle`/`take`, and the canonical implementation
-is `v4-core/test/utils/CurrencySettler.sol`. So a production hook imports from another package's
-`test/` folder. It is 30 lines and it is the correct 30 lines; it belongs in `src/libraries/` or in
-periphery next to `BaseHook`.
+**What we hit.** Custom-accounting hooks need a settle/take helper. The one the core examples use is in
+a test directory.
 
-## 5. `BeforeSwapDelta` sign conventions are the hardest part and are documented by example only
+**Evidence.** `v4-core/test/utils/CurrencySettler.sol` is used by `v4-core/src/test/CustomCurveHook.sol`.
+Periphery has `v4-periphery/src/base/DeltaResolver.sol`, which does a similar job.
 
-This is the one thing that genuinely required reading `PoolManager.swap` and `Hooks.beforeSwap`
-side by side. What I eventually needed, and what no page states:
+**Suggestion.** Say which one production hooks should use.
 
-- `amountToSwap = amountSpecified + deltaSpecified`, so a full no-op is
-  `deltaSpecified = -amountSpecified` — in **both** directions and **both** exactness modes.
-- The *specified* currency is the **input** currency on exact-in and the **output** currency on
-  exact-out. It flips. `deltaUnspecified` therefore refers to a different token depending on a flag
-  the hook has to re-derive.
-- Both deltas are signed from the **hook's** perspective: positive is a credit the hook must `take`,
-  negative is a debt the hook must `settle`.
+## 5. The only custom-curve example prices 1:1
 
-Written out, the uniform rule is four lines:
+**What we hit.** The sign conventions are documented in NatSpec: `v4-core/src/interfaces/IHooks.sol:101`
+and `v4-core/src/types/BeforeSwapDelta.sol`. Applying them to a curve where input and output differ took
+us longer than expected.
 
-```solidity
-deltaSpecified   = -amountSpecified;                            // always
-deltaUnspecified = exactIn ? -int256(amountOut) : int256(amountIn);
-inputCurrency.take(poolManager, ..., amountIn, ...);            // always
-outputCurrency.settle(poolManager, ..., amountOut, ...);        // always
-```
+**Evidence.** `v4-core/src/test/CustomCurveHook.sol` handles exact-in and exact-out, and
+`test/CustomAccounting.t.sol:134` tests exact-out. But it uses one `amount` for both sides (lines 43–47).
+That hides which amount belongs to the specified currency and which to the unspecified one, and which
+token each is in each direction.
 
-`CustomCurveHook` demonstrates only the exact-in 1:1 case, which is the case where the two branches
-happen to coincide, so it teaches the reader nothing about the flip. Four lines in the docs would
-have saved a couple of hours.
+**Suggestion.** A worked example with a price other than 1:1, covering exact-in and exact-out.
 
-## 6. A hook cannot pay ERC-20 to a third party inside `beforeSwap`
+## 6. `take` inside `beforeSwap` pays from the PoolManager's current balance
 
-This is the finding with real design consequences, and it is the one I would most like written down.
+**What we hit.** Our hook pays a maker inside `beforeSwap`. We wanted to know whether the tokens it
+takes out have already been paid in by the swapper.
 
-`poolManager.take(currency, recipient, amount)` moves real ERC-20 out of the PoolManager. Inside
-`beforeSwap` the taker has **not settled yet**, so the manager does not hold the taker's input. On
-mainnet the call still succeeds, because the manager holds every other pool's reserves and flash
-accounting nets out by the end of `unlock` — but that means a hook paying an ERC-20 to a wallet is
-silently *borrowing other pools' balances* for the rest of the transaction. It works, it is safe by
-construction, and it reads as extremely alarming. On a fresh deployment it simply reverts.
+**Evidence.** `test_Feedback_TakeSpendsThePoolManagersOwnBalance` in
+`contracts/test/hook/StrikelineHook.t.sol` calls `take` with no matching credit. When the PoolManager
+holds no USDC, the ERC-20 transfer reverts. When the PoolManager holds someone else's USDC, the transfer
+succeeds and the call reverts with `CurrencyNotSettled` only when `unlock` closes. This is how flash
+accounting is meant to work. Whether the swapper has paid by then depends on the router. Periphery's
+`Actions.SETTLE` can pay first, and `v4-core/src/test/PoolSwapTest.sol` settles after `swap` returns
+(lines 59, 103–106).
 
-The safe route is `claims: true`, i.e. mint ERC-6909. That is correct but it changes the product:
-the recipient is paid in claims inside the PoolManager, not in tokens. Spending them costs a second
-transaction *and* a second approval (`setOperator`, because only the owner or an operator may burn).
+**Suggestion.** A short note in the hook docs saying where a `take` inside `beforeSwap` is paid from,
+and which payout pattern (ERC-20 or ERC-6909 claims) is recommended for hooks that pay third parties.
+We chose ERC-6909 claims for our wallet-backed legs.
 
-For any hook whose liquidity source is a wallet rather than the pool, this is the defining
-constraint. In our measurements it is the single clearest thing a v4 hook cannot do that our
-existing venue can: the maker's proceeds arrive as tokens in their wallet in the same call.
+## 7. Where should per-pool hook parameters go?
 
-**Ask:** state it explicitly in the hook docs — "inside `beforeSwap` the swapper has not settled;
-`take` with `claims: false` spends PoolManager's existing balance" — and say which pattern is
-intended.
+**What we hit.** Each option leg has its own strike and expiry, so each needs its own pool. `PoolKey` is
+`(currency0, currency1, fee, tickSpacing, hooks)`. We put the leg terms into the `fee` field so that each
+leg gets a separate pool id, which means `fee` no longer means fee on our pools.
 
-## 7. `PoolKey` has nowhere to put a hook's parameters
+**Evidence.** `IHooks.beforeInitialize(sender, key, sqrtPriceX96)` (`IHooks.sol:21`) gets no `hookData`.
+A hook can still set a pool up atomically by calling `initialize` itself in the same transaction. We did
+not do that. We register legs first-writer-wins, and that is where the front-running risk in our design
+comes from.
 
-`(currency0, currency1, fee, tickSpacing, hooks)`. Our instrument has a strike, an implied vol, an
-expiry and a liquidity constant. A four-leg option ladder on one pair therefore needs four distinct
-pool ids, and the only fields a maker can vary are `fee` and `tickSpacing` — so `fee` becomes a
-nonce and no longer means fee. Any indexer reading `fee` off our pools is wrong.
+**Suggestion.** Guidance or an example showing the intended way to give a pool its own hook parameters.
 
-Compounding it, **`beforeInitialize` receives no `hookData`** — just `(sender, key, sqrtPriceX96)`.
-A hook cannot be configured atomically with the pool it belongs to. You need `initialize` then a
-separate `configure`, and between them anyone can initialise your key. We ended up with a
-`PoolId => Leg` registry and a first-writer-wins rule, which is a squatting surface that exists only
-because of the missing field.
+## 8. `HookMiner` rehashes the creation code for every salt
 
-**Fix:** a `bytes32 salt` (or `extraData`) in `PoolKey`, and `hookData` on `initialize`. The first
-gives parameterised hooks a real identity; the second makes configuration atomic. Between them they
-would remove the ugliest part of this port.
+**What we hit.** Mining a hook address in tests used a lot of gas.
 
-## 8. Address mining is worse than it needs to be
+**Evidence.** `v4-periphery/src/utils/HookMiner.sol:54` computes `keccak256(creationCodeWithArgs)` inside
+`computeAddress`, and `find` calls it for every salt (line 33). The hash is the same on every iteration.
 
-Measured here for three permission bits, each iteration rehashing **13,516 bytes** of creation code:
-**6,748 salts / 21.6M gas** inside `forge test` — and then **21,706 salts / 79.7M gas** after the only
-change in between was `forge fmt`. Reformatting whitespace moves the source-metadata hash, which moves
-the creation code, which moves the salt, which moves the deployed address. A comment edit relocates
-your hook. The cause of the cost is one line in `HookMiner.computeAddress`:
+**Suggestion.** Hash the init code once before the loop. The speedup is small but safe, and this code
+only runs in tests and scripts.
 
-```solidity
-keccak256(abi.encodePacked(bytes1(0xFF), deployer, salt, keccak256(creationCodeWithArgs)))
-```
+## 9. What worked well
 
-`keccak256(creationCodeWithArgs)` is loop-invariant and gets recomputed on every salt. Hoisting it
-into `find` is a one-line change worth roughly two orders of magnitude. (In tests, `deployCodeTo` to
-a hand-picked address with the right low bits is far better, and that *is* what `BaseHook`'s virtual
-`validateHookAddress` is for — but it took reading the source to realise it.)
-
-And because the salt depends on the creation code, a project that mines in CI has a build time that
-is non-deterministic in wall clock — 3.2x between two runs here, from a formatting pass. Setting
-`bytecode_hash = "none"` (which v4-core itself does) removes the metadata sensitivity but not the
-grind.
-
-## 9. Toolchain interaction, for whoever owns the Foundry template
-
-Two-compiler projects are fragile in a way that looks like a v4 problem:
-
-- `vm.getCode("PoolManager.sol:PoolManager")` **never** resolved an artifact produced by a
-  non-default compiler profile, even with the JSON sitting on disk. Only the explicit
-  `out/PoolManager.sol/PoolManager.json` form worked, and that needs an `fs_permissions` entry
-  (error: *"the path ... is not allowed to be accessed for read operations"*).
-- After `forge build --force` the 0.8.26 artifacts exist; after the next incremental `forge test`
-  they are gone and `deployCode` fails with `no matching artifact found`. Reproducible.
-
-Neither is Uniswap's bug, but a v4 hook is the most common reason to end up with two compiler
-versions in one project, so the hook template is where the workaround should live.
-
-## 10. What worked well, stated because it is not obvious from the outside
-
-- **Flash accounting made the wallet-backed variant possible at all.** Being able to price, check a
-  real wallet balance, and settle from that wallet inside one `unlock` is genuinely more than most
-  AMMs allow. The hook that ties our own venue on three of four measured axes exists because of it.
-- **`Pool.swap` returns before the price-limit check when `amountSpecified == 0`.** That is exactly
-  right for no-op hooks — the caller's `sqrtPriceLimitX96` becomes irrelevant rather than a trap.
-  Undocumented, though, so we asserted it in a test rather than trust it.
-- **Permission bits in the address** are a good design: `getHookPermissions` and the address agree by
-  construction, and `BaseHook` validates it in the constructor. The mining cost is the price.
-- **`BaseHook`'s internal `_beforeSwap` / external `beforeSwap` split** with `onlyPoolManager`
-  already applied is the right shape. Nothing to change.
+- **Flash accounting.** Our hook can price a trade, check a maker's wallet balance and settle from that
+  wallet in one `unlock`. The wallet-backed variant depends on this.
+- **Zero-amount swaps skip the price-limit check.** `v4-core/src/libraries/Pool.sol:320` returns before
+  the `sqrtPriceLimitX96` check at line 323. When a hook takes over the whole swap, the caller's limit has
+  no effect. `test_Feedback_ANoOpHookMakesThePriceLimitIrrelevant` swaps with the limit set to the pool's
+  current price and the swap goes through.
+- **Permission bits in the hook address.** The permissions and the address can't disagree, and
+  `BaseHook` checks this in its constructor. `validateHookAddress` is virtual, which makes testing easy.
+- **`BaseHook`'s split** between the external `beforeSwap` (with `onlyPoolManager`) and the internal
+  `_beforeSwap` works well.
 
 ---
 
-## Ranked asks
+## Requests, in order of impact for us
 
-1. **`hookData` on `initialize`, and a `salt`/`extraData` field in `PoolKey`.** Parameterised hooks
-   are a whole category — options, structured products, anything with terms — and today they are
-   forced into a squattable registry with `fee` abused as a nonce.
-2. **Document what a hook may and may not do with currency inside `beforeSwap`** (§6). This changes
-   product design, not just code.
-3. **Relax `PoolManager.sol` to `^0.8.26`** (§1), and document the optimizer requirement (§2).
-   Two lines of source, one paragraph of prose, and the first hour of every port goes away.
-4. **Move `CurrencySettler` into `src`** (§4) and add the four-line `BeforeSwapDelta` rule to the
-   docs, covering exact-out (§5).
-5. **Hoist the codehash out of `HookMiner`'s loop** (§8), and point test authors at `deployCodeTo`
-   before they mine anything.
+1. Document where a `take` inside `beforeSwap` is paid from and which payout pattern is recommended (§6).
+2. Give guidance on per-pool hook parameters and atomic setup (§7).
+3. Document how to use `PoolManager` from projects on another compiler: the pragma pin (§1), known-good
+   optimizer settings (§2), and the shipped artifact (§3).
+4. Add a custom-curve example priced other than 1:1, for exact-in and exact-out (§5), and say whether
+   hooks should use `CurrencySettler` or `DeltaResolver` (§4).
+5. Hash the init code once in `HookMiner.find` (§8).
