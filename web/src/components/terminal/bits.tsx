@@ -113,10 +113,14 @@ export function FigureRow({
   label,
   explain,
   unit,
+  wide = false,
   children,
   className,
 }: {
   label: string;
+  /** A value that is words rather than a number: it takes the figure and unit tracks together and
+      ends on the same right edge as the units above it. */
+  wide?: boolean;
   /**
    * An `<Explain>`, for a figure whose label and unit do not between them say what it is. It rides
    * the label's baseline inside the label track, so the numeric rail is untouched by it.
@@ -139,8 +143,14 @@ export function FigureRow({
           label
         )}
       </span>
-      <span className={classes.figureValue}>{children}</span>
-      <span className={classes.figureUnit}>{unit}</span>
+      {wide ? (
+        <span className={cn(classes.figureValue, classes.figureWide)}>{children}</span>
+      ) : (
+        <>
+          <span className={classes.figureValue}>{children}</span>
+          <span className={classes.figureUnit}>{unit}</span>
+        </>
+      )}
     </div>
   );
 }

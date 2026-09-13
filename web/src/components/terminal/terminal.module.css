@@ -821,7 +821,13 @@
   color: var(--ink);
 }
 
+.figureWide {
+  grid-column: 2 / 4;
+  color: var(--ink-2);
+}
+
 .figureUnit {
+  text-align: right;
   font-family: var(--font-mono);
   font-size: var(--text-body);
   color: var(--ink-3);
@@ -1752,4 +1758,30 @@
 
 .table thead .cellStart {
   background: color-mix(in oklab, var(--surface) 35%, var(--bg));
+}
+
+/* --- the publish sweep ---------------------------------------------------- */
+
+.sweep {
+  position: fixed;
+  left: 0;
+  width: 100vw;
+  height: 2px;
+  margin-top: -1px;
+  pointer-events: none;
+  z-index: 1000;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 35%, var(--accent) 65%, transparent 100%);
+  box-shadow: 0 0 12px 1px color-mix(in oklch, var(--accent) 60%, transparent);
+  transform-origin: right center;
+  animation: sweep 720ms var(--ease-out-quart, cubic-bezier(0.25, 1, 0.5, 1)) forwards;
+}
+
+@keyframes sweep {
+  0% { transform: scaleX(0); opacity: 1; }
+  55% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sweep { display: none; }
 }
