@@ -11,17 +11,26 @@ Built for ETHGlobal ETHOnline 2026 on **1inch Aqua**, with a **Uniswap v4** hook
 
 ## The idea
 
-If you put ETH in a liquidity pool, you have already agreed to sell it at prices you never chose, for
-a fee that mostly goes to arbitrage bots.
+You hold ETH and you'd be happy to sell it at, say, $2,600. Strikeline lets you post that as an offer
+with an expiry date. Until then the ETH stays in your wallet, and you get paid for the wait.
 
-Strikeline lets you say *"I will sell my ETH at $2,800 if it gets there, and be paid to wait."* You pick the
-price, the date and the volatility. Your offer is a quote inside 1inch Aqua, and it costs a taker a
-little more to fill each day nobody takes it. The ETH stays in your wallet until someone does.
+## Who pays you, and why
+
+- **Who:** traders and arbitrage bots. Your offer is a quote on 1inch Aqua, so anyone swapping through
+  Aqua can buy WETH from it.
+- **Why they pay more over time:** the quote gets a little more expensive for a buyer every day nobody
+  takes it. That growing gap is your **premium**.
+- **When they trade:** when ETH moves enough that crossing the gap is still worth it, for example ETH
+  rises and a bot buys your WETH to resell it elsewhere.
+- **The catch:** you are paid only when someone trades. If nobody does, you keep your ETH and earn
+  nothing.
+
+**At expiry:** if ETH is below your price, you keep your ETH plus whatever trades paid you. If ETH is
+above it, your ETH is sold at your price and you miss the upside beyond it.
 
 *For options traders:* each offer is a covered call written as a pricing curve. The premium arrives as
-a spread that widens with theta, not as an up-front credit. There is no vault, no option token, no
-oracle and no keeper. (The app reads a Chainlink ETH/USD feed only to pre-fill the ticket's strike
-and realised vol; nothing in the pricing path reads it.)
+a spread that widens with theta, not as an up-front credit. No vault, no option token, no oracle, no
+keeper.
 
 ## How it works
 
