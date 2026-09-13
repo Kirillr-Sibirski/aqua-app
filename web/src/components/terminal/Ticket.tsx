@@ -87,7 +87,7 @@ export function Ticket({
   const active = publisher.steps.find((s) => s.status === 'signing' || s.status === 'pending');
   const steps = useStepsInView(publisher.steps.length);
   const actionRef = useRef<HTMLButtonElement>(null);
-  const sweep = usePublishSweep();
+  const placed = useOfferPlaced();
 
   /*
    * The two figures, moving.
@@ -501,9 +501,12 @@ export function Ticket({
             onSwitchNetwork?.();
             return;
           }
+          /* The figures are read before the flow starts, so the moment names the offer that was sent
+             and not whatever the ticket re-quotes to after it. */
+          const figures = placedFigures(draft.side, draft.amount, draft.strike, draft.maturity, (buying ? stableSymbol : riskySymbol) ?? '');
           void draft.publish().then((shipped) => {
             if (!shipped) return;
-            sweep.play(actionRef.current);
+            placed.play(figures);
             onPublished?.();
           });
         }}
@@ -537,7 +540,7 @@ export function Ticket({
         </ol>
       ) : null}
 
-      {sweep.node}
+      {placed.node}
 
       {publisher.error ? (
         <p className={classes.error} role="alert">
@@ -554,33 +557,79 @@ export function Ticket({
   );
 }
 
+/** `SELL 10.4000 WETH · AT 2,600 · 18 SEP`, from the draft as it was sent. */
+function placedFigures(
+  side: string | undefined,
+  amount: string,
+  strike: string,
+  maturity: number | undefined,
+  symbol: string,
+): string {
+  const date =
+    maturity !== undefined
+      ? `${new Date(maturity * 1000).getUTCDate()} ${['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][new Date(maturity * 1000).getUTCMonth()]}`
+      : undefined;
+  const price = Number(strike.replace(/,/g, ''));
+  const strikeLabel = Number.isFinite(price) && strike !== '' ? price.toLocaleString('en-US') : strike;
+  const size = side === 'buy' ? `BUY WITH ${amount} ${symbol}` : `SELL ${amount} ${symbol}`;
+  return [size, `AT ${strikeLabel}`, date].filter(Boolean).join(' · ');
+}
+
 /**
- * The moment an offer lands: one thin accent line across the whole viewport, at the height of the
- * button that sent it, and then nothing. A fixed overlay in a portal so no ancestor's transform or
- * overflow can clip it; `pointer-events: none`; and not rendered at all under reduced motion, where
- * the new row's own highlight in the strip is the confirmation.
+ * The moment an offer lands, across the whole screen: the ground dims, the wordmark's rising stroke
+ * draws, its flat cyan stroke — the strike line — launches off the right edge, and "Offer placed"
+ * rises above it with the offer's own figures. About 1.8s, dismissed early by a click or Esc, and a
+ * static toast under reduced motion. Rendered in a portal so nothing in the terminal can clip it.
  */
-function usePublishSweep(): { play: (anchor: HTMLElement | null) => void; node: ReactNode } {
-  const [shot, setShot] = useState<{ key: number; top: number } | null>(null);
+function useOfferPlaced(): { play: (figures: string) => void; node: ReactNode } {
+  const [shot, setShot] = useState<{ key: number; figures: string; still: boolean } | null>(null);
 
   useEffect(() => {
     if (!shot) return;
-    const t = window.setTimeout(() => setShot(null), 900);
-    return () => window.clearTimeout(t);
+    const t = window.setTimeout(() => setShot(null), shot.still ? 1500 : 1850);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShot(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener('keydown', onKey);
+    };
   }, [shot]);
 
-  const play = (anchor: HTMLElement | null) => {
+  const play = (figures: string) => {
     if (typeof window === 'undefined') return;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    const rect = anchor?.getBoundingClientRect();
-    const top = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
-    setShot({ key: Date.now(), top });
+    const still = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    setShot({ key: Date.now(), figures, still });
   };
 
   const node =
     shot && typeof document !== 'undefined'
       ? createPortal(
-          <div key={shot.key} className={classes.sweep} style={{ top: shot.top }} aria-hidden="true" />,
+          <div
+            key={shot.key}
+            className={classes.placed}
+            data-still={shot.still || undefined}
+            role="status"
+            aria-live="polite"
+            onClick={() => setShot(null)}
+          >
+            <svg className={classes.placedArt} viewBox="0 0 1000 400" preserveAspectRatio="xMinYMid meet" aria-hidden="true">
+              <path className={classes.placedRise} d="M120 330 L300 200" pathLength={1} />
+            </svg>
+            <span className={classes.placedLine} aria-hidden="true" />
+            <div className={classes.placedLabel}>
+              <span className={classes.placedCheck} aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 12.5l4 4 8-9" pathLength={1} />
+                </svg>
+              </span>
+              <div>
+                <div className={classes.placedTitle}>Offer placed</div>
+                <div className={classes.placedFigures}>{shot.figures}</div>
+              </div>
+            </div>
+          </div>,
           document.body,
         )
       : null;
