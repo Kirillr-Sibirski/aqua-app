@@ -284,6 +284,20 @@
     -webkit-text-size-adjust: 100%;
   }
 
+  /* Every length in the app is in rem, so on large desks the whole terminal scales as one: 13px
+     table cells and a 380px ticket are right at 1440 and a postage stamp at 2560. */
+  @media (min-width: 110rem) {
+    html {
+      font-size: 112.5%;
+    }
+  }
+
+  @media (min-width: 150rem) {
+    html {
+      font-size: 131.25%;
+    }
+  }
+
   body {
     background-color: var(--bg);
     color: var(--ink);

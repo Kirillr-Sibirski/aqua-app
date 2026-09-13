@@ -489,9 +489,19 @@
     border-bottom: 1px solid var(--line);
   }
 
+  /* Centred rather than left-hung: at tablet widths a 30rem ticket against the left edge left half
+     the screen empty beside it. */
   .ticket {
-    width: auto;
-    max-width: 30rem;
+    width: 100%;
+    max-width: 36rem;
+    margin-inline: auto;
+  }
+}
+
+/* A phone chart needs room for a readable plot under its tab strip, readout and axis names. */
+@media (max-width: 30rem) {
+  .chartPane {
+    min-height: 22rem;
   }
 }
 
