@@ -360,7 +360,7 @@ async function main() {
   const bootstrapBlock = await publicClient.getBlockNumber();
   const manifest: Deployments = {
     chainId: EXPECTED_CHAIN_ID,
-    rpcUrl: RPC_URL,
+    rpcUrl: process.env.MANIFEST_RPC_URL ?? RPC_URL,
     blockNumber: FORK_BLOCK,
     bootstrapBlock: Number(bootstrapBlock),
     forkChainId: 8453,

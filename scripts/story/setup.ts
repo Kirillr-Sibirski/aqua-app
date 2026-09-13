@@ -17,7 +17,7 @@ import { maxUint256, parseEther, type Address, type Hex } from 'viem';
 import { erc20Abi as swapVmErc20Abi } from '../../web/src/lib/swapvm/index.ts';
 import { strikelineViewsAbi } from '../../web/src/components/curve/rmm.ts';
 import { anchorAtStart, loadSeries, Tape } from '../arb/tape.ts';
-import { ADDR, assertFork, erc20Abi, publicClient, rpc, testClient, walletFor, type DemoAccount } from '../fork/lib.ts';
+import { ADDR, IS_TENDERLY, assertFork, erc20Abi, publicClient, rpc, testClient, walletFor, type DemoAccount } from '../fork/lib.ts';
 import { setOraclePrice } from '../fork/oracle.ts';
 import { WALLET_USDC, WALLET_WETH, assertEncoderPinned } from './book.ts';
 import { LIVE, OFFICIAL_ROUTER } from './live.ts';
@@ -160,6 +160,9 @@ async function main(): Promise<void> {
   check(unlimited(await allowance(arb.address, d.router, d.usdc)), 'arb USDC allowance to the router is unlimited');
   check(unlimited(await allowance(taker.address, OFFICIAL_ROUTER, d.weth)), 'taker WETH allowance to the official router is unlimited');
 
+  // Scene 0 fills third-party strategies pinned at the local fork block; a hosted fork serves the app,
+  // not the scripted video, so it skips this and the retake machinery below.
+  if (!IS_TENDERLY) {
   step('scene 0: the gated third-party maker needs a taker who holds the access NFT');
   // The 1inch dApp strategy is gated on `tx.origin` holding a "RES" access token. We do not mint one --
   // we impersonate an address that already holds one on Base, which is what `--auto-impersonate` is for.
@@ -206,6 +209,7 @@ async function main(): Promise<void> {
   await rpc('evm_mine', []);
   const t1 = (await forkNow()).timestamp;
   check(t1 - t0 === 1n, `one block is one second (${t0} -> ${t1}), so the fork clock cannot drift with the wall clock`);
+  }
 
   // ---- the tape, and the feed that reports it ----
   step('price tape');
@@ -246,6 +250,12 @@ async function main(): Promise<void> {
   // `anvil_dumpState` does survive a restart, and is what makes the demo load in a second instead of a
   // two-minute bootstrap -- but it only *merges* what it holds, so it cannot undo a fill against a
   // stranger's wallet. `load.ts` prefers the snapshot and falls back to the dump.
+  if (IS_TENDERLY) {
+    out();
+    out('ready on the hosted fork. `make story-1` ships the four offers; there is no dump or retake here.');
+    out();
+    return;
+  }
   step('freeze');
   mkdirSync(PATHS.dumpDir, { recursive: true });
   const dump = await rpc<Hex>('anvil_dumpState', []);

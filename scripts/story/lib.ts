@@ -23,17 +23,20 @@ import {
   type TransactionReceipt,
 } from 'viem';
 import { aquaAbi, erc20Abi as swapVmErc20Abi, swapVmAbi } from '../../web/src/lib/swapvm/index.ts';
-import { ADDR, erc20Abi, loadDeployments, publicClient, short, type Deployments } from '../fork/lib.ts';
+import { ADDR, IS_TENDERLY, erc20Abi, loadDeployments, publicClient, short, type Deployments } from '../fork/lib.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // scripts/story
 
+/** A hosted fork keeps its own story files, so running it never disturbs the local demo's retakes. */
+const SUFFIX = IS_TENDERLY ? '.tenderly' : '';
+
 export const PATHS = {
   storyDir: HERE,
-  state: resolve(HERE, '.story-state.json'),
-  dumpDir: resolve(HERE, 'state'),
-  dump: resolve(HERE, 'state/demo.json'),
-  snapshot: resolve(HERE, 'state/snapshot.json'),
-  storyStateBackup: resolve(HERE, 'state/story-state.json'),
+  state: resolve(HERE, `.story-state${SUFFIX}.json`),
+  dumpDir: resolve(HERE, `state${SUFFIX}`),
+  dump: resolve(HERE, `state${SUFFIX}/demo.json`),
+  snapshot: resolve(HERE, `state${SUFFIX}/snapshot.json`),
+  storyStateBackup: resolve(HERE, `state${SUFFIX}/story-state.json`),
 } as const;
 
 // ---------------------------------------------------------------------------

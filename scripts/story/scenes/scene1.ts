@@ -18,7 +18,7 @@
 import type { Hex } from 'viem';
 import { aquaAbi } from '../../../web/src/lib/swapvm/index.ts';
 import { explainProgram } from '../../../web/src/components/curve/program.ts';
-import { publicClient, rpc, walletFor } from '../../fork/lib.ts';
+import { IS_TENDERLY, publicClient, rpc, walletFor } from '../../fork/lib.ts';
 import { BOOK, EXPIRY_DAYS, compileBook, encodeStrategy, readReserves } from '../book.ts';
 import type { Ctx } from '../context.ts';
 import {
@@ -149,7 +149,7 @@ export async function run(ctx: Ctx, argv: string[]): Promise<void> {
   check(totals.counts.Shipped === 4, 'Shipped x4');
   check(totals.counts.Pushed === 8, 'Pushed x8 (one per token per leg)');
   check(totals.transferCount === 0, 'ERC-20 Transfer logs: 0 -- shipping moves no tokens');
-  check(blocks.size === 1, 'all four legs landed in the same block');
+  if (!IS_TENDERLY) check(blocks.size === 1, 'all four legs landed in the same block');
   const walletAfter = { weth: await balanceOf(ctx.d.weth, ctx.maker.address), usdc: await balanceOf(ctx.d.usdc, ctx.maker.address) };
   check(
     walletAfter.weth === walletBefore.weth && walletAfter.usdc === walletBefore.usdc,
