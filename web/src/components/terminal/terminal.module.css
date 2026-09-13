@@ -1427,8 +1427,7 @@
   color: var(--neg);
 }
 
-/* Armed: one more click and the strategy hash is dead for good. It is the same treatment hover
-   gives, held, so the second click lands on a target that already looks like what it does. */
+/* The last withdraw of this row failed and it came back: held in the hover treatment until retried. */
 .withdraw[data-armed] {
   background: var(--neg-soft);
   color: var(--neg);
@@ -1940,6 +1939,163 @@
   stroke-dashoffset: 0;
   width: 32px;
   height: 32px;
+}
+
+.placedSub {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 0.95vw, 13px);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
+/* --- the offer-withdrawn moment: the placed story, backwards ----------------- */
+
+.placed[data-kind='withdrawn'] {
+  animation-duration: 1650ms;
+}
+
+/* The rise is already drawn, and un-draws once the line has retracted into it. */
+.placed[data-kind='withdrawn'] .placedRise {
+  stroke-dashoffset: 0;
+  animation: withdrawnUndraw 320ms 1000ms cubic-bezier(0.5, 0, 0.75, 0) forwards, withdrawnGrey 500ms 450ms linear forwards;
+}
+
+@keyframes withdrawnUndraw {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -1; }
+}
+
+@keyframes withdrawnGrey {
+  to { stroke: var(--ink-3); }
+}
+
+/* The strike line comes in from the right edge, then retracts into the corner as it greys. */
+.placed[data-kind='withdrawn'] .placedLine {
+  transform-origin: right center;
+  animation: withdrawnEnter 320ms 80ms cubic-bezier(0.16, 1, 0.3, 1) forwards,
+    withdrawnRetract 520ms 480ms cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+@keyframes withdrawnEnter {
+  from { transform: translateY(-50%) scaleX(0); transform-origin: right center; }
+  to { transform: translateY(-50%) scaleX(1); transform-origin: right center; }
+}
+
+@keyframes withdrawnRetract {
+  0% {
+    transform: translateY(-50%) scaleX(1);
+    transform-origin: left center;
+  }
+  100% {
+    transform: translateY(-50%) scaleX(0);
+    transform-origin: left center;
+    background: var(--ink-3);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.placed[data-kind='withdrawn'] .placedLabel {
+  animation-delay: 420ms;
+}
+
+.placed[data-kind='withdrawn'] .placedCheck {
+  border-color: var(--ink-2);
+  animation: none;
+}
+
+.placed[data-kind='withdrawn'] .placedCheck path {
+  stroke: var(--ink-2);
+  animation-delay: 560ms;
+}
+
+/* --- offer filled: a card in the corner, not the whole screen ----------------- */
+
+.fillStack {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.fillCard {
+  pointer-events: auto;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 260px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 14px 18px 12px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px -12px color-mix(in oklab, var(--bg) 80%, transparent);
+  animation: fillIn 360ms cubic-bezier(0.16, 1, 0.3, 1) both, fillOut 280ms 2720ms ease-in forwards;
+}
+
+@keyframes fillIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fillOut {
+  to { opacity: 0; transform: translateY(6px); }
+}
+
+.fillLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--pos));
+  box-shadow: 0 0 12px color-mix(in oklab, var(--pos) 50%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: placedLaunch2 600ms 120ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes placedLaunch2 {
+  to { transform: scaleX(1); }
+}
+
+.fillTitle {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.fillFigures {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--pos);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .fillStack {
+    right: 16px;
+    left: 16px;
+    top: 16px;
+    bottom: auto;
+    align-items: stretch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fillCard, .fillLine { animation: none !important; }
+  .fillLine { transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -110,8 +110,7 @@ make story-1       # four live offers from one wallet
 make web           # http://localhost:3000 (the app is at /app)
 ```
 
-In the app, **Connect wallet → Demo wallet** signs with the same local test account the scenes use. The ✕ on
-a position arms on the first click and withdraws on the second.
+In the app, **Connect wallet → Demo wallet** signs with the same local test account the scenes use. The ✕ on a position withdraws it in one click.
 
 `make story-0` to `make story-6` are the scripted demo. Each scene makes a real transaction on the fork
 and checks its own claim; the [runbook](scripts/story/README.md) lists them.

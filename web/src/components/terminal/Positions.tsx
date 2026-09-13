@@ -20,6 +20,7 @@
  */
 import { ChevronDown, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import type { Hex } from 'viem';
 import { useDock } from '@/hooks';
 import { sigmaRatio } from '@/hooks/strikeline';
@@ -36,6 +37,8 @@ import { formatPercent, formatTenor, formatUnits } from '@/lib/ui';
 import { backingRatio } from './backing';
 import { Bar, Meter, Num } from './bits';
 import { Explain, Labelled } from './Explain';
+import { detectFills, type DetectedFill, type FillSnapshotLeg } from './fills';
+import { useMoment } from './Moment';
 import classes from './terminal.module.css';
 
 const ZERO = BigInt(0);
@@ -76,11 +79,16 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
   const promised = usePromisedFigures(book.kpis.writtenToken);
   const rows = useRowMotion(book.legs);
   const [showWithdrawn, setShowWithdrawn] = useState(false);
-  const [arming, setArming] = useState<Hex>();
-  const { dock, isRunning } = useDock();
-  const [pending, setPending] = useState<Hex>();
+  const { dock } = useDock();
+  /* Withdrawn on click, not on confirmation: a row leaves the table the instant its ✕ is pressed and
+     stays out while the dock is pending and until a read reports it docked, so a refetch in between
+     cannot flash it back. A failed dock puts it back, marked. */
+  const [hidden, setHidden] = useState<ReadonlySet<Hex>>(() => new Set());
+  const [failed, setFailed] = useState<Hex>();
+  const moment = useMoment();
+  const fills = useFillToasts(book, hidden);
 
-  const live = book.legs.filter((leg) => leg.status !== 'docked');
+  const live = book.legs.filter((leg) => leg.status !== 'docked' && !hidden.has(leg.strategyHash));
   const withdrawn = book.legs.filter((leg) => leg.status === 'docked');
 
   /*
@@ -116,24 +124,29 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
   const signature = book.kpis.writtenToken;
 
   const onWithdraw = async (leg: BookLeg) => {
-    if (arming !== leg.strategyHash) {
-      setArming(leg.strategyHash);
-      return;
-    }
-    setArming(undefined);
-    setPending(leg.strategyHash);
+    const hash = leg.strategyHash;
+    setFailed(undefined);
+    setHidden((prev) => new Set(prev).add(hash));
+    const figures = withdrawnFigures(leg);
     try {
-      await dock({ strategyHash: leg.strategyHash, tokens: leg.strategy.tokens });
+      await dock({ strategyHash: hash, tokens: leg.strategy.tokens });
+      moment.play({ kind: 'withdrawn', figures, sub: '0 tokens moved' });
       book.refetch();
     } catch {
-      // `useTxFlow` holds the reason; the row simply comes back live on the next read.
-    } finally {
-      setPending(undefined);
+      // `useTxFlow` holds the reason; the row comes back, marked, so the maker can try again.
+      setHidden((prev) => {
+        const next = new Set(prev);
+        next.delete(hash);
+        return next;
+      });
+      setFailed(hash);
     }
   };
 
   return (
     <section className={classes.positions} aria-label="Your offers">
+      {moment.node}
+      {fills}
       <div className={classes.positionsHead}>
         <span className={classes.positionsTitle}>Positions</span>
         {signature ? (
@@ -245,8 +258,7 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
                 <Row
                   key={leg.key}
                   leg={leg}
-                  armed={arming === leg.strategyHash}
-                  pending={pending === leg.strategyHash && isRunning}
+                  failed={failed === leg.strategyHash}
                   isNew={arrived.has(leg.strategyHash)}
                   from={rows.from(leg.key)}
                   landing={rows.stage(leg.key)}
@@ -461,8 +473,7 @@ function Columns() {
 function Row({
   leg,
   withdrawn = false,
-  armed = false,
-  pending = false,
+  failed = false,
   isNew = false,
   from,
   landing,
@@ -470,8 +481,8 @@ function Row({
 }: {
   leg: BookLeg;
   withdrawn?: boolean;
-  armed?: boolean;
-  pending?: boolean;
+  /** The last withdraw of this row failed; it is back, marked, for another try. */
+  failed?: boolean;
   /** Landed since this strip was last read: the row that confirms a publish. */
   isNew?: boolean;
   /** What this row printed before the read in flight, so its figures can travel rather than jump. */
@@ -628,18 +639,9 @@ function Row({
           <button
             type="button"
             className={classes.withdraw}
-            disabled={pending}
-            aria-label={armed ? 'Confirm withdraw' : 'Withdraw this offer'}
-            title={
-              armed
-                ? 'Click again. This cannot be undone: the strategy hash is dead for good.'
-                : 'Withdraw'
-            }
-            /* An attribute, not an inline style. Two other places on this screen used to paint a
-               state with `style={{ color: 'var(--neg)' }}`, which means the armed treatment lives
-               somewhere the stylesheet cannot see it and cannot be given a transition, a hover or a
-               focus variant without moving it back. */
-            data-armed={armed || undefined}
+            aria-label="Withdraw this offer"
+            title={failed ? 'Withdrawing failed. Click to try again.' : 'Withdraw'}
+            data-armed={failed || undefined}
             onClick={onWithdraw}
           >
             <X size={14} strokeWidth={2} aria-hidden="true" />
@@ -647,6 +649,122 @@ function Row({
         )}
       </td>
     </tr>
+  );
+}
+
+/** `SELL 9.9251 WETH · AT 3,000 · 13 SEP`, from the row as it was withdrawn. */
+function withdrawnFigures(leg: BookLeg): string {
+  const delivers = leg.deliversRisky ? leg.risky : leg.stable;
+  const size = formatUnits(floorToTokenDigits(leg.depth.written, delivers.decimals, delivers.symbol), delivers.decimals, {
+    minFractionDigits: tokenFractionDigits(delivers.symbol),
+    maxFractionDigits: tokenFractionDigits(delivers.symbol),
+  });
+  const strike = formatUnits(leg.rmm.strikeWad, 18, { significantDigits: 18, maxFractionDigits: 0 });
+  const verb = leg.kind === 'call' ? `SELL ${size} ${delivers.symbol}` : `BUY WITH ${size} ${delivers.symbol}`;
+  return `${verb} · AT ${strike} · ${expiryDate(leg.rmm.maturity).toUpperCase()}`;
+}
+
+function snapshotOf(legs: readonly BookLeg[], hidden: ReadonlySet<Hex>): FillSnapshotLeg[] {
+  return legs
+    .filter((leg) => !hidden.has(leg.strategyHash))
+    .map((leg) => {
+      const earned = rowFigures(leg).earned;
+      return {
+        hash: leg.strategyHash,
+        maker: leg.strategy.maker,
+        live: leg.status !== 'docked',
+        earned: earned?.amount,
+        earnedSymbol: earned?.token.symbol ?? leg.bandToken.symbol,
+        earnedDecimals: earned?.token.decimals ?? leg.bandToken.decimals,
+        reserveRisky: leg.reserveRisky,
+        reserveStable: leg.reserveStable,
+        strikeLabel: leg.strikeLabel,
+        kind: leg.kind,
+      };
+    });
+}
+
+/**
+ * "Offer filled" cards. A taker fills an offer, not the maker, so the only sign of it is the next
+ * read: each settled read of the book is diffed against the previous one, and every offer that earned
+ * more (or whose reserves moved) gets a card in the corner for three seconds. Nothing fires on the
+ * first read or when the wallet changes.
+ */
+function useFillToasts(book: UseBookReturn, hidden: ReadonlySet<Hex>): ReactNode {
+  const previous = useRef<FillSnapshotLeg[] | undefined>(undefined);
+  const [toasts, setToasts] = useState<(DetectedFill & { id: number })[]>([]);
+  const block = book.blockNumber;
+  /* Earnings settle in a read after the reserves do, at the same block; re-diff when they land. */
+  const earnedKey = book.legs.map((l) => `${l.strategyHash}:${rowFigures(l).earned?.amount ?? '-'}`).join('|');
+
+  useEffect(() => {
+    if (book.isLoading || book.legs.length === 0) return;
+    const held = new Map((previous.current ?? []).map((l) => [l.hash, l]));
+    /* A pending earnings read carries the last settled one forward, so the read that settles it
+       still has something to compare against and the card can learn the amount. */
+    const next = snapshotOf(book.legs, hidden).map((l) =>
+      l.earned === undefined && held.get(l.hash)?.earnedSymbol === l.earnedSymbol
+        ? { ...l, earned: held.get(l.hash)?.earned }
+        : l,
+    );
+    const found = detectFills(previous.current, next);
+    previous.current = next;
+    if (found.length === 0) return;
+    const stamp = Date.now();
+    setToasts((prev) => {
+      const out = [...prev];
+      found.forEach((f, i) => {
+        const open = out.findIndex((t) => t.hash === f.hash);
+        if (open >= 0) {
+          /* The same fill seen again once its earnings settled: fill in the amount, no second card. */
+          if (f.delta !== undefined && out[open].delta === undefined) out[open] = { ...out[open], delta: f.delta };
+          return;
+        }
+        out.unshift({ ...f, id: stamp + i });
+      });
+      return out.slice(0, 3);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [block, book.isLoading, earnedKey]);
+
+  useEffect(() => {
+    if (toasts.length === 0) return;
+    const t = window.setTimeout(() => setToasts((prev) => prev.slice(0, -1)), 3000);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setToasts([]);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [toasts]);
+
+  if (toasts.length === 0 || typeof document === 'undefined') return null;
+  return createPortal(
+    <div className={classes.fillStack} role="status" aria-live="polite">
+      {toasts.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          className={classes.fillCard}
+          onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+        >
+          <span className={classes.fillLine} aria-hidden="true" />
+          <span className={classes.fillTitle}>Offer filled</span>
+          <span className={classes.fillFigures}>
+            {t.delta !== undefined
+              ? `+${formatUnits(floorToTokenDigits(t.delta, t.decimals, t.symbol), t.decimals, {
+                  minFractionDigits: tokenFractionDigits(t.symbol),
+                  maxFractionDigits: tokenFractionDigits(t.symbol),
+                })} ${t.symbol} earned · `
+              : ''}
+            {t.strikeLabel} {t.kind === 'call' ? 'sell' : 'buy'} offer
+          </span>
+        </button>
+      ))}
+    </div>,
+    document.body,
   );
 }
 

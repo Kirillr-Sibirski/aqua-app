@@ -23,8 +23,7 @@
  * not see was an input, and it failed the 24px target size on a phone, where there is no hover to
  * reveal it with. It gets the same well the other three have.
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState } from 'react';
 import { Loader, NumberInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { Minus, Plus } from 'lucide-react';
@@ -36,6 +35,7 @@ import { Reveal, useTweenedBigInt } from '@/lib/motion';
 import { explainError, formatTenor } from '@/lib/ui';
 import { Bar, FigureRow } from './bits';
 import { Explain, Labelled } from './Explain';
+import { offerFigures, useMoment } from './Moment';
 import classes from './terminal.module.css';
 import type { TicketDraft } from './useTicketDraft';
 
@@ -87,7 +87,7 @@ export function Ticket({
   const active = publisher.steps.find((s) => s.status === 'signing' || s.status === 'pending');
   const steps = useStepsInView(publisher.steps.length);
   const actionRef = useRef<HTMLButtonElement>(null);
-  const placed = useOfferPlaced();
+  const placed = useMoment();
 
   /*
    * The two figures, moving.
@@ -503,10 +503,10 @@ export function Ticket({
           }
           /* The figures are read before the flow starts, so the moment names the offer that was sent
              and not whatever the ticket re-quotes to after it. */
-          const figures = placedFigures(draft.side, draft.amount, draft.strike, draft.maturity, (buying ? stableSymbol : riskySymbol) ?? '');
+          const figures = offerFigures(draft.side, draft.amount, draft.strike, draft.maturity, (buying ? stableSymbol : riskySymbol) ?? '');
           void draft.publish().then((shipped) => {
             if (!shipped) return;
-            placed.play(figures);
+            placed.play({ kind: 'placed', figures });
             onPublished?.();
           });
         }}
@@ -555,86 +555,6 @@ export function Ticket({
       ) : null}
     </aside>
   );
-}
-
-/** `SELL 10.4000 WETH · AT 2,600 · 18 SEP`, from the draft as it was sent. */
-function placedFigures(
-  side: string | undefined,
-  amount: string,
-  strike: string,
-  maturity: number | undefined,
-  symbol: string,
-): string {
-  const date =
-    maturity !== undefined
-      ? `${new Date(maturity * 1000).getUTCDate()} ${['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][new Date(maturity * 1000).getUTCMonth()]}`
-      : undefined;
-  const price = Number(strike.replace(/,/g, ''));
-  const strikeLabel = Number.isFinite(price) && strike !== '' ? price.toLocaleString('en-US') : strike;
-  const size = side === 'buy' ? `BUY WITH ${amount} ${symbol}` : `SELL ${amount} ${symbol}`;
-  return [size, `AT ${strikeLabel}`, date].filter(Boolean).join(' · ');
-}
-
-/**
- * The moment an offer lands, across the whole screen: the ground dims, the wordmark's rising stroke
- * draws, its flat cyan stroke — the strike line — launches off the right edge, and "Offer placed"
- * rises above it with the offer's own figures. About 1.8s, dismissed early by a click or Esc, and a
- * static toast under reduced motion. Rendered in a portal so nothing in the terminal can clip it.
- */
-function useOfferPlaced(): { play: (figures: string) => void; node: ReactNode } {
-  const [shot, setShot] = useState<{ key: number; figures: string; still: boolean } | null>(null);
-
-  useEffect(() => {
-    if (!shot) return;
-    const t = window.setTimeout(() => setShot(null), shot.still ? 1500 : 1850);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShot(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.clearTimeout(t);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [shot]);
-
-  const play = (figures: string) => {
-    if (typeof window === 'undefined') return;
-    const still = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    setShot({ key: Date.now(), figures, still });
-  };
-
-  const node =
-    shot && typeof document !== 'undefined'
-      ? createPortal(
-          <div
-            key={shot.key}
-            className={classes.placed}
-            data-still={shot.still || undefined}
-            role="status"
-            aria-live="polite"
-            onClick={() => setShot(null)}
-          >
-            <svg className={classes.placedArt} viewBox="0 0 1000 400" preserveAspectRatio="xMinYMid meet" aria-hidden="true">
-              <path className={classes.placedRise} d="M120 330 L300 200" pathLength={1} />
-            </svg>
-            <span className={classes.placedLine} aria-hidden="true" />
-            <div className={classes.placedLabel}>
-              <span className={classes.placedCheck} aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="M6 12.5l4 4 8-9" pathLength={1} />
-                </svg>
-              </span>
-              <div>
-                <div className={classes.placedTitle}>Offer placed</div>
-                <div className={classes.placedFigures}>{shot.figures}</div>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )
-      : null;
-
-  return { play, node };
 }
 
 /**
