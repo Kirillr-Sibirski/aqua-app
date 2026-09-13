@@ -10,11 +10,7 @@
 #   make web             next dev
 #   make web-dev-routes  next dev, with /dev and /dev/diag routed
 #
-#   THE READ LAYER (optional, not deployed — the app reads Aqua logs directly; subgraph/README.md)
-#   make subgraph        graph codegen && graph build — the vol surface, indexed out of Aqua's Shipped bytes
-#   make subgraph-local  point the manifest at the running fork's router first, then codegen + build
-#   make subgraph-node   create + deploy to a graph-node on localhost (needs one running)
-#   make test-surface    the subgraph mappings (node) and SurfaceLens (Foundry)
+#   make test-surface    SurfaceLens, the view contract that prices a whole book in one call
 #
 #   THE DEMO (scripts/story/README.md has the runbook and the timings)
 #   make story-setup     deploy StrikelineRouter, seed the wallets, anchor the price tape, freeze the fork
@@ -37,12 +33,11 @@ TSX_ALIASED := $(TSX) --tsconfig $(SCRIPTS)/tsconfig.json
 ARGS ?=
 
 .PHONY: help install fork fork-state build build-src bootstrap smoke oracle time snapshot test test-unit test-fork test-surface web typecheck \
-        subgraph subgraph-install subgraph-local subgraph-node \
         tape story-bootstrap story-setup story-load story-status story-all story-0 story-1 story-2 story-3 story-4 story-5 story-6 bot \
         markout
 
 help:
-	@sed -n '2,25p' $(ROOT)Makefile | sed 's/^# \{0,1\}//'
+	@sed -n '2,23p' $(ROOT)Makefile | sed 's/^# \{0,1\}//'
 
 # ---------------------------------------------------------------------------- deps
 
@@ -128,34 +123,9 @@ web:
 web-dev-routes:
 	cd $(ROOT)web && DEV_ROUTES=1 npm run dev
 
-# ---------------------------------------------------------------------------- the read layer
-# subgraph/ indexes the OFFICIAL Aqua's Shipped/Docked/Pushed/Pulled plus our router's Swapped, and
-# decodes the strategy bytes in the mapping to recover (maker, pair, K, sigma, maturity, L). The
-# committed manifest targets Base; `subgraph-local` repoints it at whatever bootstrap just deployed.
-
-SUBGRAPH := $(ROOT)subgraph
-GRAPH := $(SUBGRAPH)/node_modules/.bin/graph
-
-$(GRAPH):
-	cd $(SUBGRAPH) && npm install --no-audit --no-fund
-
-subgraph-install: $(GRAPH)
-
-subgraph: $(GRAPH)
-	cd $(SUBGRAPH) && $(GRAPH) codegen && $(GRAPH) build
-
-# Reads web/public/deployments/local.json and writes the router address into BOTH places that must
-# agree — the StrikelineRouter data source and the Aqua source's context.router — plus networks.json.
-subgraph-local: $(GRAPH)
-	cd $(SUBGRAPH) && node scripts/configure.mjs && $(GRAPH) codegen && $(GRAPH) build
-
-# Needs a graph-node + IPFS on localhost (docker compose in subgraph/README.md).
-subgraph-node: $(GRAPH)
-	cd $(SUBGRAPH) && npm run create-local && npm run deploy-local
-
-# The read layer's own tests: the mappings run in WebAssembly and the lens in Foundry. Neither needs a fork.
-test-surface: $(GRAPH)
-	cd $(SUBGRAPH) && npm test
+# ---------------------------------------------------------------------------- the lens
+# SurfaceLens prices a whole book in one eth_call; the app's positions strip reads it.
+test-surface:
 	cd $(ROOT)contracts && forge test --match-path 'test/surface/*' -vv
 
 # ---------------------------------------------------------------------------- the scripted demo

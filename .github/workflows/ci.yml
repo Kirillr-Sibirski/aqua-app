@@ -82,34 +82,6 @@ jobs:
       # and skip; the 276 offline ones (encoder vectors, curve math, decoders, formatting) run.
       - run: npm test
 
-  subgraph:
-    name: subgraph (the graph)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: subgraph
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: subgraph/package-lock.json
-      - run: npm ci --no-audit --no-fund
-
-      # The manifest, the schema and the AssemblyScript all have to survive the same two commands a
-      # deploy runs first.
-      - name: Codegen
-        run: npm run codegen
-      - name: Build
-        run: npm run build
-
-      # 18 tests, and they run the mappings rather than a copy of them: the harness compiles them
-      # with the exact `asc` arguments `graph build` uses and plays graph-node's host from Node, so
-      # the WebAssembly under test is what build/Aqua/Aqua.wasm contains. No fork, no RPC, no
-      # database, no platform binary.
-      - run: npm test
-
   scripts:
     name: scripts (typecheck)
     runs-on: ubuntu-latest
