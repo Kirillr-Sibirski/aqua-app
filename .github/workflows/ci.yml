@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # foundry.toml sets `libs = ["node_modules"]`: @1inch/aqua, @1inch/swap-vm, forge-std, solady,
-      # OpenZeppelin and Uniswap v4 all arrive through npm, so the install has to happen before build.
+      # and OpenZeppelin all arrive through npm, so the install has to happen before build.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -45,7 +45,7 @@ jobs:
       # deliberately over the limit and that overflow is a measurement (src/spikes/README.md §1).
       - run: make sizes
 
-      # 170 offline tests. The 11 fork tests read FORK_RPC_URL, which is deliberately not set, and
+      # 147 offline tests. The 11 fork tests read FORK_RPC_URL, which is deliberately not set, and
       # report as skipped. `make test-fork` is the target that runs them.
       - run: forge test -vv
 

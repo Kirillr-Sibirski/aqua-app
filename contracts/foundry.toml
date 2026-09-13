@@ -16,15 +16,9 @@ evm_version = "cancun"
 # not touch -- and no test reads `block.gaslimit`.
 gas_limit = 40_000_000_000
 block_gas_limit = 40_000_000_000
-# The last entry lets the Uniswap v4 tests deploy the canonical `PoolManager` from the bytecode the
-# npm package ships, instead of compiling it here. v4-core pins `PoolManager.sol` to
-# `pragma solidity 0.8.26;` exactly, which no file on our own `0.8.30` pin can import, and it does not
-# survive our `optimizer_runs = 700` anyway. Reading their artifact keeps this router's build settings
-# untouched and runs the tests against Uniswap's own build.
 fs_permissions = [
     { access = "read-write", path = "./deployments" },
     { access = "read-write", path = "./test/encoding" },
-    { access = "read", path = "./node_modules/@uniswap/v4-core/out" },
     { access = "read-write", path = "./test/markout" },
     { access = "read", path = "../scripts/arb/series" },
 ]

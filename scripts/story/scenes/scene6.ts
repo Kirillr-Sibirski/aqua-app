@@ -8,7 +8,7 @@
  * and the inventory was never anywhere else to begin with.
  *
  * The comparison is the point. A DOV rolls through a withdrawal window and a deposit window, with the
- * capital idle in between and a queue in front of it. A Uniswap v3 re-range is burn, swap, mint -- three
+ * capital idle in between and a queue in front of it. A concentrated-liquidity re-range is burn, swap, mint -- three
  * transactions, real transfers, and it realises the divergence loss on the way through. Here the position
  * changes strike, vol and expiry without a token moving.
  *
@@ -211,7 +211,7 @@ export async function run(ctx: Ctx, argv: string[]): Promise<void> {
 
   step('what that costs anywhere else');
   out('  A DOV rolls through a withdrawal window and a deposit window, with the capital idle in between.');
-  out('  A Uniswap v3 re-range is burn, swap, mint: three transactions, real transfers, and it realises');
+  out('  A concentrated-liquidity re-range is burn, swap, mint: three transactions, real transfers, and it realises');
   out('  the divergence loss on the way through.');
   out();
   out(`  Here: ${totals.transferCount} transfers, one block, ${totals.gas} gas, and the inventory never left the wallet`);

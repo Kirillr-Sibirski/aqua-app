@@ -5,7 +5,7 @@
 **Name a price you'd be happy to sell your ETH at. Whoever takes it pays you for the wait. The ETH
 never leaves your wallet.**
 
-Built for ETHGlobal ETHOnline 2026 on **1inch Aqua**, with a **Uniswap v4** hook port.
+Built for ETHGlobal ETHOnline 2026 on **1inch Aqua**.
 
 ![The Strikeline app: premium chart, ticket and positions](docs/screenshot.png)
 
@@ -57,28 +57,10 @@ the maker's real balance and allowance cannot deliver. Every offer reads the sam
 wallet can back many offers, and **a fill on one offer shrinks what the others can deliver, in the
 same block**.
 
-## Partner technologies
+## Built with
 
-| | Used for | Where |
-|---|---|---|
-| **1inch Aqua + SwapVM** | The product: offers are SwapVM programs on the official Aqua registry, priced by the two instructions above | [`contracts/`](contracts/) |
-| **Uniswap v4** | The same curve as a v4 hook, a controlled comparison against Aqua, and developer feedback backed by tests | [`contracts/src/hooks/`](contracts/src/hooks/), [`FEEDBACK.md`](FEEDBACK.md) |
-
-### Uniswap v4: where to look
-
-The same RMM-01 curve runs as a v4 hook with custom swap accounting:
-
-- Hook and permissions: [`StrikelineHook.sol#L61`](contracts/src/hooks/StrikelineHook.sol#L61), [`#L116`](contracts/src/hooks/StrikelineHook.sol#L116)
-- Opening and closing an offer: [`write` #L134](contracts/src/hooks/StrikelineHook.sol#L134), [`retire` #L157](contracts/src/hooks/StrikelineHook.sol#L157)
-- Pricing the swap: [`_beforeSwap` #L294-L360](contracts/src/hooks/StrikelineHook.sol#L294-L360), [`quoteSwap` #L231](contracts/src/hooks/StrikelineHook.sol#L231)
-- The curve: [`RmmPricer.sol` `price` #L59](contracts/src/hooks/RmmPricer.sol#L59), [`stableFor` #L118](contracts/src/hooks/RmmPricer.sol#L118), [`riskyFor` #L123](contracts/src/hooks/RmmPricer.sol#L123)
-- Same price as the Aqua offer, fuzzed: [`CurveParity.t.sol#L106`](contracts/test/hook/CurveParity.t.sol#L106)
-- v4 pool vs Aqua, same capital: [`VenueExperiment.t.sol#L131`](contracts/test/hook/VenueExperiment.t.sol#L131) (capital), [`#L376`](contracts/test/hook/VenueExperiment.t.sol#L376) (gas)
-- The two test-backed feedback findings: [`StrikelineHook.t.sol#L231`](contracts/test/hook/StrikelineHook.t.sol#L231), [`#L264`](contracts/test/hook/StrikelineHook.t.sol#L264)
-
-```bash
-cd contracts && forge test --match-path 'test/hook/*'
-```
+**1inch Aqua + SwapVM.** Offers are SwapVM programs on the official Aqua registry, priced by the two
+instructions above ([`contracts/`](contracts/)).
 
 ## Evidence
 
@@ -92,7 +74,7 @@ cd contracts && forge test --match-path 'test/hook/*'
 | Quotes match swaps | `testFuzz_QuoteEqualsSwap`, 256 runs |
 | Works with real liquidity | Fork tests fill real WETH/USDC through the official contracts and the unmodified official router |
 
-**170 offline tests pass** (`make test`), plus 11 fork tests. The router is 23,851 bytes, under the
+**147 offline tests pass** (`make test`), plus 11 fork tests. The router is 23,851 bytes, under the
 EIP-170 limit, and a fill costs 211k gas (about a cent on Base).
 
 **Does it pay?** In a replay of a week of real Chainlink ETH/USD prices on Base, a four-offer book beat
@@ -127,8 +109,8 @@ and checks its own claim; the [runbook](scripts/story/README.md) lists them.
 
 ## Further reading
 
-- [`docs/IN-DEPTH.md`](docs/IN-DEPTH.md): the instructions in detail, the Uniswap v4 experiment,
-  the full replay study and prior art
+- [`docs/IN-DEPTH.md`](docs/IN-DEPTH.md): the instructions in detail, the full replay study
+  and prior art
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): which contract holds the tokens and which holds the price
 - [`docs/OPCODES.md`](docs/OPCODES.md): byte layouts and gas
 - [`contracts/`](contracts/README.md), [`web/`](web/README.md), [`scripts/`](scripts/README.md):

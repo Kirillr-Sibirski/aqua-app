@@ -41,8 +41,8 @@ import { Fmt } from "./Fmt.sol";
 ///      an arbitrageur who at every published round moves each leg to the reserve the new spot implies,
 ///      and who declines whenever that trade would not pay for itself at that spot. No uninformed flow is
 ///      modelled, and uninformed flow is what pays a market maker. Nor is taker competition, latency, or a
-///      failed transaction. The constant-product control is Uniswap v2's arithmetic rather than a deployed
-///      pool (`ConstantProduct.sol`); the deployed-pool comparison is `test/hook/VenueExperiment.t.sol`.
+///      failed transaction. The constant-product control is x·y = k arithmetic rather than a deployed
+///      pool (`ConstantProduct.sol`).
 ///
 ///      HOW THE RESULT IS DECOMPOSED, EXACTLY. The maker's mark is `V = W*S + U` for wallet balances `W`
 ///      (ETH) and `U` (USD). Between two steps that is identically

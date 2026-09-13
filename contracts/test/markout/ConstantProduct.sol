@@ -7,12 +7,11 @@ import { WadMath } from "../../src/math/WadMath.sol";
 /// @notice The control the DeFi reader asked to be measured against: an ordinary `x * y = k` position
 ///         with a fee, holding the same capital over the same price path.
 ///
-/// @dev This is Uniswap v2's arithmetic, evaluated here rather than through a deployed pool. Nothing about
+/// @dev This is constant-product (x·y = k) arithmetic, evaluated here rather than through a deployed pool. Nothing about
 ///      the numbers depends on that choice: `getAmountOut` with a fee taken from the input is the whole of
 ///      a v2 pool's pricing, and the reserves are updated exactly as `swap()` updates them (the fee stays
-///      in the pool, so `k` grows). The venue-level comparison that DOES need real pool contracts --
-///      Uniswap v4 with and without a hook -- is `test/hook/VenueExperiment.t.sol`; this file exists to
-///      answer a different question, which is what the same capital would have been worth.
+///      in the pool, so `k` grows). This file answers what the same capital would have been worth
+///      in a constant-product pool.
 ///
 ///      The arbitrageur is the closed-form optimal one, not a search. For a taker paying `dy` of stable
 ///      with fee `g = 1 - feeBps/1e4`:

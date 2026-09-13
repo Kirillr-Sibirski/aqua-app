@@ -1,7 +1,6 @@
 # Strikeline in depth
 
-The long form behind the [README](../README.md): the two instructions, the read layer, the Uniswap v4
-comparison, the replay study, the test evidence, the limits and prior art.
+The long form behind the [README](../README.md): the two instructions, the read layer, the replay study, the test evidence, the limits and prior art.
 
 ## The two custom SwapVM instructions
 
@@ -125,44 +124,6 @@ cd subgraph && npm test                                    # the mapping tests, 
 cd contracts && forge test --match-path 'test/surface/*'   # 20 Foundry tests on the lens
 ```
 
-## The same curve in a pool: a Uniswap v4 hook, and what it costs
-
-[`contracts/src/hooks/StrikelineHook.sol`](../contracts/src/hooks/StrikelineHook.sol) runs the
-identical RMM-01 curve as a Uniswap v4 hook, importing
-[`RmmPricer.sol`](../contracts/src/hooks/RmmPricer.sol) and the same `Gaussian.sol` / `WadMath.sol`
-the Aqua instruction uses. Not a reimplementation: the same code, priced by the same functions.
-
-That makes the comparison a controlled experiment rather than an argument, and we ran it.
-[`test/hook/VenueExperiment.t.sol`](../contracts/test/hook/VenueExperiment.t.sol) stands the same
-four-leg ladder up in three venues — a v4 pool, a v4 hook paying from the wallet, and Aqua — and
-measures four questions. 26 hook tests pass, including a fuzzed parity suite
-([`CurveParity.t.sol`](../contracts/test/hook/CurveParity.t.sol)) asserting the pool and the Aqua leg
-quote the same price in both directions and across the decay.
-
-| | v4 pooled | v4 wallet-backed | Aqua |
-|---|---|---|---|
-| Legs of the 4-leg ladder this wallet can fund | **1** | 4 | **4** |
-| Gas per fill | **167,618** | 173,866 | 186,995 |
-| Standing up 4 legs: on-chain steps / gas | | 8 / 951,363 | **4 / 651,086** |
-| Rolling to next expiry: ERC-20 transfers / gas | 14 / 1,141,329 | 0 / 774,083 | **0 / 662,579** |
-
-**Aqua loses on gas per fill and we are not going to pretend otherwise** — a pool holds its own
-reserves, so it does not pay for a `pull` and a `push`. It wins on the other three, and the first
-row is the whole thesis: the ladder needs **27.51 WETH** of advertised depth against a wallet
-holding **10.4 WETH**. A pool must own what it quotes, so the same capital funds one leg instead of
-four. The v4 hook can be made wallet-backed and then it writes all four, but it still needs a
-CREATE2-mined hook address, eight setup steps instead of four, and a separate pool per leg, because
-`PoolKey` has nowhere to put a strike and an expiry.
-
-[`FEEDBACK.md`](../FEEDBACK.md) is our developer feedback on the v4 stack, written during the port.
-Two of its findings are backed by tests rather than opinion:
-`test_Feedback_ANoOpHookMakesThePriceLimitIrrelevant` and
-`test_Feedback_TakeSpendsThePoolManagersOwnBalance`.
-
-```bash
-make test-hook       # 26 tests: parity, the venue experiment, the two feedback findings
-```
-
 ## Does it pay? One week, replayed, against holding and against a pool
 
 The two readers with capital both asked for the same missing thing, in almost the same words. An
@@ -248,7 +209,7 @@ against a live third-party maker strategy via the unmodified official router.
 
 ```bash
 make install                                                # once, before anything else
-make test                                                   # 170 offline tests
+make test                                                   # 147 offline tests
 FORK_RPC_URL=https://ethereum-rpc.publicnode.com make test-fork   # 11 fork tests, real tokens
 ```
 

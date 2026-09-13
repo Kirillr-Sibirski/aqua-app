@@ -20,7 +20,7 @@ the great majority of `contracts/`, `web/`, `scripts/` and `subgraph/`. No other
 - **Making sure it executed.** Running the app and the demo, reporting what was broken or unclear
   (for example the charts, which were redesigned on that feedback), and rejecting claims that did
   not hold up.
-- **What the submission says.** The README, the pitch, the feedback sent to Uniswap and the
+- **What the submission says.** The README, the pitch and the
   claims in the video were reviewed and approved by him, and several were corrected after checks.
 
 ## How the work was directed
@@ -37,9 +37,9 @@ The workflow scripts are the literal prompts, schemas and orchestration used in 
 ## How AI output was checked
 
 - **Tests are the bar.** Claims in this repository are backed by tests that run: `make test`
-  (170 offline tests), `make test-fork` (against the official Aqua registry on a fork), and
+  (147 offline tests), `make test-fork` (against the official Aqua registry on a fork), and
   `npm test` in `web/`.
 - **Research was checked against source.** Protocol behaviour is cited to the vendored
   `@1inch/aqua` and `@1inch/swap-vm` packages or verified on-chain.
-- **Claims were re-verified before submission.** For example, the Uniswap feedback was audited
-  against the v4 source, and three findings that did not hold up were corrected.
+- **Claims were re-verified before submission.** Documentation and figures were audited against the
+  code, and claims that did not hold up were corrected or removed.

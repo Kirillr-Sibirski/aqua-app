@@ -153,9 +153,7 @@ export default function DocsPage() {
             </li>
           </ul>
           <p>
-            The same curve is also ported to a <strong>Uniswap v4 hook</strong> in{' '}
-            <code>contracts/src/hooks/</code>, with a head-to-head comparison against Aqua. Code, tests
-            and details are on <a href={REPO}>GitHub</a>.
+            Code, tests and details are on <a href={REPO}>GitHub</a>.
           </p>
         </section>
 

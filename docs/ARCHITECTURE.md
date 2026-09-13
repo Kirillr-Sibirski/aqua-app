@@ -146,7 +146,6 @@ the registry relates two makers who wrote the same option. `SurfacePoint` is tha
 contracts/src/StrikelineRouter.sol      the router in the diagram
 contracts/src/instructions/             the two boxes inside it
 contracts/src/SurfaceLens.sol           the lens, deliberately outside it
-contracts/src/hooks/                    the same curve as a Uniswap v4 hook, for the venue comparison
 subgraph/src/                           the mapping that decodes Shipped
 web/src/lib/swapvm/                     the TypeScript encoder, verified against Solidity golden vectors
 web/src/hooks/                          the chain reads the screen runs
