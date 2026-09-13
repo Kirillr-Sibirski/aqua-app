@@ -1,0 +1,314 @@
+/* The landing page is the one light surface: marble ground, blue-black ink, and the app's cyan
+   only as a line. The terminal stays dark. */
+.page {
+  --l-ground: #f2f5f7;
+  --l-ink: #0e1a2b;
+  --l-ink-2: #3f4d5e;
+  --l-ink-3: #5d6a79;
+  --l-line: #d5dde4;
+  --l-cyan: #4ed5d5;
+  --l-teal: #0b6f70;
+
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--l-ground);
+  background-image: radial-gradient(rgb(14 26 43 / 0.09) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+  color: var(--l-ink);
+  font-family: var(--font-sans);
+  padding-inline: clamp(16px, 5vw, 96px);
+  overflow-x: clip;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1440px;
+  width: 100%;
+  margin-inline: auto;
+  padding-block: 24px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  font-size: 17px;
+  letter-spacing: 0.01em;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 2.4vw, 32px);
+  font-size: 15px;
+  color: var(--l-ink-2);
+}
+
+.nav a:hover {
+  color: var(--l-ink);
+}
+
+.navCta {
+  border: 1px solid var(--l-ink);
+  border-radius: 999px;
+  padding: 8px 16px;
+  color: var(--l-ink) !important;
+}
+
+.hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 64px);
+  max-width: 1440px;
+  width: 100%;
+  margin-inline: auto;
+  padding-block: clamp(24px, 6vh, 72px) clamp(40px, 8vh, 96px);
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  animation: rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.kicker,
+.sectionKicker,
+.labels {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--l-ink-3);
+}
+
+.headline {
+  font-family: var(--font-display), Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  font-size: clamp(3.2rem, 7.2vw, 7.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  color: var(--l-ink);
+}
+
+.headline em {
+  font-style: italic;
+}
+
+.sub {
+  max-width: 34rem;
+  font-size: clamp(17px, 1.35vw, 20px);
+  line-height: 1.55;
+  color: var(--l-ink-2);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 26px;
+  border-radius: 999px;
+  background: var(--l-ink);
+  color: #f2f5f7;
+  font-weight: 500;
+  font-size: 16px;
+  box-shadow: 0 10px 30px -12px rgb(14 26 43 / 0.55);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.cta span {
+  color: var(--l-cyan);
+}
+
+.cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 34px -12px rgb(14 26 43 / 0.6);
+}
+
+.textLink {
+  font-size: 16px;
+  color: var(--l-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--l-cyan);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+.art {
+  position: relative;
+  animation: fade 1100ms ease both 120ms;
+}
+
+.temple {
+  display: block;
+  width: 100%;
+  max-width: 820px;
+  height: auto;
+  margin-inline: auto;
+}
+
+.labels {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 12rem;
+  line-height: 1.9;
+}
+
+.sections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(24px, 3vw, 48px);
+  max-width: 1440px;
+  width: 100%;
+  margin-inline: auto;
+  padding-block: 32px 96px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--l-ink);
+  padding-top: 20px;
+}
+
+.section h2 {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(1.9rem, 2.6vw, 2.6rem);
+  line-height: 1.05;
+}
+
+.section p:last-child {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--l-ink-2);
+  max-width: 34rem;
+}
+
+.section a {
+  color: var(--l-teal);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1440px;
+  width: 100%;
+  margin-inline: auto;
+  margin-top: auto;
+  padding-block: 28px;
+  border-top: 1px solid var(--l-line);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--l-ink-3);
+}
+
+.page a:focus-visible {
+  outline: 2px solid var(--l-teal);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copy,
+  .art {
+    animation: none;
+  }
+  .cta {
+    transition: none;
+  }
+}
+
+/* The side labels need room beside the art; below that they sit under the actions. */
+@media (min-width: 1200px) {
+  .hero {
+    padding-right: 13rem;
+  }
+}
+
+@media (max-width: 1199px) {
+  .labels {
+    position: static;
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    width: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+  .art {
+    order: -1;
+    max-width: 480px;
+    width: 100%;
+    margin-inline: auto;
+    margin-bottom: -8%;
+  }
+  .sections {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav a:not(.navCta) {
+    display: none;
+  }
+  .headline {
+    font-size: 3rem;
+  }
+}
+
+@media (min-width: 2200px) {
+  .bar,
+  .hero,
+  .sections,
+  .footer {
+    max-width: 1800px;
+  }
+}

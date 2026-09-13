@@ -6,7 +6,7 @@
  * — `useAquaBalances`, `useQuote`, `useShip` and `useSwap`, which are the taker path and the raw
  * ship behind `/dev`. That page only exists as a route under `DEV_ROUTES=1` and it deep-imports
  * them, which is the right shape for a diagnostics harness: the shipped graph is exactly the
- * shipped code, checkable by walking imports from `app/page.tsx` rather than by trusting a
+ * shipped code, checkable by walking imports from `app/app/page.tsx` rather than by trusting a
  * tree-shake.
  */
 export { useDeployments, DEPLOYMENTS_QUERY_KEY } from './useDeployments';

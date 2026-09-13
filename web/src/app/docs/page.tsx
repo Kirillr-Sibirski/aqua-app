@@ -18,7 +18,7 @@ export default function DocsPage() {
           <WordmarkMark size={18} />
           strikeline
         </Link>
-        <Link href="/" className={classes.back}>
+        <Link href="/app" className={classes.back}>
           Back to app
         </Link>
       </header>

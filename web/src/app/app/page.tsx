@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * The only route.
+ * The terminal, at `/app`. `/` is the landing page.
  *
  * There is no `/offers`, no `/offer/[hash]`, no `/write`, no `/book`, no `/surface` and no
  * `/receipt`: the positions view is the strip at the bottom of this screen, the offer detail is a

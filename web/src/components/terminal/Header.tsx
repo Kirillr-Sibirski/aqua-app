@@ -38,10 +38,10 @@ export function TerminalHeader({ base, quote, spot, window: spotWindow, blockNum
 
   return (
     <header className={classes.bar}>
-      <span className={classes.brand}>
+      <Link href="/" className={classes.brand}>
         <WordmarkMark size={18} />
         <span className={classes.brandText}>strikeline</span>
-      </span>
+      </Link>
 
       <div className={classes.instrument}>
         {/* The marks always; the names only where there is room for them. A pair with no icons is

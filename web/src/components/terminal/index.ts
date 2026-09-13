@@ -1,5 +1,5 @@
 /**
- * The terminal. One screen, and the only thing `app/page.tsx` renders.
+ * The terminal. One screen, and the only thing `app/app/page.tsx` renders.
  *
  * Nothing else in the app imports from here: there is no second route to compose these into, which
  * is the point. The pieces are exported for tests and for the one page.
