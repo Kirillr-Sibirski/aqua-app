@@ -34,9 +34,8 @@ flowchart TB
 
   subgraph read["the read layer"]
     direction TB
-    graphnode["<b>subgraph/</b> · The Graph<br/>Leg · Maker · Fill · SurfacePoint"]
-    web["<b>web/</b> · Next.js<br/>subgraph first, getLogs if it is down"]
-    graphnode --> web
+    web["<b>web/</b> · Next.js<br/>Shipped via getLogs, then<br/>multicalls pinned to one block"]
+    graphnode["<b>subgraph/</b> · not deployed<br/>Leg · Maker · Fill · SurfacePoint"]
   end
 
   wallet -- "approve · ship(app = router)<br/>zero tokens move" --> aqua
@@ -47,7 +46,8 @@ flowchart TB
 
   aqua -. "Shipped · Docked · Pushed · Pulled" .-> graphnode
   router -. "Swapped" .-> graphnode
-  web -- "one eth_call" --> lens
+  aqua -. "Shipped" .-> web
+  web -- "views · rawBalances · probe quote" --> router
   lens -. "rawBalances" .-> aqua
 ```
 
@@ -117,14 +117,13 @@ siblings refuse 6 WETH and still fill 2.7.
 ## The read layer
 
 Because the strategy bytes are public, every option any maker has ever written on this router is
-decodable by anyone holding the log, with no cooperation from the maker. Three implementations
-decode the same 62 argument bytes at the same offsets, and each degrades to the next:
+decodable by anyone holding the log, with no cooperation from the maker.
 
-| | What it is | Fails to |
+| | What it is | Used by the app? |
 |---|---|---|
-| [`SurfaceLens.sol`](../contracts/src/SurfaceLens.sol) | Prices a whole book in one `eth_call`: terms, live reserves, mark, delta, premium, theta band. A separate contract, so it spends none of the router's 725 B of EIP-170 headroom. Every batch entry is `try/catch`-isolated. | its own init code, run inline inside one `eth_call`, when nothing is deployed |
-| [`subgraph/`](../subgraph/README.md) | Indexes Aqua's `Shipped`/`Docked`/`Pushed`/`Pulled` and the router's `Swapped`, decoding the bytes in the AssemblyScript mapping into `Leg`, `Maker`, `Fill`, `SurfacePoint`. | a direct `getLogs` on the same `Shipped` events through viem |
-| [`web/src/components/surface`](../web/src/components/surface/useSurface.ts) | Strike on x, expiry on y, implied vol as the surface. Needs no wallet: it reads a public log. | — |
+| [`web/src/hooks/useBook.ts`](../web/src/hooks/useBook.ts) | Reads the maker's `Shipped` logs with `getLogs`, decodes each program, then runs two multicalls pinned to the watched block: wallet balance and allowance, `StrikelineViews.coverage`, Aqua's `rawBalances`, `tauNow`, `bandFor`, and a probe `quote` whose `NotCovered` revert carries the deliverable depth. | **Yes.** This is the whole read path |
+| [`SurfaceLens.sol`](../contracts/src/SurfaceLens.sol) | Prices a whole book in one `eth_call`: terms, live reserves, mark, delta, premium, theta band. A separate contract, so it spends none of the router's 725 B of EIP-170 headroom. Tested in Foundry. | No, and not deployed by the fork scripts |
+| [`subgraph/`](../subgraph/README.md) | Indexes Aqua's `Shipped`/`Docked`/`Pushed`/`Pulled` and the router's `Swapped`, decoding the bytes in the AssemblyScript mapping into `Leg`, `Maker`, `Fill`, `SurfacePoint`. Tested against the compiled WebAssembly. | No, and not deployed anywhere |
 
 Aqua's events carry **no indexed parameters**, so the app filter lives in the mapping rather than in
 a topic. And Aqua has no order book: a strategy is opaque bytes keyed by its own hash, and nothing in
@@ -150,7 +149,7 @@ contracts/src/SurfaceLens.sol           the lens, deliberately outside it
 contracts/src/hooks/                    the same curve as a Uniswap v4 hook, for the venue comparison
 subgraph/src/                           the mapping that decodes Shipped
 web/src/lib/swapvm/                     the TypeScript encoder, verified against Solidity golden vectors
-web/src/components/surface/             the three-source read path
+web/src/hooks/                          the chain reads the screen runs
 scripts/fork/                           anvil Base fork, bootstrap, oracle mock, time warp
 scripts/story/                          the seven demo scenes
 ```

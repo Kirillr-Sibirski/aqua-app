@@ -45,8 +45,7 @@ The verdict is only as good as the compiler settings it was taken under, which i
 routers are still compiled. If a dependency bump ever makes solady the loser, the table above
 changes on the next `forge build --sizes` instead of quietly becoming a false claim in a doc.
 
-> `docs/research/router-size-budget.md` §12 records **25,884 B** for the PRB router, measured
-> 2026-09-06. The 66 B difference is real and reproducible: adding the one-line `@dev` comment at
+> An earlier measurement (2026-09-06) recorded **25,884 B** for the PRB router. The 66 B difference is real and reproducible: adding the one-line `@dev` comment at
 > the top of `CurveProbeRouterPRB.sol` moves it from 25,884 to 25,950 and removing it moves it back.
 > `via_ir`'s inlining decisions are sensitive to things that are not supposed to affect codegen —
 > the same effect `NOTES.md` §3 warns about for the shipped router. It changes no verdict (PRB

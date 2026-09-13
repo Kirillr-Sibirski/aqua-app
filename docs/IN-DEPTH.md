@@ -41,7 +41,7 @@ keeper, no shared storage, no message passing. Over-allocation becomes portfolio
 It runs *after* the curve on purpose: clamping `balanceOut` beforehand would move the reserve point and
 therefore change the **price**, not just the size — quoting a different option than the maker wrote.
 
-## The read layer: reading a market out of a log, with The Graph
+## The read layer: reading a market out of a log
 
 A market needs a price list. Before you sell anything you want to know what the same thing is
 fetching from everyone else — and here, nobody publishes one. Each offer is a small program its
@@ -56,12 +56,16 @@ Anyone holding the log can recover the terms of every offer any maker has ever m
 cooperation from the maker, no off-chain book and no price feed. The market is already public. It
 has just never been assembled.
 
+**Status:** everything in this section is built and tested, but neither the subgraph nor the lens is
+deployed, and the app does not read from either. The app reads `Shipped` logs directly with
+`getLogs` and prices each leg with multicalls against the router (`web/src/hooks/useBook.ts`).
+
 *If you already trade options:* this is an implied-volatility surface reconstructed from on-chain
-state alone, which does not currently exist anywhere in DeFi. Strike on one axis, expiry on the
+state alone. Strike on one axis, expiry on the
 other, σ read straight out of the program bytes rather than solved for, and a cross-maker best bid
 at each cell.
 
-### `subgraph/` — **The Graph**, which is where the assembling happens ([README](../subgraph/README.md))
+### `subgraph/` — a subgraph that does the assembling ([README](../subgraph/README.md))
 
 A subgraph indexes the official Aqua's `Shipped`, `Docked`, `Pushed` and `Pulled` plus our router's
 `Swapped`, and **decodes the strategy bytes inside the AssemblyScript mapping** — so what lands in
@@ -88,7 +92,7 @@ this is the query it answers:
 Three makers wrote that 2,800 call and one withdrew. The better of the two still standing pays 68%
 vol, and its size is margined against its wallet rather than merely advertised.
 
-That response is a **transcript, not an illustration.** `subgraph/tests/` runs the mappings
+That response is a **transcript from the test harness, not from a deployed index.** `subgraph/tests/` runs the mappings
 themselves — compiled with the exact `asc` arguments `graph build` uses, against an in-memory store
 playing graph-node's host — and writes the answer out. 18 tests: seven pin the decode to one real
 `abi.encode(Order)` captured from the Foundry suite (K, σ, maturity, L, plus the six inputs it must
@@ -112,20 +116,13 @@ This is the read that matters to a solver: one call returns the deliverable dept
 actually honour on every leg at once, which is the number an order book would publish and Aqua does
 not have.
 
-### Three ways to read the same surface, and they cross-check each other
-
-Every offer anyone has made can be reconstructed with nothing connected, because it is all in a
-public log. Three independent paths decode it: the subgraph mappings, the same `Shipped` events
-pulled straight through viem with the same byte offsets, and — when the lens is not deployed —- the
-lens contract's own init code run inside one `eth_call`. If any two of them disagreed about a price,
-one would be wrong; `make test-surface` is what asserts they do not.
-
-The screen that used to render this is deleted. The reads are not: they are the same decoders
-`useBook` runs on the terminal's positions strip, and the tests below exercise the whole path.
+The screen that used to render the surface is deleted. The terminal's positions strip decodes the
+same `Shipped` bytes in TypeScript for the connected maker's own offers.
 
 ```bash
-make subgraph        # graph codegen && graph build
-make test-surface    # 18 mapping tests, 20 Foundry tests on the lens, then the read path on the fork
+make subgraph                                              # graph codegen && graph build
+cd subgraph && npm test                                    # the mapping tests, in WebAssembly
+cd contracts && forge test --match-path 'test/surface/*'   # 20 Foundry tests on the lens
 ```
 
 ## The same curve in a pool: a Uniswap v4 hook, and what it costs
@@ -226,18 +223,15 @@ a week that runs through the strike and keeps going sells the ETH at the strike 
 the move behind, and nothing in this capture measures that.
 
 ```bash
-make markout                                         # tape check, replay, publish the screen's data
-cd contracts && forge test --match-path 'test/markout/*' -vv
+cd contracts && forge test --match-path 'test/markout/*' -vv   # the replay, the vol sweep, the window sweep
 ```
 
-`make markout` writes the three paths, the tape they were replayed against, and the ETH the wallet
-actually held hour by hour. It is a simulation over a captured tape and it is reported here rather
-than in the app: the terminal renders chain reads only, and a replayed study drawn in the same
+It is a simulation over a captured tape and it is reported here rather than in the app: the terminal renders chain reads only, and a replayed study drawn in the same
 chrome as a live quote is the one thing a trading screen must not do.
 
 ## Proven, not asserted
 
-`contracts/test/strikeline/StrikelineBook.t.sol` — 9 tests, all against a live Aqua deployment:
+`contracts/test/strikeline/StrikelineBook.t.sol` — 9 tests, all against a freshly deployed Aqua (the fork suites below use the official one):
 
 | Claim | Test | Measured |
 |---|---|---|
@@ -296,7 +290,7 @@ written for the official router still run here.
 - The curve uses an **approximated** Φ. That implies a documented minimum trade size rather than an
   unbounded relative error on dust; the epsilon is sized from the measured composite error, not from
   the textbook erf bound.
-- `RmmSwap` is a **redeployed, modified** SwapVM router, which the track permits. The Aqua registry is
+- `StrikelineRouter` is a **redeployed, modified** SwapVM router, which the track permits. The Aqua registry is
   never redeployed and never modified.
 
 ## Prior art

@@ -273,7 +273,7 @@ gitignored: `make story-setup` regenerates all three.
 | Scene 0 reverts, or a live strategy hash no longer matches | the fork is not at block 50946000 | those three strategies are pinned by hash at that block; restart with `make fork` |
 | A scene fills at a different tape step | the book was shipped in a different second | `make story-load` and re-run from scene 1 |
 | anvil says `no working Base RPC found` | all three upstreams unreachable | `ANVIL_FORK_URL=https://… make fork` |
-| `npm test` in `web/` intermittently fails one test with `replacement transaction underpriced` (2 runs in 3, measured) | three `*.fork.test.ts` files ship from anvil #1 in parallel vitest workers, so their nonces race. Only possible while a fork is up | `npx vitest run --no-file-parallelism`, which has been green on every run |
+| `npm test` in `web/` intermittently fails one test with `replacement transaction underpriced` (2 runs in 3, measured) | the `*.fork.test.ts` files that ship from anvil #1 run in parallel vitest workers, so their nonces race. Only possible while a fork is up | `npx vitest run --no-file-parallelism`, which has been green on every run |
 
 If a take goes sideways mid-scene, `make story-load` is always safe: it is a full rewind, not a
 compensating transaction.

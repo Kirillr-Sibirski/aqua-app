@@ -73,7 +73,9 @@ then `keccak256` of `out/StrikelineRouter.sol/StrikelineRouter.json` → `deploy
 
 ## A recorded run
 
-Against the local Base fork (anvil, chain id 31337, forking Base 8453 at block 50946000):
+Against the local Base fork (anvil, chain id 31337, forking Base 8453 at block 50946000), on an earlier
+build. Today's router is 23,851 B (margin 725), so the size and both code hashes below will differ on a
+fresh deploy; the method does not:
 
 ```
 StrikelineRouter   0x7bb773006fD109CdFc139c530AdA30bC024D8840

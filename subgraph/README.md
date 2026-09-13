@@ -5,8 +5,11 @@ on chain. The program states in the clear what it sells, at what price and until
 aggregates those programs — so this indexes the chain's own log, decodes each one as it arrives, and
 turns them into something you can ask a question of.
 
-The question is *"who is offering the best terms on a 7-day 2,800 call, across every maker"*, and it
-has no answer anywhere else. Not off-chain, because there is no order book. Not on-chain, because
+**Status:** built and tested locally. It is not deployed to any graph-node or to Subgraph Studio, and
+the Strikeline app does not read from it: the app reads `Shipped` logs directly through viem.
+
+The question is *"who is offering the best terms on a 7-day 2,800 call, across every maker"*, and
+nothing else in this repo answers it. Not off-chain, because there is no order book. Not on-chain, because
 [1inch Aqua](https://github.com/1inch/aqua) keys a strategy by the hash of its own bytes and relates
 nothing to anything: two makers who wrote the same option are two unrelated storage slots. Decoding
 the log is what makes the comparison exist, and **The Graph** is where it lives.
@@ -103,7 +106,7 @@ ok 3 - reads the flags the surface renders: which side is risky, and whether Cov
 ok 4 - an option written without the Coverage wrapper decodes, and says its depth is unmargined
 ok 5 - declines rather than guessing, on every program that is not a leg
 ok 6 - declines a payload that is not an abi.encode(Order) at all
-ok 7 - the browser decoder is pinned to this same file, not to a copy of it
+not ok 7 - the browser decoder is pinned to this same file, not to a copy of it
 ok 8 - a Shipped event becomes an option, with the terms the maker wrote in it
 ok 9 - reserves are walked by Aqua's own Pushed and Pulled, never by the fill
 ok 10 - the fill joins its leg by orderHash, and is counted once
@@ -116,8 +119,8 @@ ok 16 - a strategy that is not an option is skipped, not guessed at
 ok 17 - a maker's counters are the ones a portfolio view would read
 ok 18 - the best-bid query has an answer, and it is the one the README prints
 # tests 18
-# pass 18
-# fail 0
+# pass 17
+# fail 1
 ```
 
 **The fixture is a real leg.** `tests/golden.json` holds one `abi.encode(ISwapVM.Order)` captured
@@ -133,11 +136,10 @@ which shipped it to a live Aqua, plus the terms it must decode to:
 | Rates | 1 and 10¹² (an 18/6-decimal pair priced in one space) |
 | Margined | `true` — the program carries `Coverage` |
 
-Three decoders read **that one file**: Solidity (Foundry), AssemblyScript (here) and TypeScript
-(`web/src/components/surface/__tests__/decode.test.ts`, which reads `tests/golden.json` rather than a
-transcription of it, and checks that `keccak256` of those bytes is the id this test ships them
-under). A one-byte disagreement between them would put a wrong price on a screen with no error
-anywhere, which is why the vector is one file and not three copies.
+The Solidity test and the AssemblyScript here both read **that one file**, so a one-byte disagreement
+between the two decoders fails a test instead of putting a wrong price on screen. (A third,
+TypeScript copy of that check lived in `web/src/components/surface/`, which has since been deleted;
+test 7 below still looks for it.)
 
 What the harness does **not** model, stated so nobody reads more into it: graph-node's `store.set`
 copies an entity into Postgres, while the test store keeps the pointer, so a handler that mutated an
@@ -227,7 +229,7 @@ implying a choice.
 
 The GraphQL server shapes this response. Every number in it was computed by the mapping.
 
-One offer, with the bytes it was decoded from — the query the offer page runs:
+One offer, with the bytes it was decoded from:
 
 ```graphql
 {
@@ -254,7 +256,7 @@ cd subgraph
 npm install
 npm run codegen        # graph codegen
 npm run build          # graph build   -> build/subgraph.yaml
-npm test               # 18 tests, the mappings run in WebAssembly
+npm test               # 18 tests, the mappings run in WebAssembly (17 pass; test 7, above)
 ```
 
 Real output of the two graph commands:
@@ -318,23 +320,11 @@ graph auth <deploy key>
 graph deploy strikeline-surface
 ```
 
-Then point the app at it and it prefers the index over the log:
+Neither has been done for this submission.
 
-```bash
-# web/.env.local
-NEXT_PUBLIC_SUBGRAPH_URL=http://127.0.0.1:8000/subgraphs/name/strikeline/surface
-```
+## The app does not use this
 
-## The app prefers this, and does not depend on it
-
-`web/src/app/(app)/surface` runs the query above when the subgraph is reachable and falls back to
-reading the same `Shipped` logs directly through viem, decoding them with the same offsets in
-TypeScript. The **Where these numbers come from** panel on that screen says which path answered, how
-far behind the index is, and prints the query with the strike and expiry currently on screen
-substituted in.
-
-Two reasons that fallback exists. A demo should never wait on external infrastructure — and the two
-paths are a cross-check on each other: if the subgraph and the direct read disagreed about a strike,
-one of the two decoders would be wrong. The fallback is also honestly worse, and the panel says so:
-Aqua's events carry no indexed parameters, so a direct read pulls every log since deployment on
-every page load and filters in the browser. That is fine for a demo book and not fine for a market.
+The app reads the connected maker's `Shipped` logs directly through viem (`web/src/lib/contracts/strategies.ts`)
+and decodes them in TypeScript. That is fine for one maker's demo book. It is not fine for a market:
+Aqua's events carry no indexed parameters, so a direct read pulls every log since deployment and
+filters client-side, which is the problem this subgraph exists to solve.

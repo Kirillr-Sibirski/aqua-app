@@ -5,7 +5,7 @@
 **Name a price you'd be happy to sell your ETH at. Whoever takes it pays you for the wait. The ETH
 never leaves your wallet.**
 
-Built for ETHGlobal ETHOnline 2026 on **1inch Aqua**.
+Built for ETHGlobal ETHOnline 2026 on **1inch Aqua**, with a **Uniswap v4** hook port.
 
 ![The Strikeline app: premium chart, ticket and positions](docs/screenshot.png)
 
@@ -20,7 +20,8 @@ little more to fill each day nobody takes it. The ETH stays in your wallet until
 
 *For options traders:* each offer is a covered call written as a pricing curve. The premium arrives as
 a spread that widens with theta, not as an up-front credit. There is no vault, no option token, no
-oracle and no keeper.
+oracle and no keeper. (The app reads a Chainlink ETH/USD feed only to pre-fill the ticket's strike
+and realised vol; nothing in the pricing path reads it.)
 
 ## How it works
 
@@ -53,8 +54,6 @@ same block**.
 |---|---|---|
 | **1inch Aqua + SwapVM** | The product: offers are SwapVM programs on the official Aqua registry, priced by the two instructions above | [`contracts/`](contracts/) |
 | **Uniswap v4** | The same curve as a v4 hook, a controlled comparison against Aqua, and developer feedback backed by tests | [`contracts/src/hooks/`](contracts/src/hooks/), [`FEEDBACK.md`](FEEDBACK.md) |
-| **The Graph** | A subgraph decodes each offer's strike, expiry, size and vol from Aqua's `Shipped` log into a cross-maker volatility surface | [`subgraph/`](subgraph/) |
-| Chainlink (data) | The ETH/USD feed pre-fills the ticket's strike and realised vol. It is never in the pricing path | [`web/src/hooks/`](web/src/hooks/) |
 
 ## Evidence
 
@@ -95,7 +94,7 @@ make story-1       # four live offers from one wallet
 make web           # http://localhost:3000
 ```
 
-In the app, **Connect wallet → demo** signs with the same local test account the scenes use. The ✕ on
+In the app, **Connect wallet → Demo wallet** signs with the same local test account the scenes use. The ✕ on
 a position arms on the first click and withdraws on the second.
 
 `make story-0` to `make story-6` are the scripted demo. Each scene makes a real transaction on the fork
@@ -103,12 +102,14 @@ and checks its own claim; the [runbook](scripts/story/README.md) lists them.
 
 ## Further reading
 
-- [`docs/IN-DEPTH.md`](docs/IN-DEPTH.md): the instructions in detail, the Graph read layer, the
-  Uniswap v4 experiment, the full replay study and prior art
+- [`docs/IN-DEPTH.md`](docs/IN-DEPTH.md): the instructions in detail, the Uniswap v4 experiment,
+  the full replay study and prior art
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): which contract holds the tokens and which holds the price
 - [`docs/OPCODES.md`](docs/OPCODES.md): byte layouts and gas
-- [`contracts/`](contracts/README.md), [`web/`](web/README.md), [`subgraph/`](subgraph/README.md),
-  [`scripts/`](scripts/README.md): per-package READMEs
+- [`contracts/`](contracts/README.md), [`web/`](web/README.md), [`scripts/`](scripts/README.md):
+  per-package READMEs
+- [`subgraph/`](subgraph/README.md): a read layer that decodes every offer from Aqua's `Shipped` log.
+  Included and tested, but not deployed, and the app does not read from it
 
 ## License and AI usage
 

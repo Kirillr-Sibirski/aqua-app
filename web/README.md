@@ -4,13 +4,13 @@ The maker's screen. Next.js 16 / React 19 / wagmi 3, dark only, every number rea
 
 ```bash
 npm ci
-npm run dev            # http://localhost:3000. Reads /deployments/local.json, written by `make bootstrap`
+npm run dev            # http://localhost:3000. Reads /deployments/local.json, written by `make story-setup` or `make bootstrap`
 npm run build          # production build, and the typecheck that goes with it
-npm test               # 299 vitest tests. The four fork suites skip when no anvil is listening
+npm test               # the vitest suite (about 335 tests). The four fork suites skip when no anvil is listening
 node scripts/contrast.mjs   # all 36 design-token pairs against their contrast floor
 ```
 
-The app needs a local Base fork to show anything: `make fork && make bootstrap` from the repo root.
+The app needs a local Base fork to show anything: `make fork && make story-setup` from the repo root.
 Without one it renders its disconnected and empty states, which is deliberate.
 No variables are required.
 
@@ -20,14 +20,12 @@ One. `next build` prints `/`, `/_not-found` and `/icon.svg`, and two of those ar
 
 | | |
 |---|---|
-| `/` | **The terminal, and the whole app.** A 56px bar naming the pair and the block; a chart beside a 380px ticket; the positions strip underneath, one row per live offer with its size, its strike, its volatility, its expiry, what it has earned and what fraction of what it promises the shared balance can still deliver. Every figure pinned to one block |
-| `/dev` | Plain-HTML diagnostics for the wallet and contract plumbing. Not product UI, and not a route unless `DEV_ROUTES=1` |
+| `/` | **The terminal, and the whole app.** A 56px bar naming the pair and the block; a chart (premium, payoff and price tabs) beside a 380px ticket; the positions strip underneath, one row per live offer with its size, its strike, its volatility, its expiry, what it has earned and how much of what it promises the shared balance can still deliver (DELIVERABLE). Every figure pinned to one block |
+| `/dev`, `/dev/theme`, `/dev/diag` | Diagnostics for the wallet, the tokens and the contract plumbing. Not product UI, and not routes unless `DEV_ROUTES=1` (`make web-dev-routes`) |
 
 The read-layer market screen and the markout study used to be `/surface` and `/receipt`. Both were
-submission artifacts rather than steps in writing an offer, and both were a second product — a
-different type scale, a different density — one footer click from the terminal. The decoders, the
-queries, the tests and the measured numbers are all still in the repo; the two screens are not. See
-the root README.
+removed as a second product one click from the terminal. The subgraph and the replay study are still
+in the repo; see [`docs/IN-DEPTH.md`](../docs/IN-DEPTH.md).
 
 ## Where things live
 
@@ -38,7 +36,7 @@ the root README.
 | `src/hooks/` | Chain reads: balances, shipped strategies, quotes, ships, docks, decoded custom errors |
 | `src/components/curve/` | The RMM-01 curve in TypeScript, and `buildLegProgram` |
 | `src/components/terminal/` | The one screen: the bar, the ticket, the positions strip, and the draft both the chart and the ticket read |
-| `src/components/charts/terminal/` | `TerminalChart`: payoff, curve and decay, each sampled from the router rather than modelled |
+| `src/components/charts/terminal/` | `TerminalChart`: the premium, payoff and price views, each sampled from the chain rather than modelled |
 | `src/components/token/` | The token marks, the pair, and `TokenAmount` — the one way this app prints a quantity |
 | `src/components/sell/` | What stands behind the ticket: `useOffer` (sizing, through `stableFor`), `usePublish`, the realised-vol measurement, the date arithmetic, the wallet control |
 | `src/app/globals.css` | The OKLCH tokens. Nothing in the app hard-codes a colour |

@@ -7,7 +7,7 @@ Builds SwapVM programs, Orders, strategy hashes and taker traits **byte-for-byte
 ```ts
 import { ix, program, buildOrder, orderHashAqua, encodeStrategyForShip, buildTakerTraits, swapVmAbi, aquaAbi, math } from '@/lib/swapvm';
 
-// 1. Program = concatenated instructions ([opcode][len][args]); ProbeRouter dispatches AquaOpcodes + ProbeScale.
+// 1. Program = concatenated instructions ([opcode][len][args]). An XYC pool for illustration; a Strikeline leg is built by buildLegProgram.
 const prog = program(ix.feeFlatIn(30_000), ix.xycSwap(), ix.stop()); // 0.3% fee (1e7 = 100%), constant product
 // 2. Aqua-mode order (tokenA < tokenB numerically; hooks/receiver optional, see BuildOrderArgs).
 const order = buildOrder({ maker, tokenA, tokenB, program: prog, useAquaInsteadOfSignature: true });
@@ -22,7 +22,7 @@ const [amountIn, amountOut] = await publicClient.readContract({ address: ROUTER,
   functionName: 'quote', args: [order, amount, takerData], account: taker });
 await walletClient.writeContract({ address: ROUTER, abi: swapVmAbi, functionName: 'swap', args: [order, amount, takerData] });
 // Balances: readContract({ abi: aquaAbi, functionName: 'safeBalances', args: [maker, ROUTER, strategyHash, tokenA, tokenB] })
-// Signature mode: orderHashEip712(order, { name: 'ProbeRouter', version: '1', chainId, verifyingContract: ROUTER })
+// Signature mode: orderHashEip712(order, { name: 'Strikeline', version: '1', chainId, verifyingContract: ROUTER })  (the golden vectors use 'ProbeRouter')
 // Custom opcodes: ix.probeScale(factor) / customInstruction(opcode, argsHex). Decoders: decodeOrder, decodeTakerTraits.
 // Off-chain math (XYC + concentrated-liquidity sizing/quotes): math.xycAmountOut, math.concentrateQuote, ...
 ```

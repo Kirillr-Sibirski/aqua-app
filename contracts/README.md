@@ -27,7 +27,7 @@ make deploy RPC=… PK=… # deploy, then re-read the broadcast receipt into dep
 | `src/hooks/` | The same curve as a Uniswap v4 hook, which is what makes the venue comparison an experiment rather than an argument |
 | `src/spikes/` | `ProbeRouter` and the math benchmarks that came first. Kept because they are the control in several comparisons, not because they ship. [Its own README](src/spikes/README.md) says what each one measured |
 | `test/invariants/` | SwapVM's own `CoreInvariants` suite run against a shipped leg, the frozen wire format, the decimal vectors, the gas table |
-| `test/strikeline/` | The nine claims the README makes, each one measured |
+| `test/strikeline/` | `StrikelineBook.t.sol`: nine tests behind the README's claims, each one measured |
 | `test/fork/` | Real WETH and USDC through the official Aqua and the official unmodified router |
 
 ## Read next
@@ -37,4 +37,4 @@ make deploy RPC=… PK=… # deploy, then re-read the broadcast receipt into dep
 - [`deployments/README.md`](deployments/README.md) — the manifest schema, and how a stranger with an
   RPC checks every field in it without trusting this repository.
 - [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) — how these contracts fit together with Aqua,
-  the taker and the read layer.
+  the taker and the app's reads.
