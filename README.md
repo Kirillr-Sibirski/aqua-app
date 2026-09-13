@@ -2,6 +2,8 @@
 
 # Strikeline
 
+**Sell covered calls on ETH straight from your wallet, with nothing locked: in the demo, one wallet holding 10.4 ETH backs offers for 15.4 ETH at once, and every trade checks the real balance so it can never owe more than it holds.**
+
 **Name a price you'd be happy to sell your ETH at. Earn from how ETH moves while you wait. The ETH
 never leaves your wallet.**
 
@@ -129,6 +131,14 @@ the fork and check their own claim; the [runbook](scripts/story/README.md) lists
 - [`docs/OPCODES.md`](docs/OPCODES.md): byte layouts and gas
 - [`contracts/`](contracts/README.md), [`web/`](web/README.md), [`scripts/`](scripts/README.md):
   per-package READMEs
+
+## What's next
+
+- A mainnet launch on Base, after an audit.
+- More pairs beyond ETH/USDC, such as cbBTC and liquid staking tokens.
+- Ladders: one click writes a spread of strikes and expiries from a single wallet.
+- Automatic rolling into the next expiry when an offer ends.
+- Routing, so Strikeline offers appear directly inside 1inch swaps for everyday traders.
 
 ## License and AI usage
 
