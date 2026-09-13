@@ -4,7 +4,7 @@ pragma solidity 0.8.30;
 /// @title ISwapVMV102
 /// @notice Minimal ABI of the DEPLOYED, UNMODIFIED 1inch `AquaSwapVMRouter` (swap-vm tag v1.0.2, "World A")
 ///         at 0x111111338c5091E8440b67B168bAe16a668AC0De (same address on Ethereum and Base).
-/// @dev    Differences vs the HEAD `ISwapVM` our ProbeRouter is built on (see docs/research/swapvm-core.md §14):
+/// @dev    Differences vs the HEAD `ISwapVM` our ProbeRouter is built on (see the research notes in git history):
 ///         - `quote`/`swap` are 5-arg: (order, tokenIn, tokenOut, amount, takerTraitsAndData)
 ///           selectors 0x44aa5f14 / 0xf4d2d412 (HEAD: 3-arg 0xb7ebf0c5 / 0xa69f95bd, payable).
 ///         - `order.data` = hooks ‖ program (HEAD prepends tokenA ‖ tokenB).

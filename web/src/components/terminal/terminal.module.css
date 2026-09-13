@@ -6,7 +6,7 @@
  * fight, and the two Mantine controls that survive here (the amount field and the date picker) are
  * rendered `variant="unstyled"` and dressed entirely from this file.
  *
- * Every value below is a token or a length from LAYOUT.md: 56px header, 380px ticket, 36px rows,
+ * Every value below is a token or a length from the layout spec: 56px header, 380px ticket, 36px rows,
  * 12px cell padding. Nothing here names a colour.
  */
 
@@ -365,7 +365,7 @@
   /*
    * The wordmark goes, not just its name.
    *
-   * LAYOUT.md already says the wordmark is what gives way at this width; only the text was giving
+   * the layout spec already says the wordmark is what gives way at this width; only the text was giving
    * way, and the 18px mark plus its gap stayed. That was survivable while the account was a 80px
    * address pill and stopped being survivable in the state a first-time visitor actually arrives
    * in: `Connect wallet` is 115px against the pill's 80, which put the bar 25px over and painted
@@ -839,7 +839,7 @@
  * inside a 44px box, so it is the only child on the ticket that *can* shrink — and a flex line that
  * is short by any amount takes all of it out of the one item that will yield.
  *
- * Measured at the window LAYOUT.md and the README both draw: at 1440x900 the ticket had 448px and
+ * Measured at the window the layout spec and the README both draw: at 1440x900 the ticket had 448px and
  * wanted 461, and the whole 13px came out of here. The primary action rendered 20px tall — half a
  * tap target, under a 44px `Connect wallet` in the same slot one state earlier. At 1280x800 it was
  * 20px again with 113px of scroll below it. At 1440x1100, where nothing is short, it is 44.
@@ -995,7 +995,7 @@
  */
 .positions {
   container: positions / inline-size;
-  /* The 36px row LAYOUT.md fixes, stated once. It was written out three times — the body row, the
+  /* The 36px row the layout spec fixes, stated once. It was written out three times — the body row, the
      empty row, and the height an empty strip has to hold to stop the chart above it moving — and
      three copies of one constant is how a strip ends up 34px out of step with itself. */
   --row-h: 2.25rem;
@@ -1349,7 +1349,7 @@
  * and that is the only thing on this row worth interrupting for.
  *
  * IT IS NOT DRAWN IN THE ACCENT. It used to be `--accent-dim`, and on a book where nothing has been
- * taken that painted nine cyan cells on every row — fifteen rows of the one colour LAYOUT.md
+ * taken that painted nine cyan cells on every row — fifteen rows of the one colour the layout spec
  * reserves for the primary action and your own position, competing across the page with the only
  * other cyan block on it, the Publish button. Full backing is the resting state and it is drawn in
  * ink; `--warn` is the whole colour budget this column gets, and it fires on the one condition
@@ -1578,7 +1578,7 @@
   min-height: 0;
 }
 
-/* Rows are 13px: the density LAYOUT.md asks for, and the size `TokenAmount` inherits. */
+/* Rows are 13px: the density the layout spec asks for, and the size `TokenAmount` inherits. */
 .table tbody td {
   font-size: var(--text-meta);
 }

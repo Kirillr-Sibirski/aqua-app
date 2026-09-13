@@ -29,7 +29,7 @@ export type TerminalView = 'premium' | 'payoff' | 'price';
 /**
  * Order of the segmented control, the order the arrow keys walk, and the order a maker reads.
  *
- * `premium` leads, and it is the landing view. LAYOUT.md's sketch put `payoff` first, and the payoff
+ * `premium` leads, and it is the landing view. the layout spec's sketch put `payoff` first, and the payoff
  * at expiry of a covered call drawn honestly is two straight segments and a kink: on a live leg the
  * premium is two parts in a thousand of the position's value, so six hundred pixels of chart carry
  * a shape a reader already knew. The premium view is the one whose curve has to be measured to be

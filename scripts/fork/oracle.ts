@@ -1,5 +1,5 @@
 /**
- * Move a Chainlink price feed on the anvil fork (Method B from docs/research/oracle-mocking-fork.md, verified):
+ * Move a Chainlink price feed on the anvil fork (Method B from the research notes in git history, verified):
  * install `MockAggregatorV3` AT THE FEED PROXY ADDRESS with anvil_setCode, then drive it with anvil_setStorageAt.
  * The feed address never changes, so strategies/UI keep pointing at the real Chainlink address.
  * With slot1 (updatedAt) == 0 the mock reports `block.timestamp`, so staleness checks never trip — even after

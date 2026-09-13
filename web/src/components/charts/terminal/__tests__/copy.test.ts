@@ -1,7 +1,7 @@
 /**
  * The rule about prose, enforced instead of remembered.
  *
- * LAYOUT.md bans explanatory sentences from the resting screen, and this pass deliberately added
+ * the layout spec bans explanatory sentences from the resting screen, and this pass deliberately added
  * the first prose the app has ever carried. The whole defence of that is the container: a caption
  * is one clause and is always visible; a note is one short sentence and is not on screen until
  * somebody asks for it. Those two limits are the difference between progressive disclosure and a

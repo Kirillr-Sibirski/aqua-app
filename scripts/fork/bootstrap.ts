@@ -56,7 +56,7 @@ const FORK_BLOCK = Number(process.env.ANVIL_FORK_BLOCK ?? 50946000);
 const FORCE_STORAGE = process.env.FUND_VIA_STORAGE === '1';
 
 /**
- * Seeded at irregular amounts on purpose. DESIGN.md: round demo numbers read as fake even when they
+ * Seeded at irregular amounts on purpose. the design spec: round demo numbers read as fake even when they
  * are real, and the maker's own inventory is already 10.4 WETH / 24,850 USDC for that reason -- but
  * the Overview screen was still printing `10,000 ETH` and `5 cbBTC` beside them. The ETH target is
  * deliberately above anvil's own 10,000 default, because funding only tops up and would otherwise

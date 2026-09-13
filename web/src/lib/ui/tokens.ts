@@ -9,7 +9,7 @@
  * Rule of thumb: reach for a Mantine prop or a Tailwind class first. Use `color()` only where
  * neither can be applied.
  *
- * The palette is DARK, and there is no light branch. See /DESIGN.md and the header of
+ * The palette is DARK, and there is no light branch. See the design spec and the header of
  * `src/app/globals.css` for why each value is where it is.
  */
 
@@ -268,7 +268,7 @@ export const FONT_STACK = {
 /** 8px base grid; 4px is allowed only inside dense controls. */
 export const GRID_PX = 8;
 export const CONTENT_MAX_PX = 1280;
-/** The ticket beside the chart. LAYOUT.md fixes it at 380. */
+/** The ticket beside the chart. the layout spec fixes it at 380. */
 export const CARD_MAX_PX = 380;
 export const GUTTER_PX = 24;
 /** Table row height, fixed so streaming values never shift the layout. */

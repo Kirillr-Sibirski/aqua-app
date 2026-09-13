@@ -357,7 +357,7 @@ function usePromisedFigures(token: UseBookReturn['kpis']['writtenToken']) {
  * The one confirmation a publish gets. Pressing the button used to produce nothing observable for
  * the whole nineteen seconds a run takes on a fork — the offer landed and a row silently appeared
  * among five identical ones. The row that appears now lights for two seconds in the accent, which
- * LAYOUT.md reserves for the primary action and your own position, and this is both: it is the
+ * the layout spec reserves for the primary action and your own position, and this is both: it is the
  * thing the primary action just made.
  *
  * The first read is not an arrival. Every leg is new on the first render of a connected wallet, and

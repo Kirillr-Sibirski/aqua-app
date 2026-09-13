@@ -1,6 +1,6 @@
 /* ==========================================================================
    Strikeline — design tokens. DARK, and only dark.
-   Source of truth: /DESIGN.md. Values are OKLCH; contrast is verified by
+   Source of truth: the design spec. Values are OKLCH; contrast is verified by
    `node scripts/contrast.mjs` (36 pairs, all >= their floor, exit code gates).
    There is no light theme and no `prefers-color-scheme` branch: a desk tool
    that sits open beside a chart all day gets one ground, and it is near-black.
@@ -88,7 +88,7 @@
   /* The app bar's height. A sticky table header offsets by it, or it pins itself
      underneath the bar and the column headers disappear exactly when they matter. */
   --header-h: 3.5rem;
-  /* The ticket beside the chart. LAYOUT.md fixes it at 380px, which is the width a
+  /* The ticket beside the chart. the layout spec fixes it at 380px, which is the width a
      three-control ticket needs and the width every perp UI has converged on. */
   --card-w: 23.75rem;
 

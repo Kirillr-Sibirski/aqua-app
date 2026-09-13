@@ -1,7 +1,7 @@
 /**
  * Turning a thrown thing into the two strings the UI actually shows.
  *
- * DESIGN.md's rule is "decoded custom error name, not 'something went wrong'". When a Strikeline
+ * the design spec's rule is "decoded custom error name, not 'something went wrong'". When a Strikeline
  * quote refuses, it refuses with `NotCovered(uint256 needed, uint256 free)` — the name and the two
  * numbers are the whole point of the guard, so throwing them away and printing "transaction
  * failed" would hide the only interesting thing on the screen.

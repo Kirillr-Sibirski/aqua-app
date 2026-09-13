@@ -3,7 +3,7 @@
 /**
  * The one explanatory affordance on the screen, and the only place sentences are allowed.
  *
- * LAYOUT.md bans prose at rest and that rule has not moved: nothing here is visible until someone
+ * the layout spec bans prose at rest and that rule has not moved: nothing here is visible until someone
  * asks for it. What sits on the screen is a 13px ⓘ in `--ink-3` — quieter than the label it follows
  * and far quieter than any figure — and what it opens is two or three plain sentences about one
  * number.

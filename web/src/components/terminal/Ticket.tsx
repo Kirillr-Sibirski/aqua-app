@@ -16,10 +16,10 @@
  *   premium    `stableFor` at the date, minus at settlement        `StrikelineViews`
  *   capped at  strike + premium / amount                           — as above
  *
- * IV is the fourth control, and LAYOUT.md's "three controls" is now three plus it. It was drawn as
+ * IV is the fourth control, and the layout spec's "three controls" is now three plus it. It was drawn as
  * a bare 21px figure that grew a rule on hover, on the theory that a spec saying three should not
  * grow a fourth; the result was that the one number on this ticket the chain cannot supply — the
- * one PRODUCT.md says makers want to be theirs — was the only input on the screen a person could
+ * one the product brief says makers want to be theirs — was the only input on the screen a person could
  * not see was an input, and it failed the 24px target size on a phone, where there is no hover to
  * reveal it with. It gets the same well the other three have.
  */

@@ -136,7 +136,7 @@ export async function assertFork(): Promise<{ chainId: number; blockNumber: bigi
 }
 
 // ---------------------------------------------------------------------------
-// Addresses (Base mainnet; identical on the fork). Verified in docs/research/fork-stack.md §1, §5.2, §9.
+// Addresses (Base mainnet; identical on the fork). Verified against Base mainnet.
 // ---------------------------------------------------------------------------
 
 export const ADDR = {

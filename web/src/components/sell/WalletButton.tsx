@@ -142,7 +142,7 @@ function ConnectorList({ onClose }: { onClose: () => void }) {
    *
    * This modal was the one place on the terminal route where the banned prose survived: six
    * sentences, including "Nothing here ever holds the tokens behind your offer" — the exact
-   * sentence LAYOUT.md ordered deleted from the card, relocated into a dialog — plus an orphaned
+   * sentence the layout spec ordered deleted from the card, relocated into a dialog — plus an orphaned
    * "No extension installed?" heading with no answer under it. What is left is a wallet per row and
    * one caption on the demo connector, kept because it is a safety string rather than a teaching
    * one: the fork's key is on this page and it must never be pointed at a live network.

@@ -5,7 +5,7 @@
  *   tsx snapshot.ts restore  # revert to it, then immediately re-snapshot (ids are single-use in anvil)
  *   tsx snapshot.ts list     # show the remembered id
  *
- * Caveats (measured, see docs/research/oracle-mocking-fork.md §3.2): evm_revert also undoes anvil_setCode — take the snapshot
+ * Caveats (measured): evm_revert also undoes anvil_setCode — take the snapshot
  * AFTER installing oracle mocks (`tsx oracle.ts eth <price>`) if you want them to survive a restore. Browser wallets
  * cache nonces; after a restore clear MetaMask's activity data for the demo account.
  */

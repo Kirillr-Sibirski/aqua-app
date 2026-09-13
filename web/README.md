@@ -23,10 +23,6 @@ One. `next build` prints `/`, `/_not-found` and `/icon.svg`, and two of those ar
 | `/` | **The terminal, and the whole app.** A 56px bar naming the pair and the block; a chart (premium, payoff and price tabs) beside a 380px ticket; the positions strip underneath, one row per live offer with its size, its strike, its volatility, its expiry, what it has earned and how much of what it promises the shared balance can still deliver (DELIVERABLE). Every figure pinned to one block |
 | `/dev`, `/dev/theme`, `/dev/diag` | Diagnostics for the wallet, the tokens and the contract plumbing. Not product UI, and not routes unless `DEV_ROUTES=1` (`make web-dev-routes`) |
 
-The read-layer market screen and the markout study used to be `/surface` and `/receipt`. Both were
-removed as a second product one click from the terminal. The subgraph and the replay study are still
-in the repo; see [`docs/IN-DEPTH.md`](../docs/IN-DEPTH.md).
-
 ## Where things live
 
 | | |

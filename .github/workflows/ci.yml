@@ -74,7 +74,7 @@ jobs:
         run: npm run build
 
       # The design system's own gate: all 22 token pairs against their contrast floor, exit 1 on a
-      # regression. DESIGN.md names 4.5:1 as a rule; this is the rule being enforced.
+      # regression. the design spec names 4.5:1 as a rule; this is the rule being enforced.
       - name: Contrast floor
         run: node scripts/contrast.mjs
 
