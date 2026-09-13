@@ -175,6 +175,9 @@ export interface BookLeg {
   /** Realised theta, summed from the band each past fill actually cleared. */
   theta?: LegTheta;
   lastFill?: BookFill;
+  /** What the offer held of the token it hands over before its first fill, and how much of it buyers have taken since. */
+  offered: bigint;
+  filled: bigint;
 }
 
 export interface BookKpis {
@@ -546,6 +549,14 @@ export function useBook(maker: Address | undefined, options: UseBookOptions = {}
       const yWad = toWad(state.reserveStable, leg.rmm.rateStable);
       const thetaEntry = fillsQuery.byLeg.get(leg.strategy.strategyHash.toLowerCase());
       const lastFill = fillsQuery.fills.find((f) => f.orderHash.toLowerCase() === leg.strategy.strategyHash.toLowerCase());
+      // Reserves only move on fills after the ship, so the first fill's "before" snapshot is what was offered.
+      let firstFill: BookFill | undefined;
+      for (const f of fillsQuery.fills) {
+        if (f.orderHash.toLowerCase() !== leg.strategy.strategyHash.toLowerCase()) continue;
+        if (!firstFill || f.blockNumber < firstFill.blockNumber || (f.blockNumber === firstFill.blockNumber && f.logIndex < firstFill.logIndex)) firstFill = f;
+      }
+      const offered = firstFill ? (leg.deliversRisky ? firstFill.reserveRiskyBefore : firstFill.reserveStableBefore) : written;
+      const filled = offered > written ? offered - written : ZERO;
 
       // A taker sweeping this leg pays the other token, so that is the side of the band they cross.
       // Ceiled: this is a minimum, and flooring it publishes an amount one raw unit short of what
@@ -591,6 +602,8 @@ export function useBook(maker: Address | undefined, options: UseBookOptions = {}
         bandPending: two.isLoading || (twoData === undefined && probeReady),
         theta: thetaEntry,
         lastFill,
+        offered: offered > written ? offered : written,
+        filled,
       } satisfies BookLeg;
     });
   }, [staticLegs, legState, tokens, tokenIndex, twoData, two.isLoading, probeReady, blockTimestamp, fillsQuery.byLeg, fillsQuery.fills]);

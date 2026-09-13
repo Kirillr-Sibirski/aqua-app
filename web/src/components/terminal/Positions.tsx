@@ -207,7 +207,15 @@ export function Positions({ book, connected, hydrated }: PositionsProps) {
               <th scope="col" className={classes.cellStart}>
                 <span className="sr-only">Instrument</span>
               </th>
-              <th scope="col">Size</th>
+              <th scope="col">Remaining</th>
+              <th scope="col">
+                <Labelled className={classes.headLabel}>
+                  Filled
+                  <Explain term="Filled" position="top">
+                    <p>How much of this offer buyers have taken so far.</p>
+                  </Explain>
+                </Labelled>
+              </th>
               <th scope="col">Strike</th>
               {/* The term that makes this an options venue rather than a limit order, and the one
                   a maker compares across their own book. It is per-leg and it varies; the column
@@ -451,20 +459,48 @@ function rowFigures(leg: BookLeg): RowFigures {
  * tells it otherwise, which made the widths a property of the header cells and so of whichever
  * `<tbody>` happened to be rendered. Here they are a property of the table.
  */
+/** Offered versus taken, in the token the offer hands over, with a thin bar that flashes when it grows. */
+function FilledCell({ leg, symbol, decimals, dim }: { leg: BookLeg; symbol: string; decimals: number; dim: boolean }) {
+  const offered = leg.offered;
+  const filled = leg.filled;
+  const share = offered > ZERO ? Number((filled * BigInt(10000)) / offered) / 10_000 : 0;
+  const last = useRef(filled);
+  const [flash, setFlash] = useState(0);
+  useEffect(() => {
+    if (filled > last.current) setFlash((n) => n + 1);
+    last.current = filled;
+  }, [filled]);
+  const token = { symbol, decimals };
+  return (
+    <span className={classes.filled} data-dim={dim || undefined} data-flash={flash || undefined} key={flash}>
+      <span className={classes.filledFigure}>
+        <Num tone={filled > ZERO ? undefined : 'dim'} unit={symbol}>
+          {promisedFigure(filled, token)} / {promisedFigure(offered, token)}
+        </Num>
+        <Num tone={filled > ZERO ? undefined : 'dim'}>{formatPercent(share, { fractionDigits: 0 })}</Num>
+      </span>
+      <span className={classes.filledTrack} aria-hidden="true">
+        <span className={classes.filledBar} style={{ width: `${Math.max(0, Math.min(1, share)) * 100}%` }} />
+      </span>
+    </span>
+  );
+}
+
 function Columns() {
   return (
     <colgroup>
       <col style={{ width: '4.5rem' }} />
-      <col style={{ width: '22%' }} />
       <col style={{ width: '15%' }} />
-      <col style={{ width: '10%' }} />
-      <col style={{ width: '15%' }} />
+      <col style={{ width: '19%' }} />
+      <col style={{ width: '11%' }} />
+      <col style={{ width: '7%' }} />
+      <col style={{ width: '12%' }} />
       {/* Two points move from EARNED to DELIVERABLE. At the table's 42rem floor — which is exactly
           the phone, where the strip scrolls inside itself — the last column was 121px holding 100px
           of meter-plus-percentage inside 24px of padding, so its content had been overflowing into
           EARNED before the header grew a word and an ⓘ. `0.00 USDC` needs 94 and had 134. */}
-      <col style={{ width: '18%' }} />
-      <col style={{ width: '20%' }} />
+      <col style={{ width: '17%' }} />
+      <col style={{ width: '19%' }} />
       <col style={{ width: '2.5rem' }} />
     </colgroup>
   );
@@ -541,6 +577,10 @@ function Row({
           icon={false}
           tone={withdrawn ? 'muted' : 'default'}
         />
+      </td>
+
+      <td>
+        <FilledCell leg={leg} symbol={delivers.symbol} decimals={delivers.decimals} dim={withdrawn} />
       </td>
 
       <td>
@@ -812,7 +852,10 @@ function LoadingRow() {
         <Bar width={18} />
       </td>
       <td>
-        <Bar width={110} />
+        <Bar width={90} />
+      </td>
+      <td>
+        <Bar width={120} />
       </td>
       <td>
         <Bar width={62} />
