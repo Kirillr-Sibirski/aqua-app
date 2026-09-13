@@ -18,6 +18,7 @@
 #   make story-0 .. -6   one scene each;  make story-all runs 1-6 back to back
 #   make story-status    where the demo currently is
 #   make bot ARGS="..."  the arbitrage bot on its own
+#   make buy ARGS="2600 1"   one taker buys 1 WETH from the live 2,600 offer now (--side buy: sell into a buy offer)
 #   make tape            re-capture the real Base ETH/USD series (needs an archive Base RPC)
 #
 # Variables can come from .env (see .env.example): ANVIL_FORK_URL, ANVIL_FORK_BLOCK, DEMO_ADDRESS, ROUTER_ARTIFACT, ...
@@ -33,11 +34,11 @@ TSX_ALIASED := $(TSX) --tsconfig $(SCRIPTS)/tsconfig.json
 ARGS ?=
 
 .PHONY: help install fork fork-state build build-src bootstrap smoke oracle time snapshot test test-unit test-fork test-surface web typecheck \
-        tape story-bootstrap story-setup story-load story-status story-all story-0 story-1 story-2 story-3 story-4 story-5 story-6 bot \
+        tape story-bootstrap story-setup story-load story-status story-all story-0 story-1 story-2 story-3 story-4 story-5 story-6 bot buy \
         markout
 
 help:
-	@sed -n '2,23p' $(ROOT)Makefile | sed 's/^# \{0,1\}//'
+	@sed -n '2,24p' $(ROOT)Makefile | sed 's/^# \{0,1\}//'
 
 # ---------------------------------------------------------------------------- deps
 
@@ -168,3 +169,6 @@ story-all: $(TSX)
 
 bot: $(TSX)
 	cd $(ROOT) && $(STORY) scripts/arb/bot.ts $(ARGS)
+
+buy: $(TSX)
+	cd $(ROOT) && $(STORY) scripts/arb/buy.ts $(ARGS)
