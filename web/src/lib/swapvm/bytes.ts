@@ -50,14 +50,6 @@ export function addressTail(value: Address, bytes: number, name = 'address'): He
   return uintN(v & ((BigInt(1) << BigInt(bytes * 8)) - BigInt(1)), bytes, name);
 }
 
-/** Fixed-size `bytesN` argument. */
-export function bytesFixed(value: Hex, bytes: number, name = 'bytes'): Hex {
-  if (!isHex(value, { strict: true }) || size(value) !== bytes) {
-    throw new SwapVMEncodingError(`${name} must be exactly ${bytes} bytes of hex`);
-  }
-  return value.toLowerCase() as Hex;
-}
-
 /** Dynamic `bytes` argument (`undefined` => empty). */
 export function bytesDyn(value: Hex | undefined, name = 'bytes'): Hex {
   if (value === undefined || value === null) return '0x';

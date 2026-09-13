@@ -10,9 +10,7 @@
  */
 import {
   formatCompact,
-  formatPercent,
   formatUnits,
-  formatUsd,
   parseDecimalInput,
   type SignDisplay,
 } from '@/lib/ui/format';
@@ -190,33 +188,6 @@ export function formatChartCompact(
   if (fixed === null) return '';
 
   return withUnit(formatCompact(fixed, decimals, { significantDigits, sign }), unit);
-}
-
-/**
- * USD for a chart label. Cents show at or above a dollar so a column aligns; below a dollar three
- * significant figures replace them, because `$0.00` is not a price.
- *
- * @example formatChartUsd(31204.77) // '$31,204.77'
- */
-export function formatChartUsd(
-  value: number,
-  opts: { compact?: boolean; sign?: SignDisplay } = {},
-): string {
-  const { compact = false, sign = 'auto' } = opts;
-  if (!Number.isFinite(value)) return '';
-  const decimals = Math.min(MAX_DECIMALS, Math.max(2, decimalsFor(value, 6)));
-  const fixed =
-    Math.abs(value) >= TO_FIXED_LIMIT ? null : parseDecimalInput(value.toFixed(decimals), decimals);
-  if (fixed === null) return '';
-  return formatUsd(fixed, decimals, { compact, sign });
-}
-
-/** A ratio as a percentage. `0.0217` becomes `'2.17%'`. */
-export function formatChartPercent(
-  ratio: number,
-  opts: { fractionDigits?: number; sign?: SignDisplay } = {},
-): string {
-  return formatPercent(ratio, opts);
 }
 
 // ---------------------------------------------------------------------------

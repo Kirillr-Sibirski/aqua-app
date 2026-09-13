@@ -167,5 +167,3 @@ export function useSwap() {
 
   return { swap, steps, isRunning, error, reset };
 }
-
-export type UseSwapReturn = ReturnType<typeof useSwap>;

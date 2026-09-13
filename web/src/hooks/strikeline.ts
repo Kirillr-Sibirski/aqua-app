@@ -360,10 +360,6 @@ export function minBig(a: bigint, b: bigint): bigint {
   return a < b ? a : b;
 }
 
-export function maxBig(a: bigint, b: bigint): bigint {
-  return a > b ? a : b;
-}
-
 /**
  * `a / b` as a float, for a bar width or a percentage. Returns 0 when the denominator is zero
  * rather than `Infinity`, so a fresh book cannot render a bar of undefined length.

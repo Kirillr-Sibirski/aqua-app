@@ -1,10 +1,10 @@
 /**
- * Pure geometry: margins, curve sampling, bar paths, label dodging.
+ * Pure geometry: margins, curve sampling, label dodging.
  *
  * Nothing in here touches the DOM or reads `window`, so it renders identically on the server and in
  * the browser and can be unit-tested without a jsdom environment.
  */
-import { round, type ChartGeometry, type ChartMargin, type ChartPoint, type ChartRect } from './types';
+import { type ChartGeometry, type ChartMargin, type ChartPoint, type ChartRect } from './types';
 
 /**
  * Enough room on the left for a six-digit grouped tick (`31,204`) at 12px mono, and on the bottom
@@ -70,21 +70,6 @@ export function sampleCurve(
     points[i] = { x, y: fn(x) };
   }
   return points;
-}
-
-/**
- * The extent of the finite `y` values in `points`, or `null` when every sample is non-finite.
- * Used to derive a y domain from a curve without the caller re-walking the samples.
- */
-export function finiteExtent(points: readonly ChartPoint[]): [number, number] | null {
-  let lo = Number.POSITIVE_INFINITY;
-  let hi = Number.NEGATIVE_INFINITY;
-  for (const p of points) {
-    if (!Number.isFinite(p.y)) continue;
-    if (p.y < lo) lo = p.y;
-    if (p.y > hi) hi = p.y;
-  }
-  return lo <= hi ? [lo, hi] : null;
 }
 
 /** Grow a domain by `fraction` of its span on both ends, so a curve never touches the frame. */
@@ -169,64 +154,6 @@ export function dodge1d(
 // ---------------------------------------------------------------------------
 // Bar paths
 // ---------------------------------------------------------------------------
-
-/**
- * A bar as an SVG path: rounded at the data end, square at the baseline.
- *
- * A plain `<rect rx>` rounds all four corners, which detaches the bar from its baseline and makes
- * short bars read as pills. Growing downward (a negative value) mirrors the rounding to the bottom,
- * so the shape still says "this end is the value".
- *
- * @param x         left edge
- * @param width     bar width
- * @param baselineY px of the zero line
- * @param valueY    px of the value
- * @param radius    corner radius at the data end, clamped to half the width and the bar height
- */
-export function barPath(
-  x: number,
-  width: number,
-  baselineY: number,
-  valueY: number,
-  radius = 4,
-): string {
-  const height = Math.abs(valueY - baselineY);
-  const w = round(width);
-  const x0 = round(x);
-  const x1 = round(x + width);
-  const y0 = round(baselineY);
-  const y1 = round(valueY);
-  const r = round(Math.max(0, Math.min(radius, width / 2, height)));
-
-  if (w <= 0) return '';
-  if (r < 0.5) return `M${x0},${y0}L${x0},${y1}L${x1},${y1}L${x1},${y0}Z`;
-
-  if (valueY <= baselineY) {
-    return (
-      `M${x0},${y0}L${x0},${round(y1 + r)}` +
-      `A${r},${r} 0 0 1 ${round(x0 + r)},${y1}` +
-      `L${round(x1 - r)},${y1}` +
-      `A${r},${r} 0 0 1 ${x1},${round(y1 + r)}` +
-      `L${x1},${y0}Z`
-    );
-  }
-  return (
-    `M${x0},${y0}L${x0},${round(y1 - r)}` +
-    `A${r},${r} 0 0 0 ${round(x0 + r)},${y1}` +
-    `L${round(x1 - r)},${y1}` +
-    `A${r},${r} 0 0 0 ${x1},${round(y1 - r)}` +
-    `L${x1},${y0}Z`
-  );
-}
-
-/**
- * Bar width for a band scale: the band, minus the 2px surface gap the mark spec asks for, capped so
- * a five-bucket chart on a wide screen does not turn into five slabs. The leftover is air, on
- * purpose.
- */
-export function barWidth(bandwidth: number, maxWidth = 24, minGap = 2): number {
-  return Math.max(1, Math.min(maxWidth, bandwidth - minGap));
-}
 
 // ---------------------------------------------------------------------------
 // Cursor snapping

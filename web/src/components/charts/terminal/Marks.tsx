@@ -1,16 +1,13 @@
 /**
- * The six marks the three views share, and why each one exists.
+ * The marks the three views share, and why each one exists.
  *
- * Five of them are about the same problem: a plot that draws its subject correctly and does not say
+ * They are about the same problem: a plot that draws its subject correctly and does not say
  * what the subject is. A legend in the strip above solves that badly — it puts the names as far
  * from the lines as the layout allows, and it spends a row of chrome on a chart that already has
  * two axes it could be labelling instead. So the y axis carries its series' name and colour
  * (`AxisName`), the x axis carries what it measures and what its two ends mean (`AxisBand`), a line
  * carries its own label where there is room (`SeriesLabel`), and the strip keeps the room for the
  * readout.
- *
- * The sixth, `DirectionArrow`, is about the one thing a still picture of the price view cannot say:
- * which way a fill moves the point you are looking at.
  *
  * Pure: handed pixels and tokens, returns SVG. The measurement lives in `Plot`, the arithmetic in
  * `payoff.ts` and the reads in the hooks, so nothing here can disagree with the chain.
@@ -216,57 +213,6 @@ export function LivePoint({
       />
       <circle cx={cx} cy={cy} r={11} fill={colorMix('accent', 22)} />
       <circle cx={cx} cy={cy} r={4.5} fill={color('accent')} stroke={color('bg')} strokeWidth={2} />
-    </g>
-  );
-}
-
-/**
- * The direction a fill moves the reserve point, drawn along the curve it moves along.
- *
- * A taker buying takes risky out and puts stable in, so the point walks LEFT and UP the curve. That
- * is the one thing about this view a still picture cannot say, and it is the reason this is the
- * only looping animation in the chart: the dashes travel the way the point would. Under reduced
- * motion the offset lands on zero and what remains is a dashed segment with a head on it, which
- * still says which way.
- *
- * The path is built from the samples the router returned, so the arrow follows the measured curve
- * rather than a straight line drawn near it.
- */
-export function DirectionArrow({
-  id,
-  points,
-}: {
-  /** Unique within the document; the `<marker>` is referenced by it. */
-  id: string;
-  /** Pixel points, from the reserve point outward along the curve. Two or more. */
-  points: readonly { x: number; y: number }[];
-}) {
-  if (points.length < 2) return null;
-  const d = `M${points.map((p) => `${round(p.x)},${round(p.y)}`).join('L')}`;
-  return (
-    <g aria-hidden="true">
-      <defs>
-        <marker
-          id={id}
-          viewBox="0 0 8 8"
-          refX={6.5}
-          refY={4}
-          markerWidth={5}
-          markerHeight={5}
-          orient="auto-start-reverse"
-        >
-          <path d="M0.5 0.8 7 4 0.5 7.2Z" fill={color('accent-dim')} />
-        </marker>
-      </defs>
-      <path
-        className={classes.march}
-        d={d}
-        fill="none"
-        stroke={color('accent-dim')}
-        strokeWidth={1.5}
-        strokeDasharray="6 4"
-        markerEnd={`url(#${id})`}
-      />
     </g>
   );
 }
