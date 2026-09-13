@@ -115,8 +115,8 @@ async function main(): Promise<void> {
 
   const line1 =
     side === 'sell'
-      ? `Bought ${fmt(amountOut, Number(riskyDec), 4)} WETH from the ${strikeLabel} offer for ${fmt(amountIn, Number(stableDec), 2)} USDC${feeText}`
-      : `Sold ${fmt(amountIn, Number(riskyDec), 4)} WETH into the ${strikeLabel} buy offer for ${fmt(amountOut, Number(stableDec), 2)} USDC${feeText}`;
+      ? `Bought ${fmt(amountOut, Number(riskyDec), 4)} WETH from the ${strikeLabel} offer for ${fmt(amountIn, Number(stableDec), 2)} USDC${feeText} · ${fmt((amountIn * 10n ** BigInt(Number(riskyDec))) / amountOut, Number(stableDec), 2)} USDC per WETH`
+      : `Sold ${fmt(amountIn, Number(riskyDec), 4)} WETH into the ${strikeLabel} buy offer for ${fmt(amountOut, Number(stableDec), 2)} USDC${feeText} · ${fmt((amountOut * 10n ** BigInt(Number(riskyDec))) / amountIn, Number(stableDec), 2)} USDC per WETH`;
   process.stdout.write(
     `\n  ${line1}\n  block ${receipt.blockNumber} · maker wallet now ${fmt(makerWeth, Number(riskyDec), 4)} WETH\n\n  what moved on-chain:\n`,
   );
