@@ -62,6 +62,8 @@ export interface TerminalToken {
  * `StrikelineViews` argument lives in — not raw token units.
  */
 export interface TerminalLeg {
+  /** `sell` (covered call, risky-heavy) or `buy` (cash-secured put, stable-heavy). Default `sell`. */
+  side?: 'sell' | 'buy';
   /** `K`, WAD, normalised stable per risky. */
   strikeWad: bigint;
   /** Annualised implied volatility, WAD. `0.6e18` is 60%. */

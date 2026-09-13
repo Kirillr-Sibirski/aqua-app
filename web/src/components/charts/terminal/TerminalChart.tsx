@@ -95,6 +95,7 @@ export function TerminalChart({
         view={active}
         risky={risky.symbol}
         stable={stable.symbol}
+        side={leg?.side}
         control={
           <Segmented value={active} onChange={change} panelId={panelId} idPrefix={idPrefix} />
         }

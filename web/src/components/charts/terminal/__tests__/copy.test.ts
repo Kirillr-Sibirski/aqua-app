@@ -76,4 +76,15 @@ describe('view copy', () => {
     const rendered = [copy.caption(RISKY, STABLE), copy.note(RISKY, STABLE)].join(' ');
     expect(rendered).not.toContain('${');
   });
+
+  it('says buy where the price view differs by side', () => {
+    expect(VIEW_COPY.price.caption(RISKY, STABLE, 'buy')).toBe('you buy a little at a time as the price falls');
+    expect(VIEW_COPY.price.caption(RISKY, STABLE, 'sell')).toBe('you sell a little at a time as the price rises');
+    expect(VIEW_COPY.payoff.note(RISKY, STABLE, 'buy')).toContain(STABLE);
+    for (const view of TERMINAL_VIEWS) {
+      const note = VIEW_COPY[view].note(RISKY, STABLE, 'buy');
+      expect(sentences(note)).toHaveLength(1);
+      expect(note.split(/\s+/).length).toBeLessThanOrEqual(15);
+    }
+  });
 });

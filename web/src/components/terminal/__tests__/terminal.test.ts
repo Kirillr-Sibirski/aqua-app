@@ -77,3 +77,27 @@ describe('formatSpan', () => {
     expect(formatSpan(0)).toBe('1s');
   });
 });
+
+import { defaultStrike, strikeRefusal } from '../useTicketDraft';
+
+describe('ticket side', () => {
+  it('opens a sell above spot and a buy below it', () => {
+    expect(defaultStrike(2442.43, 'sell')).toBeGreaterThan(2442.43);
+    expect(defaultStrike(2442.43, 'buy')).toBeLessThan(2442.43);
+    expect(defaultStrike(2442.43, 'buy')).toBe(2300);
+  });
+
+  it('refuses a sell at or under spot and a buy at or over it', () => {
+    expect(strikeRefusal(2400, 2442, 'sell')).toBe('Strike below spot');
+    expect(strikeRefusal(2442, 2442, 'sell')).toBe('Strike below spot');
+    expect(strikeRefusal(2600, 2442, 'sell')).toBeUndefined();
+    expect(strikeRefusal(2500, 2442, 'buy')).toBe('Strike above spot');
+    expect(strikeRefusal(2442, 2442, 'buy')).toBe('Strike above spot');
+    expect(strikeRefusal(2300, 2442, 'buy')).toBeUndefined();
+  });
+
+  it('says nothing before the feed answers or while the field is blank', () => {
+    expect(strikeRefusal(2300, undefined, 'buy')).toBeUndefined();
+    expect(strikeRefusal(Number(''), 2442, 'sell')).toBeUndefined();
+  });
+});

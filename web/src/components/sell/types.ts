@@ -20,8 +20,15 @@ export interface OfferPair {
   riskyIsTokenA: boolean;
 }
 
+/**
+ * Which way an offer trades. `sell` is a covered call: WETH on offer, sold as the price rises.
+ * `buy` is a cash-secured put: USDC on offer, spent on WETH as the price falls.
+ */
+export type OfferSide = 'sell' | 'buy';
+
 /** An offer after the chain has told us where the curve is. Everything needed to publish it. */
 export interface SizedOffer {
+  side: OfferSide;
   rmm: RmmArgs;
   program: Hex;
   order: Order;
@@ -34,7 +41,7 @@ export interface SizedOffer {
   earnedWad: bigint;
   /** Where the curve sits at expiry, `K*(L - x)`. From the chain's settlement branch. */
   settlementWad: bigint;
-  /** `K + earned/x`: what the sale actually works out at per unit. */
+  /** Sell: `K + earned/x`, what the sale works out at. Buy: `K - earned/(L - x)`, what the purchase does. */
   effectivePriceWad: bigint;
   /** Raw token amounts. */
   riskyRaw: bigint;

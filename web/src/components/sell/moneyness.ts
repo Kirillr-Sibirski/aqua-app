@@ -125,6 +125,41 @@ export function liquidityForRisky(riskyWad: bigint, input: MoneynessInput): bigi
   return liquidity > riskyWad ? liquidity : riskyWad + BigInt(1);
 }
 
+/**
+ * How much of the stable side to size against, below what was typed.
+ *
+ * `y` comes back from the router, not from here, and the router's `Phi` differs from this one by
+ * about 1e-7. Aiming a hair under the typed amount keeps the reserve the chain returns inside the
+ * wallet balance the field was filled from.
+ */
+const STABLE_TARGET_HAIRCUT = 0.9999;
+
+/**
+ * The other direction: a BUY offer, sized by the stable a person will spend.
+ *
+ * A strike under spot puts the reserve point on the stable-heavy end of the same curve, which is a
+ * cash-secured put. At spot the stable reserve is `y = L*K*Phi(Phi^-1(1 - x/L) - sigma*sqrt(tau))`,
+ * and with `1 - x/L = Phi(d1)` that inner term is just `Phi(d2)`. So `L = y / (K*Phi(d2))`, and the
+ * risky reserve is the usual `x = L*(1 - Phi(d1))`. Both are choices, for the reason above; the
+ * stable the offer really holds is still asked of `stableFor` with this exact `x` and `L`.
+ */
+export function liquidityForStable(
+  stableWad: bigint,
+  input: MoneynessInput,
+): { liquidityWad: bigint; riskyWad: bigint } | undefined {
+  if (stableWad <= BigInt(0) || !(input.strike > 0)) return undefined;
+  const { d2 } = d1d2(input);
+  const perL = input.strike * (d2 === Infinity ? 1 : d2 === -Infinity ? 0 : phi(d2));
+  if (!(perL > 0)) return undefined;
+  const fraction = Math.min(MAX_FRACTION, Math.max(MIN_FRACTION, riskyFraction(input)));
+  const liquidity = (Number(stableWad) / 1e18) * STABLE_TARGET_HAIRCUT / perL;
+  if (!Number.isFinite(liquidity) || liquidity <= 0) return undefined;
+  const liquidityWad = BigInt(Math.floor(liquidity * 1e12)) * BigInt(1e6);
+  const riskyWad = BigInt(Math.floor(liquidity * fraction * 1e12)) * BigInt(1e6);
+  if (liquidityWad <= BigInt(0) || riskyWad <= BigInt(0) || riskyWad >= liquidityWad) return undefined;
+  return { liquidityWad, riskyWad };
+}
+
 // ---------------------------------------------------------------------------
 // Prices a person would actually name
 // ---------------------------------------------------------------------------

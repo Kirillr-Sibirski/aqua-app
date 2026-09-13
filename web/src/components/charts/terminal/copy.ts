@@ -32,13 +32,16 @@
  */
 import type { TerminalView } from './types';
 
+/** Which way the drafted offer trades. Only the views whose wording differs by side read it. */
+export type CopySide = 'sell' | 'buy';
+
 export interface ViewCopy {
   /** The tab. One word. */
   label: string;
   /** One clause under the control, naming what is plotted against what. Never a sentence. */
-  caption: (risky: string, stable: string) => string;
+  caption: (risky: string, stable: string, side?: CopySide) => string;
   /** One short plain sentence behind the ⓘ. The only prose on this screen. */
-  note: (risky: string, stable: string) => string;
+  note: (risky: string, stable: string, side?: CopySide) => string;
 }
 
 export const VIEW_COPY: Record<TerminalView, ViewCopy> = {
@@ -50,12 +53,19 @@ export const VIEW_COPY: Record<TerminalView, ViewCopy> = {
   payoff: {
     label: 'payoff',
     caption: (risky) => `what you end up with at expiry, depending on the ${risky} price`,
-    note: (risky) => `What you end up with at expiry, compared with just holding ${risky}.`,
+    note: (risky, stable, side) =>
+      `What you end up with at expiry, compared with just holding ${side === 'buy' ? stable : risky}.`,
   },
   price: {
     label: 'price',
-    caption: (risky) => `the price each ${risky} sells at, as buyers take more`,
-    note: () => 'Before expiry your offer sells a little at a time, at rising prices.',
+    caption: (_risky, _stable, side) =>
+      side === 'buy'
+        ? 'you buy a little at a time as the price falls'
+        : 'you sell a little at a time as the price rises',
+    note: (_risky, _stable, side) =>
+      side === 'buy'
+        ? 'Before expiry your offer buys a little at a time, at falling prices.'
+        : 'Before expiry your offer sells a little at a time, at rising prices.',
   },
 };
 

@@ -133,6 +133,8 @@ export function PayoffView({
           capWad: settlement.capWad,
           settlementWad: settlement.settlementWad,
           strikeWad: leg.strikeWad,
+          liquidityWad: leg.liquidityWad,
+          side: leg.side,
         })
       : null;
 
@@ -153,6 +155,9 @@ export function PayoffView({
   /* Nothing is read out of a plot that is not being drawn: a refusal must not leave last frame's
      figures standing in the strip above an empty box. */
   const readout: ReadoutItem[] = anchors && resolved === 'ready' ? readoutAt(at, anchors, risky.symbol) : [];
+  const buying = leg?.side === 'buy';
+  /* What the maker would otherwise be sitting on: the risky they would sell, or the stable they would spend. */
+  const heldSymbol = buying ? stable.symbol : risky.symbol;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
@@ -185,7 +190,15 @@ export function PayoffView({
             .domain(domain)
             .range([geometry.inner.x, geometry.inner.x + geometry.inner.width]);
           const y = scaleLinear()
-            .domain(padDomain([holdValue(domain[0], anchors), holdValue(domain[1], anchors)], 0.06))
+            .domain(
+              padDomain(
+                [
+                  Math.min(holdValue(domain[0], anchors), positionValue(domain[0], anchors)),
+                  Math.max(holdValue(domain[1], anchors), positionValue(domain[1], anchors)),
+                ],
+                0.06,
+              ),
+            )
             .range([geometry.inner.y + geometry.inner.height, geometry.inner.y]);
 
           /*
@@ -342,24 +355,50 @@ export function PayoffView({
                     * the end of each line makes it a glance. They sit at the right edge, where the
                     * lines are furthest apart, and they wear the same two words the readout uses.
                     */}
-                  <SeriesLabel
-                    x={geometry.inner.x + geometry.inner.width - 4}
-                    y={y(holdValue(domain[1], anchors)) + 15}
-                    anchor="end"
-                    tone="ink-2"
-                    className={classes.fade}
-                  >
-                    {`just holding ${risky.symbol}`}
-                  </SeriesLabel>
-                  <SeriesLabel
-                    x={geometry.inner.x + geometry.inner.width - 4}
-                    y={y(anchors.cap) - 9}
-                    anchor="end"
-                    tone="accent"
-                    className={classes.fade}
-                  >
-                    with your offer
-                  </SeriesLabel>
+                  {buying ? (
+                    /* A buy offer parts from holding on the LEFT, below the kink, so its names go there. */
+                    <>
+                      <SeriesLabel
+                        x={geometry.inner.x + 4}
+                        y={y(holdValue(domain[0], anchors)) - 9}
+                        anchor="start"
+                        tone="ink-2"
+                        className={classes.fade}
+                      >
+                        {`just holding ${heldSymbol}`}
+                      </SeriesLabel>
+                      <SeriesLabel
+                        x={geometry.inner.x + 4}
+                        y={y(positionValue(domain[0], anchors)) + 15}
+                        anchor="start"
+                        tone="accent"
+                        className={classes.fade}
+                      >
+                        with your offer
+                      </SeriesLabel>
+                    </>
+                  ) : (
+                    <>
+                      <SeriesLabel
+                        x={geometry.inner.x + geometry.inner.width - 4}
+                        y={y(holdValue(domain[1], anchors)) + 15}
+                        anchor="end"
+                        tone="ink-2"
+                        className={classes.fade}
+                      >
+                        {`just holding ${heldSymbol}`}
+                      </SeriesLabel>
+                      <SeriesLabel
+                        x={geometry.inner.x + geometry.inner.width - 4}
+                        y={y(anchors.cap) - 9}
+                        anchor="end"
+                        tone="accent"
+                        className={classes.fade}
+                      >
+                        with your offer
+                      </SeriesLabel>
+                    </>
+                  )}
                 </Wipe>
               </PlotArea>
               <Axis geometry={geometry} scale={x} orientation="bottom" count={compact ? 3 : 5} />

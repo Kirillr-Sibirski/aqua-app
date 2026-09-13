@@ -145,15 +145,17 @@ export function ViewNote({
   view,
   risky,
   stable,
+  side,
 }: {
   view: TerminalView;
   risky: string;
   stable: string;
+  side?: 'sell' | 'buy';
 }) {
   const copy = VIEW_COPY[view];
   return (
     <Explain term={copy.label} position="bottom-start">
-      <p>{copy.note(risky, stable)}</p>
+      <p>{copy.note(risky, stable, side)}</p>
     </Explain>
   );
 }
@@ -177,18 +179,20 @@ export function ChartHeader({
   control,
   risky,
   stable,
+  side,
 }: {
   view: TerminalView;
   control: ReactNode;
   risky: string;
   stable: string;
+  side?: 'sell' | 'buy';
 }) {
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-x-2.5 gap-y-1.5">
       {control}
-      <ViewNote view={view} risky={risky} stable={stable} />
+      <ViewNote view={view} risky={risky} stable={stable} side={side} />
       <p key={view} className={cn(classes.caption, 'min-w-0 text-mini text-ink-3')}>
-        {VIEW_COPY[view].caption(risky, stable)}
+        {VIEW_COPY[view].caption(risky, stable, side)}
       </p>
     </div>
   );

@@ -29,6 +29,7 @@ import {
   FALLBACK_VOL,
   MIN_VOL_SPAN_SECONDS,
   type OfferPair,
+  type OfferSide,
   type SizedOffer,
 } from '@/components/sell';
 import { floorToTokenDigits, tokenFractionDigits } from '@/components/token';
@@ -36,8 +37,27 @@ import { aquaFork } from '@/lib/chain';
 import type { Deployments } from '@/lib/contracts';
 import { formatTenor, formatUnits, parseDecimalInput, toDecimalString } from '@/lib/ui';
 
-/** How far above today's price the ticket opens. A price below it would be taken immediately. */
+/**
+ * How far from today's price the ticket opens: above it to sell, below it to buy. A sell priced
+ * under spot, or a buy priced over it, would be taken the moment it was published.
+ */
 const DEFAULT_OVER_SPOT = 0.05;
+
+/** The strike a side opens at, before anything is typed. */
+export function defaultStrike(spot: number, side: OfferSide): number {
+  return strikeFrom(spot, side === 'buy' ? -DEFAULT_OVER_SPOT : DEFAULT_OVER_SPOT);
+}
+
+/**
+ * Why a strike is refused for this side, or undefined when it is on the right side of spot.
+ * Sell must be above spot and buy below it; at spot either would fill on publish.
+ */
+export function strikeRefusal(strike: number, spot: number | undefined, side: OfferSide): string | undefined {
+  if (spot === undefined || !Number.isFinite(strike) || !(strike > 0)) return undefined;
+  if (side === 'sell' && strike <= spot) return 'Strike below spot';
+  if (side === 'buy' && strike >= spot) return 'Strike above spot';
+  return undefined;
+}
 
 export interface UseTicketDraftParams {
   pair?: OfferPair;
@@ -49,11 +69,16 @@ export interface UseTicketDraftParams {
   nowSeconds?: number;
   /** The wallet's balance of the risky token, raw units. */
   riskyBalance?: bigint;
+  /** The wallet's balance of the stable token, raw units. What a buy offer spends. */
+  stableBalance?: bigint;
   hydrated: boolean;
   wrongNetwork?: boolean;
 }
 
 export interface TicketDraft {
+  /** Sell WETH (a covered call) or buy WETH (a cash-secured put). */
+  side: OfferSide;
+  setSide: (next: OfferSide) => void;
   /** Field values, always a string, never blank once the chain has answered. */
   amount: string;
   strike: string;
@@ -80,8 +105,10 @@ export interface TicketDraft {
   maxAmountLabel?: string;
   /** True when more was typed than the wallet holds. The quote is clamped; the button refuses. */
   overBalance: boolean;
-  /** True when the strike is at or under the feed's answer, where the offer is taken instantly. */
+  /** True when the strike is on the wrong side of the feed's answer for this side, where the offer is taken instantly. */
   belowSpot: boolean;
+  /** The refusal for that case, as the button reads it. */
+  strikeRefusal?: string;
   /** `(strike - spot) / spot`. Undefined until the feed answers. */
   moneyness?: number;
   /** Unix seconds, 08:00 UTC on the chosen day. */
@@ -118,6 +145,7 @@ export function useTicketDraft({
   address,
   nowSeconds,
   riskyBalance,
+  stableBalance,
   hydrated,
 }: UseTicketDraftParams): TicketDraft {
   const realised = useRealisedVol(pair?.feed, { chainId: aquaFork.id });
@@ -126,6 +154,10 @@ export function useTicketDraft({
   const [strikeDraft, setStrikeDraft] = useState<string>();
   const [dateDraft, setDateDraft] = useState<string | null>();
   const [volDraft, setVolDraft] = useState<string>();
+  const [side, setSideState] = useState<OfferSide>('sell');
+  /** The token the amount field is denominated in: what this side puts on offer. */
+  const offered = pair ? (side === 'buy' ? pair.stable : pair.risky) : undefined;
+  const offeredBalance = side === 'buy' ? stableBalance : riskyBalance;
   /** The browser's clock, read once per mount so the default date cannot move under the maker. */
   const [wallAnchor] = useState(() => Math.floor(Date.now() / 1000));
 
@@ -147,21 +179,21 @@ export function useTicketDraft({
    * real balance to nothing — a wallet holding 0.00003 WETH would otherwise be handed `0.0000` and
    * a button reading `Enter an amount`.
    */
-  const displayPlaces = pair ? tokenFractionDigits(pair.risky.symbol) : 4;
+  const displayPlaces = offered ? tokenFractionDigits(offered.symbol) : 4;
   const maxParts = (() => {
-    if (riskyBalance === undefined || !pair) return undefined;
-    const d = pair.risky.decimals;
+    if (offeredBalance === undefined || !offered) return undefined;
+    const d = offered.decimals;
     /* The truncation is `floorToTokenDigits`, not four lines of step arithmetic written here.
        It used to be written here, and the positions strip's promised-over-held ratio — the only
        other place on this screen that prints this same wallet balance — reached for the default
        formatter instead and rounded it, so `MAX 10.3302` sat above `… / 10.3303 WETH`. Both call
        sites now ask the token registry, which owns how many places a token gets and which way the
        digits past them go. */
-    const floored = floorToTokenDigits(riskyBalance, d, pair.risky.symbol);
+    const floored = floorToTokenDigits(offeredBalance, d, offered.symbol);
     /* The one balance four places cannot express. It keeps the eight-place floor rather than being
        handed `0.0000` and a button reading `Enter an amount`. */
-    if (riskyBalance > BigInt(0) && floored === BigInt(0)) {
-      const deep = roundedDown(riskyBalance, d, 8);
+    if (offeredBalance > BigInt(0) && floored === BigInt(0)) {
+      const deep = roundedDown(offeredBalance, d, 8);
       return { field: deep, label: deep };
     }
     const fixed = {
@@ -179,14 +211,14 @@ export function useTicketDraft({
   const maxAmount = maxParts?.field;
   const maxAmountLabel = maxParts?.label;
   const maxRaw =
-    maxAmount !== undefined && pair
-      ? (parseDecimalInput(maxAmount, pair.risky.decimals) ?? BigInt(0))
+    maxAmount !== undefined && offered
+      ? (parseDecimalInput(maxAmount, offered.decimals) ?? BigInt(0))
       : undefined;
 
   // Derived, never copied into state on arrival: there is no render in which a field disagrees with
   // the read it came from, and no effect that overwrites something typed a frame earlier.
-  const amount = amountDraft ?? maxAmount ?? '1';
-  const strike = strikeDraft ?? (spot === undefined ? '' : String(strikeFrom(spot, DEFAULT_OVER_SPOT)));
+  const amount = amountDraft ?? maxAmount ?? (side === 'buy' ? '2500' : '1');
+  const strike = strikeDraft ?? (spot === undefined ? '' : String(defaultStrike(spot, side)));
   /* Expiries count from the later of the chain's clock and the browser's, so nobody is offered a day
      that has gone: on the demo fork the chain runs days behind the calendar. A draft that has fallen
      behind that floor is pulled up to the first day allowed rather than refused. */
@@ -205,7 +237,7 @@ export function useTicketDraft({
   const measuredVol = volSpanIsEnough && realised.vol ? (realised.vol.sigma * 100).toFixed(1) : undefined;
   const vol = volDraft ?? measuredVol ?? FALLBACK_VOL;
 
-  const amountRaw = pair ? (parseDecimalInput(amount, pair.risky.decimals) ?? BigInt(0)) : BigInt(0);
+  const amountRaw = offered ? (parseDecimalInput(amount, offered.decimals) ?? BigInt(0)) : BigInt(0);
   const overBalance = maxRaw !== undefined && amountRaw > maxRaw;
   /* Never price an offer that cannot be published: the quote is clamped to the balance, so the most
      motivating figure on the screen can never describe a trade the button is already refusing. */
@@ -216,8 +248,8 @@ export function useTicketDraft({
   const sigmaWad = volWad === null || volWad <= BigInt(0) ? undefined : volWad / BigInt(100);
 
   const strikeNumber = Number(strike);
-  const belowSpot =
-    spot !== undefined && Number.isFinite(strikeNumber) && strikeNumber > 0 && strikeNumber <= spot;
+  const refusal = strikeRefusal(strikeNumber, spot, side);
+  const belowSpot = refusal !== undefined;
   const moneyness =
     spot !== undefined && Number.isFinite(strikeNumber) ? moneynessOf(strikeNumber, spot) : undefined;
 
@@ -236,6 +268,7 @@ export function useTicketDraft({
     router: deployments?.router,
     maker: address,
     pair,
+    side,
     amountRaw: quotedRaw,
     strikeWad,
     sigmaWad,
@@ -257,7 +290,7 @@ export function useTicketDraft({
     if (amountRaw <= BigInt(0)) return 'Enter an amount';
     if (overBalance && maxAmount !== undefined) return `Max ${maxAmount}`;
     if (strikeWad === undefined || strikeWad <= BigInt(0)) return 'Enter a strike';
-    if (belowSpot) return 'Strike below spot';
+    if (refusal) return refusal;
     if (sigmaWad === undefined) return 'Enter an IV';
     // Without a spot there is no reserve point to choose `L` at, so no offer is ever produced and a
     // "Pricing" label would describe an activity that is not happening.
@@ -267,6 +300,16 @@ export function useTicketDraft({
   })();
 
   return {
+    side,
+    /* Switching side starts the two figures that mean something different on each side over: an
+       amount of WETH is not an amount of USDC, and a strike above spot is refused on the buy side. */
+    setSide: (next: OfferSide) => {
+      if (next === side) return;
+      resetSteps();
+      setSideState(next);
+      setAmountDraft(undefined);
+      setStrikeDraft(undefined);
+    },
     amount,
     strike,
     date,
@@ -299,6 +342,7 @@ export function useTicketDraft({
     maxAmountLabel,
     overBalance,
     belowSpot,
+    strikeRefusal: refusal,
     moneyness,
     maturity,
     clockSeconds,

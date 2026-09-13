@@ -152,3 +152,42 @@ describe('wadToNumber', () => {
     expect(wadToNumber(BigInt(0))).toBe(0);
   });
 });
+
+describe('a buy offer', () => {
+  /* A put in closed form at expiry: K = 2,300, L = 10, x = 2, so settlement = K*(L - x) = 18,400.
+     The reserve holds y = 18,000, which makes earned = 400. */
+  const K = BigInt(2300) * WAD;
+  const L = BigInt(10) * WAD;
+  const x = BigInt(2) * WAD;
+  const y = BigInt(18_000) * WAD;
+  const put = payoffAnchors({
+    side: 'buy',
+    strikeWad: K,
+    liquidityWad: L,
+    xWad: x,
+    yWad: y,
+    capWad: BigInt(23_000) * WAD,
+    settlementWad: BigInt(18_400) * WAD,
+  })!;
+
+  it('breaks even at K - earned/(L - x), where holding meets owning L', () => {
+    expect(put.earned).toBeCloseTo(400, 9);
+    expect(put.capSpot).toBeCloseTo(2300 - 400 / 8, 9);
+    expect(holdValue(put.capSpot, put)).toBeCloseTo(10 * put.capSpot, 6);
+  });
+
+  it('matches holding above break-even and falls with L below it', () => {
+    expect(positionValue(2400, put)).toBeCloseTo(holdValue(2400, put), 9);
+    expect(positionValue(2000, put)).toBeCloseTo(10 * 2000, 9);
+    expect(positionValue(2000, put)).toBeLessThan(holdValue(2000, put));
+  });
+
+  it('shades the premium between break-even and the strike, and the loss below break-even', () => {
+    const domain = [1800, 2600] as const;
+    const premium = premiumPoints(put, domain);
+    expect(premium).toHaveLength(3);
+    expect(premium[1].y - premium[0].y).toBeCloseTo(400, 6);
+    expect(forgonePoints(put, domain)).toHaveLength(3);
+    expect(forgonePoints(put, [2400, 2600])).toEqual([]);
+  });
+});

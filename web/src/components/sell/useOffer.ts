@@ -44,8 +44,8 @@ import {
 } from '@/components/curve';
 import { aquaFork, type SupportedChainId } from '@/lib/chain';
 import { buildAquaOrder, encodeStrategyForShip } from '@/lib/swapvm';
-import { liquidityForRisky } from './moneyness';
-import type { OfferPair, SizedOffer } from './types';
+import { liquidityForRisky, liquidityForStable } from './moneyness';
+import type { OfferPair, OfferSide, SizedOffer } from './types';
 
 const ZERO_ADDRESS: Address = '0x0000000000000000000000000000000000000000';
 
@@ -64,7 +64,9 @@ export interface UseOfferParams {
   router?: Address;
   maker?: Address;
   pair?: OfferPair;
-  /** How much of the risky asset goes on offer, in raw token units. */
+  /** `sell` puts the risky asset on offer; `buy` puts the stable asset on offer to buy it with. */
+  side?: OfferSide;
+  /** How much goes on offer, in raw units of the token that side offers: risky to sell, stable to buy. */
   amountRaw: bigint;
   /** The price, WAD, stable per risky. */
   strikeWad?: bigint;
@@ -93,6 +95,7 @@ export function useOffer({
   router,
   maker,
   pair,
+  side = 'sell',
   amountRaw,
   strikeWad,
   sigmaWad,
@@ -122,15 +125,20 @@ export function useOffer({
       return undefined;
     }
     const rateRisky = rateFor(pair.risky.decimals);
+    const input = { spot, strike: Number(strikeWad) / 1e18, sigma: Number(sigmaWad) / 1e18, tau };
+    if (side === 'buy') {
+      // The stable typed is the target; `x` and `L` are chosen to put that much on the curve at spot,
+      // and `x` is floored to a whole raw unit of the risky token so it ships exactly.
+      const sized = liquidityForStable(amountRaw * rateFor(pair.stable.decimals), input);
+      if (!sized) return undefined;
+      const riskyRaw = sized.riskyWad / rateRisky;
+      if (riskyRaw <= BigInt(0)) return undefined;
+      return { xWad: riskyRaw * rateRisky, liquidityWad: sized.liquidityWad, riskyRaw };
+    }
     const xWad = amountRaw * rateRisky;
-    const liquidityWad = liquidityForRisky(xWad, {
-      spot,
-      strike: Number(strikeWad) / 1e18,
-      sigma: Number(sigmaWad) / 1e18,
-      tau,
-    });
+    const liquidityWad = liquidityForRisky(xWad, input);
     return { xWad, liquidityWad, riskyRaw: amountRaw };
-  }, [pair, amountRaw, strikeWad, sigmaWad, tau, spot]);
+  }, [pair, side, amountRaw, strikeWad, sigmaWad, tau, spot]);
 
   /*
    * A wallet is NOT a precondition for pricing.
@@ -210,10 +218,15 @@ export function useOffer({
      * the router's; the arithmetic between them is a subtraction and a division, not a curve.
      */
     const earnedWad = ySettlementWanted > yWad ? ySettlementWanted - yWad : BigInt(0);
-    const effectivePriceWad = strikeWad + (earnedWad * WAD) / chosen.xWad;
+    /* Sell: the whole `x` goes at `K`, plus the premium spread over it. Buy: assignment brings in the
+       `L - x` the offer is still short of, for the stable it holds, so the premium comes off `K`. */
+    const effectivePriceWad =
+      side === 'buy'
+        ? strikeWad - (earnedWad * WAD) / (chosen.liquidityWad - chosen.xWad)
+        : strikeWad + (earnedWad * WAD) / chosen.xWad;
 
     const rmm: RmmArgs = {
-      flags: (pair.riskyIsTokenA ? FLAG_RISKY_IS_TOKEN_A : 0) | expiryFlagsFor('call'),
+      flags: (pair.riskyIsTokenA ? FLAG_RISKY_IS_TOKEN_A : 0) | expiryFlagsFor(side === 'buy' ? 'put' : 'call'),
       sigmaWad,
       maturity,
       strikeWad,
@@ -237,6 +250,7 @@ export function useOffer({
     const strategyHash = keccak256(encodeStrategyForShip(order)) as Hex;
 
     return {
+      side,
       rmm,
       program,
       order,
@@ -254,7 +268,7 @@ export function useOffer({
         ? ([chosen.riskyRaw, stableRaw] as const)
         : ([stableRaw, chosen.riskyRaw] as const)) satisfies readonly [bigint, bigint],
     };
-  }, [query.data, pair, chosen, maker, maturity, strikeWad, sigmaWad, salt]);
+  }, [query.data, pair, side, chosen, maker, maturity, strikeWad, sigmaWad, salt]);
 
   return {
     offer,

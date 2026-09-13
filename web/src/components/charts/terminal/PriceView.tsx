@@ -32,7 +32,8 @@ import { Axis } from '../Axis';
 import { CurveLine } from '../CurveLine';
 import { Grid } from '../Grid';
 import { formatChartNumber, formatChartToken } from '../format';
-import { type ChartGeometry, type ChartPoint } from '../types';
+import { round, type ChartGeometry, type ChartPoint } from '../types';
+import { colorMix } from '@/lib/ui/tokens';
 import classes from './chart.module.css';
 import { Crosshair } from './Crosshair';
 import { Readout, type ReadoutItem } from './chrome';
@@ -97,6 +98,56 @@ export function sellLadder(
   return out;
 }
 
+/**
+ * The buy side of the same ladder: slices a seller brings in, from the offer's reserve toward `L`.
+ *
+ * A buy offer starts stable-heavy, so a taker selling the risky walks `x` UP the grid. `bought` is
+ * measured from the offer's own reserve, and each price is the same measured `|ΔY / ΔX|`.
+ */
+export function buyLadder(
+  samples: readonly ChartPoint[],
+  reserve: ChartPoint,
+): LadderStep[] {
+  const above = samples.filter((p) => p.x > reserve.x).sort((a, b) => a.x - b.x);
+  const path = [reserve, ...above];
+  const out: LadderStep[] = [];
+  for (let i = 1; i < path.length; i += 1) {
+    const lo = path[i - 1];
+    const hi = path[i];
+    const dx = hi.x - lo.x;
+    if (!(dx > 0)) continue;
+    const price = Math.abs((hi.y - lo.y) / dx);
+    if (!Number.isFinite(price)) continue;
+    out.push({ sold: (hi.x + lo.x) / 2 - reserve.x, price });
+  }
+  return out;
+}
+
+/**
+ * The two regions between the ladder and the strike line, as closed polygons in domain units.
+ *
+ * `better` is where the offer trades at a better price than the one named: above the strike when
+ * selling, below it when buying. `worse` is the rest. Each is the ladder clamped to one side of the
+ * strike and closed back along it, so a region with nothing in it has zero height and draws nothing.
+ */
+export function ladderRegions(
+  ladder: readonly LadderStep[],
+  strike: number,
+  side: 'sell' | 'buy',
+): { better: ChartPoint[]; worse: ChartPoint[] } {
+  if (ladder.length < 2) return { better: [], worse: [] };
+  const first = ladder[0].sold;
+  const last = ladder[ladder.length - 1].sold;
+  const close = (pick: (p: number) => number): ChartPoint[] => [
+    ...ladder.map((s) => ({ x: s.sold, y: pick(s.price) })),
+    { x: last, y: strike },
+    { x: first, y: strike },
+  ];
+  const up = close((p) => Math.max(p, strike));
+  const down = close((p) => Math.min(p, strike));
+  return side === 'buy' ? { better: down, worse: up } : { better: up, worse: down };
+}
+
 export function PriceView({
   panelId,
   tabId,
@@ -138,8 +189,10 @@ export function PriceView({
   });
 
   const error = live.error ?? settled.error;
+  const buying = leg?.side === 'buy';
   const reserve = leg ? { x: wadToNumber(leg.xWad), y: wadToNumber(leg.yWad) } : null;
-  const ladder = reserve ? sellLadder(live.samples, reserve) : [];
+  const ladder = reserve ? (buying ? buyLadder(live.samples, reserve) : sellLadder(live.samples, reserve)) : [];
+  const verb = buying ? 'bought' : 'sold';
 
   /* At expiry the curve is a line, so its one slope is the whole ladder. Measured, not typed in. */
   const settlement = settled.samples;
@@ -167,31 +220,30 @@ export function PriceView({
     shown && resolved === 'ready'
       ? [
           {
-            label: 'sold',
+            label: verb,
             value: `${formatChartToken(at ? at.sold : 0, 1)} ${risky.symbol}`,
           },
           {
-            label: 'price',
+            label: 'at',
             icon: stable.icon,
             value: `${formatChartToken(shown.price, 0)} ${stable.symbol}`,
             tone: 'accent',
           },
-          {
-            label: 'at expiry',
-            value: `${formatChartToken(expiryPrice, 0)} ${stable.symbol}`,
-            tone: 'ink-2',
-          },
         ]
       : [];
 
-  const total = reserve?.x ?? 0;
+  const total = reserve ? (buying && leg ? wadToNumber(leg.liquidityWad) - reserve.x : reserve.x) : 0;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
       <Readout items={readout} />
       <Plot
-        title="The price each unit sells at"
-        description={`A sell ladder for this offer: for each amount of ${risky.symbol} bought from it, starting now, the price per ${risky.symbol} in ${stable.symbol} a buyer pays for the next slice. Each price is the step between two router reads of the offer's curve. The dashed line is the same offer at expiry, where every slice sells at the strike.`}
+        title={buying ? 'The price each unit is bought at' : 'The price each unit sells at'}
+        description={
+          buying
+            ? `A buy ladder for this offer: for each amount of ${risky.symbol} sold into it, starting now, the price per ${risky.symbol} in ${stable.symbol} it pays. Each price is the step between two router reads of the offer's curve. The dashed line is the same offer at expiry, where every slice is bought at the strike.`
+            : `A sell ladder for this offer: for each amount of ${risky.symbol} bought from it, starting now, the price per ${risky.symbol} in ${stable.symbol} a buyer pays for the next slice. Each price is the step between two router reads of the offer's curve. The dashed line is the same offer at expiry, where every slice sells at the strike.`
+        }
         margin={MARGIN}
         panelId={panelId}
         panelLabelledBy={tabId}
@@ -206,7 +258,7 @@ export function PriceView({
           },
           index,
           onIndex: setIndex,
-          label: `${risky.symbol} sold`,
+          label: `${risky.symbol} ${verb}`,
           valueText: readout.map((item) => `${item.label} ${item.value}`).join(', '),
         }}
       >
@@ -234,12 +286,48 @@ export function PriceView({
             { x: total, y: expiryPrice },
           ];
           const first = ladder[0];
+          const regions = ladderRegions(ladder, expiryPrice, buying ? 'buy' : 'sell');
+          const path = (pts: readonly ChartPoint[]) =>
+            pts.length >= 3 ? `M${pts.map((p) => `${round(x(p.x))},${round(y(p.y))}`).join('L')}Z` : null;
+          /* A centred label is ~23 characters; keep its box inside the plot rather than off the edge. */
+          const LABEL_HALF = 80;
+          /*
+           * Where each region's one-line label sits: at the step where the region is deepest, pulled
+           * in from the edges, and then re-measured at the step it actually lands on. A region too
+           * thin there to hold text gets no label rather than one printed over the line.
+           */
+          const place = (better: boolean) => {
+            let best: LadderStep | null = null;
+            let depth = 0;
+            for (const step of ladder) {
+              const gap = step.price - expiryPrice;
+              const d = (buying ? -gap : gap) * (better ? 1 : -1);
+              if (d > depth) {
+                depth = d;
+                best = step;
+              }
+            }
+            if (!best) return null;
+            const px = Math.min(Math.max(x(best.sold), left + LABEL_HALF), right - LABEL_HALF);
+            const landed = ladder.reduce((near, step) =>
+              Math.abs(x(step.sold) - px) < Math.abs(x(near.sold) - px) ? step : near,
+            );
+            const gap = landed.price - expiryPrice;
+            if ((buying ? -gap : gap) * (better ? 1 : -1) <= 0) return null;
+            if (Math.abs(y(landed.price) - y(expiryPrice)) < 30) return null;
+            return { x: px, y: (y(landed.price) + y(expiryPrice)) / 2 + 4 };
+          };
+          const betterAt = place(true);
+          const worseAt = place(false);
+          const strikeLabel = formatChartNumber(expiryPrice, { significantDigits: 6, maxFractionDigits: 0 });
 
           return (
             <>
               <Grid geometry={geometry} yScale={y} yCount={4} />
               <PlotArea geometry={geometry}>
                 <Wipe geometry={geometry}>
+                  {path(regions.worse) ? <path d={path(regions.worse)!} fill={colorMix('ink-3', 10)} stroke="none" /> : null}
+                  {path(regions.better) ? <path d={path(regions.better)!} fill={colorMix('pos', 18)} stroke="none" /> : null}
                   {spot !== undefined && spot > 0 ? (
                     <>
                       <line
@@ -250,7 +338,7 @@ export function PriceView({
                         stroke="var(--ink-3)"
                         strokeWidth={1}
                       />
-                      <SeriesLabel x={right - 4} y={y(spot) + 16} anchor="end" tone="ink-3" className={classes.fade}>
+                      <SeriesLabel x={left + 4} y={y(spot) + (buying ? -8 : 16)} anchor="start" tone="ink-3" className={classes.fade}>
                         {`${risky.symbol} now ${formatChartNumber(spot, { significantDigits: 6, maxFractionDigits: 0 })}`}
                       </SeriesLabel>
                     </>
@@ -263,33 +351,48 @@ export function PriceView({
                     strokeWidth={1.5}
                     dash="dashed"
                   />
-                  <SeriesLabel x={right - 4} y={y(expiryPrice) - 8} anchor="end" tone="ink-2" className={classes.fade}>
-                    {compact ? 'at expiry' : `at expiry: every ${risky.symbol} at the strike`}
+                  <SeriesLabel
+                    x={right - 4}
+                    y={y(expiryPrice) + (buying ? 16 : -8)}
+                    anchor="end"
+                    tone="ink-2"
+                    className={classes.fade}
+                  >
+                    {compact ? `expiry ${strikeLabel}` : `at expiry: all at ${strikeLabel}`}
                   </SeriesLabel>
                   <CurveLine points={points} xScale={x} yScale={y} stroke="accent" strokeWidth={2} />
-                  <SeriesLabel
-                    x={x(ladder[Math.floor(ladder.length * 0.72)].sold) - 6}
-                    y={y(ladder[Math.floor(ladder.length * 0.72)].price) - 10}
-                    anchor="end"
-                    tone="accent"
-                    className={classes.fade}
-                  >
-                    today
-                  </SeriesLabel>
+                  {betterAt && !compact ? (
+                    <SeriesLabel
+                      x={betterAt.x}
+                      y={betterAt.y}
+                      anchor="middle"
+                      tone="pos"
+                      className={classes.fade}
+                    >
+                      {buying ? 'bought below your price' : 'sold above your price'}
+                    </SeriesLabel>
+                  ) : null}
+                  {worseAt && !compact ? (
+                    <SeriesLabel
+                      x={worseAt.x}
+                      y={worseAt.y}
+                      anchor="middle"
+                      tone="ink-3"
+                      className={classes.fade}
+                    >
+                      {buying ? 'bought above your price' : 'sold below your price'}
+                    </SeriesLabel>
+                  ) : null}
                   <LivePoint x={x(first.sold)} y={y(first.price)} baseline={bottom} />
-                  <SeriesLabel
-                    x={x(first.sold) + 12}
-                    y={Math.min(y(first.price) + 20, bottom - 6)}
-                    tone="accent"
-                    className={classes.fade}
-                  >
-                    {compact ? 'now' : 'you are here'}
-                  </SeriesLabel>
                 </Wipe>
               </PlotArea>
               <Axis geometry={geometry} scale={x} orientation="bottom" count={compact ? 3 : 5} />
-              <AxisBand geometry={geometry} start="nothing sold" end="all sold">
-                {`${risky.symbol} bought from your offer`}
+              <AxisBand
+                geometry={geometry}
+                start={buying ? 'nothing bought' : 'nothing sold'}
+                end={buying ? 'all bought' : 'all sold'}
+              >
+                {buying ? `${risky.symbol} sold into your offer` : `${risky.symbol} bought from your offer`}
               </AxisBand>
               <Axis geometry={geometry} scale={y} orientation="left" count={4} />
               <AxisName geometry={geometry} side="left" swatch="accent" className={classes.fade}>

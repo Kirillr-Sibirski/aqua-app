@@ -76,6 +76,9 @@ export function Ticket({
 }: TicketProps) {
   const riskySymbol = pair?.risky.symbol;
   const stableSymbol = pair?.stable.symbol;
+  const buying = draft.side === 'buy';
+  /* The token the amount field is in: what this side puts on offer. */
+  const offeredSymbol = buying ? stableSymbol : riskySymbol;
   const { publisher } = draft;
   const running = publisher.isRunning;
   const active = publisher.steps.find((s) => s.status === 'signing' || s.status === 'pending');
@@ -108,11 +111,37 @@ export function Ticket({
   })();
 
   return (
-    <aside id={id} className={classes.ticket} aria-label="Write a covered call">
+    <aside id={id} className={classes.ticket} aria-label={buying ? 'Write a buy offer' : 'Write a sell offer'}>
+      {/* --- side --------------------------------------------------------- */}
+      {/* Two ways to use the same curve: sell WETH above today's price, or buy it below. The
+          contract is identical; only which reserve the offer starts heavy in differs. */}
+      <div className={classes.group}>
+        <div className={classes.chips} role="group" aria-label="Offer side">
+          {(
+            [
+              ['sell', `Sell ${riskySymbol ?? 'WETH'}`],
+              ['buy', `Buy ${riskySymbol ?? 'WETH'}`],
+            ] as const
+          ).map(([value, text]) => (
+            <button
+              key={value}
+              type="button"
+              className={classes.chip}
+              style={{ flex: '1 1 0' }}
+              aria-pressed={draft.side === value}
+              disabled={running}
+              onClick={() => draft.setSide(value)}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* --- amount ------------------------------------------------------- */}
       <div className={classes.group}>
         <div className={classes.legend}>
-          <span>Sell</span>
+          <span>{buying ? 'Spend' : 'Sell'}</span>
           {/*
             * The balance, once, and it is the button that fills the field with it.
             *
@@ -151,11 +180,11 @@ export function Ticket({
         </div>
         <div className={classes.well} data-invalid={draft.overBalance || undefined}>
           <span className={classes.wellUnit}>
-            {riskySymbol ? <TokenIcon symbol={riskySymbol} size={18} /> : <Bar width={18} />}
-            {riskySymbol ?? ''}
+            {offeredSymbol ? <TokenIcon symbol={offeredSymbol} size={18} /> : <Bar width={18} />}
+            {offeredSymbol ?? ''}
           </span>
           <NumberInput
-            aria-label="Amount to sell"
+            aria-label={buying ? 'Amount to spend' : 'Amount to sell'}
             variant="unstyled"
             classNames={{ input: classes.input }}
             data-len={draft.amount.length > 17 ? 'xl' : draft.amount.length > 11 ? 'l' : undefined}
@@ -166,7 +195,7 @@ export function Ticket({
             hideControls
             allowNegative={false}
             thousandSeparator=","
-            decimalScale={pair?.risky.decimals ?? 18}
+            decimalScale={(buying ? pair?.stable.decimals : pair?.risky.decimals) ?? 18}
             style={{ flex: '1 1 auto', minWidth: 0 }}
           />
         </div>
@@ -175,7 +204,7 @@ export function Ticket({
       {/* --- strike ------------------------------------------------------- */}
       <div className={classes.group}>
         <div className={classes.legend}>
-          <span>Strike</span>
+          <span>{buying ? 'Buy at' : 'Strike'}</span>
         </div>
         <div className={classes.well} data-invalid={draft.belowSpot || undefined}>
           <span className={classes.wellUnit}>
@@ -183,7 +212,7 @@ export function Ticket({
             {stableSymbol ?? ''}
           </span>
           <NumberInput
-            aria-label="Strike price"
+            aria-label={buying ? 'Price to buy at' : 'Strike price'}
             variant="unstyled"
             classNames={{ input: classes.input }}
             value={draft.strike}
@@ -386,12 +415,18 @@ export function Ticket({
         </FigureRow>
 
         <FigureRow
-          label="Capped at"
+          label={buying ? 'Buys at' : 'Capped at'}
           unit={draft.offer ? stableSymbol : undefined}
           explain={
-            <Explain term="Capped at" position="top-start">
-              <p>{`Above this ${riskySymbol ?? ''} price you'd have done better just holding.`}</p>
-            </Explain>
+            buying ? (
+              <Explain term="Buys at" position="top-start">
+                <p>{`Below this ${riskySymbol ?? ''} price you'd have done better just holding ${stableSymbol ?? ''}.`}</p>
+              </Explain>
+            ) : (
+              <Explain term="Capped at" position="top-start">
+                <p>{`Above this ${riskySymbol ?? ''} price you'd have done better just holding.`}</p>
+              </Explain>
+            )
           }
         >
           <Reveal token={cappedWad === undefined ? 'pending' : 'settled'}>

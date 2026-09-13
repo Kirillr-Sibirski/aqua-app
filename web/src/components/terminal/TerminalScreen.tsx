@@ -97,7 +97,11 @@ export function TerminalScreen() {
 
   const tokens = useMemo(() => (pair ? [pair.risky.address, pair.stable.address] : []), [pair]);
   const balances = useTokenBalances(address, tokens, { chainId: aquaFork.id, includeNative: false });
-  const riskyBalance = balances.balances.find((b) => b.token === pair?.risky.address)?.balance;
+  /* `useTokenBalances` keys tokens lowercased, and USDC's checksummed address has letters in it. */
+  const balanceOf = (token?: string) =>
+    token ? balances.balances.find((b) => b.token.toLowerCase() === token.toLowerCase())?.balance : undefined;
+  const riskyBalance = balanceOf(pair?.risky.address);
+  const stableBalance = balanceOf(pair?.stable.address);
 
   const book = useBook(address, { enabled: hydrated });
 
@@ -110,6 +114,7 @@ export function TerminalScreen() {
     address,
     nowSeconds,
     riskyBalance,
+    stableBalance,
     hydrated,
     wrongNetwork,
   });
@@ -119,6 +124,7 @@ export function TerminalScreen() {
      `empty` state rather than a curve drawn from a guess. */
   const leg = draft.offer
     ? {
+        side: draft.offer.side,
         strikeWad: draft.offer.rmm.strikeWad,
         sigmaWad: draft.offer.rmm.sigmaWad,
         maturity: draft.offer.rmm.maturity,
@@ -177,7 +183,7 @@ export function TerminalScreen() {
               /* The router will happily price a strike under spot — it is a view, and the arithmetic
                  is real. The offer is not: it would be taken the instant it was published, and the
                  button says so. The chart says the same thing rather than plotting it. */
-              refusedMessage={draft.belowSpot ? 'strike below spot' : undefined}
+              refusedMessage={draft.strikeRefusal?.toLowerCase()}
               className={classes.chart}
             />
           </section>

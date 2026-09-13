@@ -29,13 +29,20 @@ import { formatUnits } from 'viem';
 
 /** Where the two lines are pinned. All in the tokens' own units, converted from WAD once. */
 export interface PayoffAnchors {
+  /**
+   * `sell`: assigned by takers buying the risky, above `capSpot`, which leaves the maker `K*L` stable.
+   * `buy`: assigned by takers selling the risky, below `capSpot`, which leaves the maker `L` risky.
+   */
+  side: 'sell' | 'buy';
+  /** `L`, the leg's notional in risky units. */
+  liquidity: number;
   /** Risky reserve on offer. */
   x: number;
   /** Stable reserve the curve required there. */
   y: number;
-  /** `K*L` — the position's value once assigned, whatever spot does after. */
+  /** The position's value at the kink. Sell: `K*L`, flat above it. Buy: `L*capSpot`, falling below it. */
   cap: number;
-  /** Spot at which holding and the position stop agreeing: `K + earned/x`. */
+  /** Spot at which holding and the position stop agreeing. Sell `K + earned/x`; buy `K - earned/(L - x)`. */
   capSpot: number;
   /** The price named. */
   strike: number;
@@ -62,6 +69,9 @@ export interface PayoffInputs {
   settlementWad: bigint;
   /** `K`, WAD. */
   strikeWad: bigint;
+  /** `L`, WAD. Needed on the buy side, where assignment leaves the maker holding it. */
+  liquidityWad?: bigint;
+  side?: 'sell' | 'buy';
 }
 
 /**
@@ -73,13 +83,35 @@ export interface PayoffInputs {
  * live offer. Drawing either would be a picture of a position that does not exist.
  */
 export function payoffAnchors(input: PayoffInputs): PayoffAnchors | null {
-  const { xWad, yWad, capWad, settlementWad, strikeWad } = input;
+  const { xWad, yWad, capWad, settlementWad, strikeWad, side = 'sell' } = input;
   if (xWad <= BigInt(0) || capWad <= yWad) return null;
 
-  const capSpotWad = ((capWad - yWad) * WAD) / xWad;
   const earnedWad = settlementWad > yWad ? settlementWad - yWad : BigInt(0);
+  const liquidityWad = input.liquidityWad ?? (strikeWad > BigInt(0) ? (capWad * WAD) / strikeWad : BigInt(0));
 
+  if (side === 'buy') {
+    /* Assignment sells the offer the `L - x` risky it is short of for all `y` it holds, so the two
+       lines meet where `y + x*S = L*S`, i.e. `S = y/(L - x)`, which is `K - earned/(L - x)`. */
+    if (liquidityWad <= xWad) return null;
+    const capSpotWad = (yWad * WAD) / (liquidityWad - xWad);
+    const liquidity = wadToNumber(liquidityWad);
+    const capSpot = wadToNumber(capSpotWad);
+    return {
+      side,
+      liquidity,
+      x: wadToNumber(xWad),
+      y: wadToNumber(yWad),
+      cap: liquidity * capSpot,
+      capSpot,
+      strike: wadToNumber(strikeWad),
+      earned: wadToNumber(earnedWad),
+    };
+  }
+
+  const capSpotWad = ((capWad - yWad) * WAD) / xWad;
   return {
+    side,
+    liquidity: wadToNumber(liquidityWad),
     x: wadToNumber(xWad),
     y: wadToNumber(yWad),
     cap: wadToNumber(capWad),
@@ -96,6 +128,7 @@ export function holdValue(spot: number, a: PayoffAnchors): number {
 
 /** What the leg is worth at expiry: the hold line, capped where assignment takes over. */
 export function positionValue(spot: number, a: PayoffAnchors): number {
+  if (a.side === 'buy') return Math.min(holdValue(spot, a), a.liquidity * spot);
   return Math.min(holdValue(spot, a), a.cap);
 }
 
@@ -128,7 +161,7 @@ export function positionPoints(
   const [lo, hi] = domain;
   const kink = Math.min(Math.max(a.capSpot, lo), hi);
   const points = [{ x: lo, y: positionValue(lo, a) }];
-  if (kink > lo && kink < hi) points.push({ x: kink, y: a.cap });
+  if (kink > lo && kink < hi) points.push({ x: kink, y: positionValue(kink, a) });
   points.push({ x: hi, y: positionValue(hi, a) });
   return points;
 }
@@ -157,6 +190,16 @@ export function forgonePoints(
   domain: readonly [number, number],
 ): { x: number; y: number }[] {
   const [lo, hi] = domain;
+  if (a.side === 'buy') {
+    // Below the kink: the maker bought risky that kept falling, under what holding would be worth.
+    const kinkBuy = Math.min(a.capSpot, hi);
+    if (kinkBuy <= lo) return [];
+    return [
+      { x: kinkBuy, y: holdValue(kinkBuy, a) },
+      { x: lo, y: holdValue(lo, a) },
+      { x: lo, y: a.liquidity * lo },
+    ];
+  }
   const kink = Math.max(a.capSpot, lo);
   if (kink >= hi) return [];
   return [
@@ -196,6 +239,17 @@ export function premiumPoints(
   domain: readonly [number, number],
 ): { x: number; y: number }[] {
   const [lo, hi] = domain;
+  if (a.side === 'buy') {
+    // Mirror of the sell triangle: `earned` tall at the strike, closing at the kink below it.
+    const right = Math.min(a.strike, hi);
+    const left = Math.max(a.capSpot, lo);
+    if (!(right > left)) return [];
+    return [
+      { x: right, y: holdValue(right, a) },
+      { x: right, y: a.liquidity * right },
+      { x: left, y: a.liquidity * left },
+    ];
+  }
   const left = Math.max(a.strike, lo);
   const right = Math.min(a.capSpot, hi);
   if (!(right > left)) return [];

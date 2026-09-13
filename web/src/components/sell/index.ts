@@ -33,7 +33,7 @@ export type { ExpiryPreset } from './expiry';
  * callers need are below; the test imports the rest from '../moneyness' directly, and an eslint
  * `no-restricted-imports` rule now refuses that path from anywhere outside this directory.
  */
-export { liquidityForRisky, moneynessOf, strikeFrom } from './moneyness';
+export { liquidityForRisky, liquidityForStable, moneynessOf, strikeFrom } from './moneyness';
 export type { MoneynessInput } from './moneyness';
 
 export { useOffer } from './useOffer';
@@ -58,4 +58,4 @@ export type {
   UseRealisedVolResult,
 } from './useRealisedVol';
 
-export type { OfferPair, SizedOffer } from './types';
+export type { OfferPair, OfferSide, SizedOffer } from './types';
