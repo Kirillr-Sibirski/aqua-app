@@ -165,9 +165,9 @@ contract SurfaceLensTest is AquaSwapVMTestBase {
         assertEq(leg.reserveRisky, 8.41e18, "risky reserve");
         console2.log("decoded K / sigma / L:", leg.strikeWad, leg.sigmaWad, leg.liquidityWad);
 
-        // The golden vector the TypeScript decoder in `web/src/components/surface` is pinned to.
-        // Three implementations read these bytes — Solidity, AssemblyScript and TypeScript — and a
-        // one-byte disagreement between them would show a wrong strike on screen with no error.
+        // The golden vector the TypeScript decoder in `web/src/hooks/strikeline.ts` is pinned to.
+        // Two implementations read these bytes — Solidity and TypeScript — and a one-byte
+        // disagreement between them would show a wrong strike on screen with no error.
         console2.log("golden strategy bytes:");
         console2.logBytes(strategy);
     }

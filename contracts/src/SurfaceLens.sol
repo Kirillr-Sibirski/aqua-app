@@ -336,7 +336,7 @@ contract SurfaceLens {
         // Read at the GUARDED reserve, not the real one: `RmmSwap.exec` requires `newOut + epsOut <=
         // balanceOut`, so a band read at the bare curve is one eps short of clearing and the taker who
         // sends it gets `RmmInsideSpread`. Same arithmetic as `StrikelineViews.bandFor`; the two
-        // published minimums have to agree or `/leg` and `/surface` disagree about the same leg.
+        // published minimums have to agree or `StrikelineViews.bandFor` and `SurfaceLens` disagree about the same leg.
         uint256 epsRisky = RmmSwap.epsOut(K, L, false);
         uint256 epsStable = RmmSwap.epsOut(K, L, true);
         uint256 yOnCurve = RmmSwap.stableOf(x > epsRisky ? x - epsRisky : 0, K, s, L);
