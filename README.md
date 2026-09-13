@@ -7,7 +7,7 @@ never leaves your wallet.**
 
 Built for ETHGlobal ETHOnline 2026 on **1inch Aqua**.
 
-**Live demo: [strikeline-mu.vercel.app](https://strikeline-mu.vercel.app)** · click **Connect wallet → Demo wallet**.
+**Live demo: [strikeline-mu.vercel.app/app](https://strikeline-mu.vercel.app/app)** · click **Connect wallet → Demo wallet**.
 The demo runs on a hosted fork of Base mainnet (an anvil node on a cloud VM) against the official
 Aqua registry and real WETH/USDC balances, so anyone can publish and withdraw offers without funds.
 
@@ -106,7 +106,7 @@ make fork          # terminal 1: anvil fork of Base at block 50,946,000, using t
 make story-setup   # terminal 2: deploy the router, fund the demo wallets, freeze the state
 make story-load    # rewind to the frozen state (about a second)
 make story-1       # four live offers from one wallet
-make web           # http://localhost:3000
+make web           # http://localhost:3000 (the app is at /app)
 ```
 
 In the app, **Connect wallet → Demo wallet** signs with the same local test account the scenes use. The ✕ on
