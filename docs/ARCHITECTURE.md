@@ -35,7 +35,6 @@ flowchart TB
   subgraph read["the read layer"]
     direction TB
     web["<b>web/</b> · Next.js<br/>Shipped via getLogs, then<br/>multicalls pinned to one block"]
-    graphnode["<b>subgraph/</b> · not deployed<br/>Leg · Maker · Fill · SurfacePoint"]
   end
 
   wallet -- "approve · ship(app = router)<br/>zero tokens move" --> aqua
@@ -44,8 +43,6 @@ flowchart TB
   cov -. "balanceOf ∧ allowance(maker, Aqua)<br/>else NotCovered(needed, free)" .-> wallet
   aqua -- "transferFrom(maker → taker)<br/>the only transfer out" --> taker
 
-  aqua -. "Shipped · Docked · Pushed · Pulled" .-> graphnode
-  router -. "Swapped" .-> graphnode
   aqua -. "Shipped" .-> web
   web -- "views · rawBalances · probe quote" --> router
   lens -. "rawBalances" .-> aqua
@@ -123,11 +120,9 @@ decodable by anyone holding the log, with no cooperation from the maker.
 |---|---|---|
 | [`web/src/hooks/useBook.ts`](../web/src/hooks/useBook.ts) | Reads the maker's `Shipped` logs with `getLogs`, decodes each program, then runs two multicalls pinned to the watched block: wallet balance and allowance, `StrikelineViews.coverage`, Aqua's `rawBalances`, `tauNow`, `bandFor`, and a probe `quote` whose `NotCovered` revert carries the deliverable depth. | **Yes.** This is the whole read path |
 | [`SurfaceLens.sol`](../contracts/src/SurfaceLens.sol) | Prices a whole book in one `eth_call`: terms, live reserves, mark, delta, premium, theta band. A separate contract, so it spends none of the router's 725 B of EIP-170 headroom. Tested in Foundry. | No, and not deployed by the fork scripts |
-| [`subgraph/`](../subgraph/README.md) | Indexes Aqua's `Shipped`/`Docked`/`Pushed`/`Pulled` and the router's `Swapped`, decoding the bytes in the AssemblyScript mapping into `Leg`, `Maker`, `Fill`, `SurfacePoint`. Tested against the compiled WebAssembly. | No, and not deployed anywhere |
 
-Aqua's events carry **no indexed parameters**, so the app filter lives in the mapping rather than in
-a topic. And Aqua has no order book: a strategy is opaque bytes keyed by its own hash, and nothing in
-the registry relates two makers who wrote the same option. `SurfacePoint` is that missing relation.
+Aqua's events carry **no indexed parameters**, so the app filters `Shipped` logs by maker and router
+after reading them rather than by topic.
 
 ## Ours and 1inch's
 
@@ -138,7 +133,7 @@ the registry relates two makers who wrote the same option. `SurfacePoint` is tha
 | `StrikelineRouter` | [`contracts/src/StrikelineRouter.sol`](../contracts/src/StrikelineRouter.sol) | A redeployed SwapVM, which the track permits. 61 lines, most of them the comment: it adds two opcodes to `_runOpcode` and nothing else |
 | `RmmSwap` `0x55`, `Coverage` `0x93` | [`contracts/src/instructions/`](../contracts/src/instructions/) | Ours. The contribution |
 | `Gaussian.sol`, `WadMath.sol` | [`contracts/src/math/`](../contracts/src/math/) | Ours (A&S 7.1.26 erfc + bisection over solady) |
-| `SurfaceLens`, `subgraph/`, `web/` | see the table above | Ours |
+| `SurfaceLens`, `web/` | see the table above | Ours |
 
 ## Where the boxes live
 
@@ -146,7 +141,6 @@ the registry relates two makers who wrote the same option. `SurfacePoint` is tha
 contracts/src/StrikelineRouter.sol      the router in the diagram
 contracts/src/instructions/             the two boxes inside it
 contracts/src/SurfaceLens.sol           the lens, deliberately outside it
-subgraph/src/                           the mapping that decodes Shipped
 web/src/lib/swapvm/                     the TypeScript encoder, verified against Solidity golden vectors
 web/src/hooks/                          the chain reads the screen runs
 scripts/fork/                           anvil Base fork, bootstrap, oracle mock, time warp

@@ -55,52 +55,9 @@ Anyone holding the log can recover the terms of every offer any maker has ever m
 cooperation from the maker, no off-chain book and no price feed. The market is already public. It
 has just never been assembled.
 
-**Status:** everything in this section is built and tested, but neither the subgraph nor the lens is
-deployed, and the app does not read from either. The app reads `Shipped` logs directly with
-`getLogs` and prices each leg with multicalls against the router (`web/src/hooks/useBook.ts`).
-
-*If you already trade options:* this is an implied-volatility surface reconstructed from on-chain
-state alone. Strike on one axis, expiry on the
-other, σ read straight out of the program bytes rather than solved for, and a cross-maker best bid
-at each cell.
-
-### `subgraph/` — a subgraph that does the assembling ([README](../subgraph/README.md))
-
-A subgraph indexes the official Aqua's `Shipped`, `Docked`, `Pushed` and `Pulled` plus our router's
-`Swapped`, and **decodes the strategy bytes inside the AssemblyScript mapping** — so what lands in
-the index is not a blob keyed by a hash but four entities: `Leg` (one offer: its price, date, size,
-vol, live reserves, and whether its depth is margined), `Maker`, `Fill`, and `SurfacePoint`.
-
-`SurfacePoint` is the one that exists nowhere on chain: a cell of the surface, holding every maker
-who wrote that option, the widest live vol among them, and the size written across all of them. The
-mapping creates and maintains it on every ship and every dock. **That entity is the price list**, and
-this is the query it answers:
-
-```graphql
-{ surfacePoints(where: { strikeWad: "2800000000000000000000", liveLegCount_gt: 0 }) {
-    liveLegCount  maxSigmaWad  liveLiquidityWad
-    bestLeg { maker { id } sigmaWad liquidityWad reserveRisky guarded } } }
-```
-
-```json
-{ "liveLegCount": 2, "maxSigmaWad": "680000000000000000", "liveLiquidityWad": "24000000000000000000",
-  "bestLeg": { "maker": { "id": "0x2d4f7b1c…b3a2" }, "sigmaWad": "680000000000000000",
-    "liquidityWad": "12000000000000000000", "reserveRisky": "7040000000000000000", "guarded": true } }
-```
-
-Three makers wrote that 2,800 call and one withdrew. The better of the two still standing pays 68%
-vol, and its size is margined against its wallet rather than merely advertised.
-
-That response is a **transcript from the test harness, not from a deployed index.** `subgraph/tests/` runs the mappings
-themselves — compiled with the exact `asc` arguments `graph build` uses, against an in-memory store
-playing graph-node's host — and writes the answer out. 17 tests: six pin the decode to one real
-`abi.encode(Order)` captured from the Foundry suite (K, σ, maturity, L, plus the six inputs it must
-decline rather than guess at), and eleven ship, push, pull, fill and dock a book of four offers from
-three makers and assert the entity graph that comes out.
-
-Aqua's events carry no indexed parameters, so the `app` filter cannot live in the manifest and lives
-in the mapping instead — which is also what lets one deployment index every Strikeline offer on the
-registry rather than only ours.
+**Status:** the lens below is built and tested but not deployed, and the app does not read from it.
+The app reads `Shipped` logs directly with `getLogs` and prices each leg with multicalls against the
+router (`web/src/hooks/useBook.ts`).
 
 ### `contracts/src/SurfaceLens.sol` — the numbers a log cannot carry ([src](../contracts/src/SurfaceLens.sol))
 
@@ -119,8 +76,6 @@ The screen that used to render the surface is deleted. The terminal's positions 
 same `Shipped` bytes in TypeScript for the connected maker's own offers.
 
 ```bash
-make subgraph                                              # graph codegen && graph build
-cd subgraph && npm test                                    # the mapping tests, in WebAssembly
 cd contracts && forge test --match-path 'test/surface/*'   # 20 Foundry tests on the lens
 ```
 

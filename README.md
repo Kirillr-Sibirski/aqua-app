@@ -124,8 +124,6 @@ and checks its own claim; the [runbook](scripts/story/README.md) lists them.
 - [`docs/OPCODES.md`](docs/OPCODES.md): byte layouts and gas
 - [`contracts/`](contracts/README.md), [`web/`](web/README.md), [`scripts/`](scripts/README.md):
   per-package READMEs
-- [`subgraph/`](subgraph/README.md): a read layer that decodes every offer from Aqua's `Shipped` log.
-  Included and tested, but not deployed, and the app does not read from it
 
 ## License and AI usage
 

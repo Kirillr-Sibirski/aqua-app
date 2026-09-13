@@ -6,7 +6,7 @@ prompts and planning artifacts that directed them. This is that disclosure.
 ## Who did what
 
 **The code was mostly written by AI.** Claude Code (Anthropic), running parallel sub-agents, wrote
-the great majority of `contracts/`, `web/`, `scripts/` and `subgraph/`. No other AI tool was used.
+the great majority of `contracts/`, `web/` and `scripts/`. No other AI tool was used.
 
 **The project was run by one person, @Kirillr-Sibirski, who made the decisions:**
 

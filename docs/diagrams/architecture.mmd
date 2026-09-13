@@ -21,7 +21,6 @@ flowchart TB
   subgraph read["the read layer"]
     direction TB
     web["<b>web/</b> · Next.js<br/>Shipped via getLogs, then<br/>multicalls pinned to one block"]
-    graphnode["<b>subgraph/</b> · not deployed<br/>Leg · Maker · Fill · SurfacePoint"]
   end
 
   wallet -- "approve · ship(app = router)<br/>zero tokens move" --> aqua
@@ -30,8 +29,6 @@ flowchart TB
   cov -. "balanceOf ∧ allowance(maker, Aqua)<br/>else NotCovered(needed, free)" .-> wallet
   aqua -- "transferFrom(maker → taker)<br/>the only transfer out" --> taker
 
-  aqua -. "Shipped · Docked · Pushed · Pulled" .-> graphnode
-  router -. "Swapped" .-> graphnode
   aqua -. "Shipped" .-> web
   web -- "views · rawBalances · probe quote" --> router
   lens -. "rawBalances" .-> aqua
