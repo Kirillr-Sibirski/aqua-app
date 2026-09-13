@@ -137,7 +137,8 @@ export interface TicketDraft {
 
   /** The one thing stopping a publish, as a button label. Undefined when nothing is. */
   blocked?: string;
-  publish: () => Promise<void>;
+  /** Resolves `true` once the offer is shipped, `false` if any step failed or nothing could run. */
+  publish: () => Promise<boolean>;
   publisher: ReturnType<typeof usePublishOffer>;
 }
 
@@ -378,7 +379,7 @@ export function useTicketDraft({
     blocked,
     publisher,
     publish: async () => {
-      if (!deployments || !pair || !sizing.offer) return;
+      if (!deployments || !pair || !sizing.offer) return false;
       try {
         await publisher.publish({
           aqua: deployments.aqua,
@@ -387,8 +388,10 @@ export function useTicketDraft({
           offer: sizing.offer,
         });
         setNonce((n) => n + 1);
+        return true;
       } catch {
         // `useTxFlow` recorded which step failed and why; the strip under the button renders it.
+        return false;
       }
     },
   };

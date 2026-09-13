@@ -200,7 +200,13 @@ export function TerminalScreen() {
             address={address}
             wrongNetwork={wrongNetwork}
             hydrated={hydrated}
-            onPublished={() => book.refetch()}
+            onPublished={() => {
+              /* Now, and again once the watched block has moved past the ship, so the new row
+                 lands without a reload. */
+              book.refetch();
+              window.setTimeout(() => book.refetch(), 1500);
+              window.setTimeout(() => book.refetch(), 4500);
+            }}
             onConnect={() => setConnectOpen(true)}
             onSwitchNetwork={
               deployment.isConfigured

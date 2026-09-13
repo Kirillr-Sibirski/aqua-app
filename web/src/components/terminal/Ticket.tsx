@@ -23,7 +23,8 @@
  * not see was an input, and it failed the 24px target size on a phone, where there is no hover to
  * reveal it with. It gets the same well the other three have.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Loader, NumberInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { Minus, Plus } from 'lucide-react';
@@ -84,6 +85,8 @@ export function Ticket({
   const running = publisher.isRunning;
   const active = publisher.steps.find((s) => s.status === 'signing' || s.status === 'pending');
   const steps = useStepsInView(publisher.steps.length);
+  const actionRef = useRef<HTMLButtonElement>(null);
+  const sweep = usePublishSweep();
 
   /*
    * The two figures, moving.
@@ -450,13 +453,14 @@ export function Ticket({
         {draft.protocolFee ? (
           <FigureRow
             label="Protocol fee"
+            wide
             explain={
               <Explain term="Protocol fee" position="top-start">
                 <p>Paid by the buyer on each fill, on top of your premium.</p>
               </Explain>
             }
           >
-            <span className={classes.legendFigure}>{`${formatProtocolFee(draft.protocolFee.feeBps)} of each fill`}</span>
+            {`${formatProtocolFee(draft.protocolFee.feeBps)} of each fill`}
           </FigureRow>
         ) : null}
       </div>
@@ -472,6 +476,7 @@ export function Ticket({
         */}
       <button
         type="button"
+        ref={actionRef}
         className={classes.action}
         aria-busy={running || undefined}
         disabled={running || (hydrated && !!address && !wrongNetwork && !!draft.blocked)}
@@ -488,7 +493,11 @@ export function Ticket({
             onSwitchNetwork?.();
             return;
           }
-          void draft.publish().then(() => onPublished?.());
+          void draft.publish().then((shipped) => {
+            if (!shipped) return;
+            sweep.play(actionRef.current);
+            onPublished?.();
+          });
         }}
       >
         {running ? <Loader size={16} color="var(--ink-3)" /> : null}
@@ -520,6 +529,8 @@ export function Ticket({
         </ol>
       ) : null}
 
+      {sweep.node}
+
       {publisher.error ? (
         <p className={classes.error} role="alert">
           {publisher.error}
@@ -533,6 +544,40 @@ export function Ticket({
       ) : null}
     </aside>
   );
+}
+
+/**
+ * The moment an offer lands: one thin accent line across the whole viewport, at the height of the
+ * button that sent it, and then nothing. A fixed overlay in a portal so no ancestor's transform or
+ * overflow can clip it; `pointer-events: none`; and not rendered at all under reduced motion, where
+ * the new row's own highlight in the strip is the confirmation.
+ */
+function usePublishSweep(): { play: (anchor: HTMLElement | null) => void; node: ReactNode } {
+  const [shot, setShot] = useState<{ key: number; top: number } | null>(null);
+
+  useEffect(() => {
+    if (!shot) return;
+    const t = window.setTimeout(() => setShot(null), 900);
+    return () => window.clearTimeout(t);
+  }, [shot]);
+
+  const play = (anchor: HTMLElement | null) => {
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const rect = anchor?.getBoundingClientRect();
+    const top = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
+    setShot({ key: Date.now(), top });
+  };
+
+  const node =
+    shot && typeof document !== 'undefined'
+      ? createPortal(
+          <div key={shot.key} className={classes.sweep} style={{ top: shot.top }} aria-hidden="true" />,
+          document.body,
+        )
+      : null;
+
+  return { play, node };
 }
 
 /**
