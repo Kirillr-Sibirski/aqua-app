@@ -40,6 +40,7 @@ import {
   rateFor,
   strikelineReadAbi,
   toRawReserve,
+  type ProtocolFee,
   type RmmArgs,
 } from '@/components/curve';
 import { aquaFork, type SupportedChainId } from '@/lib/chain';
@@ -79,6 +80,8 @@ export interface UseOfferParams {
   nowSeconds?: number;
   /** Maker-owned nonce, fixed while the offer is on screen so the hash stops moving. */
   salt?: bigint;
+  /** Protocol fee written into the program; omitted means a fee-less leg. */
+  protocolFee?: ProtocolFee;
   chainId?: SupportedChainId;
   enabled?: boolean;
 }
@@ -103,6 +106,7 @@ export function useOffer({
   spot,
   nowSeconds,
   salt,
+  protocolFee,
   chainId = aquaFork.id,
   enabled = true,
 }: UseOfferParams): UseOfferResult {
@@ -146,7 +150,7 @@ export function useOffer({
    * `StrikelineViews.stableFor` is a view: it takes five numbers and returns a reserve, and no part
    * of it reads an account. The card used to gate this whole query on `maker`, so a first-time
    * visitor saw two em dashes where "what you earn" and "what you give up" belong — on a page that
-   * was already printing today's price from the feed and next Friday from the block clock. Uniswap
+   * was already printing today's price from the feed and next Friday from the block clock. A DEX
    * quotes you a real rate from the pool before you connect anything, and that live number is what
    * makes you stay; ours showed a form with two blanks and asked for a wallet first.
    *
@@ -239,6 +243,7 @@ export function useOffer({
       rmm,
       deadline: maturity + ASSIGNMENT_WINDOW_SECONDS,
       salt: salt ?? BigInt(0),
+      protocolFee,
     });
 
     const tokenA = pair.riskyIsTokenA ? pair.risky.address : pair.stable.address;
@@ -268,7 +273,7 @@ export function useOffer({
         ? ([chosen.riskyRaw, stableRaw] as const)
         : ([stableRaw, chosen.riskyRaw] as const)) satisfies readonly [bigint, bigint],
     };
-  }, [query.data, pair, side, chosen, maker, maturity, strikeWad, sigmaWad, salt]);
+  }, [query.data, pair, side, chosen, maker, maturity, strikeWad, sigmaWad, salt, protocolFee]);
 
   return {
     offer,

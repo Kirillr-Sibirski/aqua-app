@@ -62,6 +62,10 @@ same block**.
 **1inch Aqua + SwapVM.** Offers are SwapVM programs on the official Aqua registry, priced by the two
 instructions above ([`contracts/`](contracts/)).
 
+**Protocol fee.** Every fill pays 0.10% of the taker's input to the protocol treasury, using 1inch
+SwapVM's own `FeeProtocol` instruction. The maker's premium is untouched: only the net input reaches
+their reserves. See [`docs/PROTOCOL-FEE.md`](docs/PROTOCOL-FEE.md).
+
 ## Evidence
 
 | Claim | Proof |

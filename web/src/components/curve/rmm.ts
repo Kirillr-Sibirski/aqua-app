@@ -20,7 +20,7 @@
  * *where* on the curve a leg starts (a choice, not a value), and `payoff.ts` draws the illustrative
  * payoff overlay, which the UI marks "model".
  */
-import type { Hex } from 'viem';
+import type { Address, Hex } from 'viem';
 import { concat, customInstruction, ix, uintN } from '@/lib/swapvm';
 
 // ---------------------------------------------------------------------------
@@ -177,19 +177,52 @@ export interface LegProgramArgs {
    * the same economic parameters has to bump this or the second ship reverts.
    */
   salt: bigint;
+  /**
+   * Optional protocol fee, charged with 1inch SwapVM's own `FeeProtocol` instruction: a share of the
+   * taker's input sent straight to `receiver`. The maker's Aqua balance only receives the net input,
+   * which is exactly what the curve priced, so the reserves stay on the curve.
+   */
+  protocolFee?: ProtocolFee;
+}
+
+/** `FeeProtocol` units: 1e7 == 100%, so 10_000 == 0.10%. */
+export const PROTOCOL_FEE_SCALE = BigInt(10_000_000);
+/** The default Strikeline protocol fee: 0.10% of each fill's input. */
+export const DEFAULT_PROTOCOL_FEE_BPS = BigInt(10_000);
+
+export interface ProtocolFee {
+  receiver: Address;
+  /** In `FeeProtocol` units (1e7 == 100%). */
+  feeBps: bigint;
+}
+
+/** `FeeProtocol` charged in the taker's input token, one flat receiver. */
+export function encodeProtocolFee(fee: ProtocolFee): Hex {
+  return ix.feeProtocol({ isTokenIn: true, receivers: [{ receiver: fee.receiver, feeBps: fee.feeBps }] });
+}
+
+/** The fee as a percentage string for the ticket: `0.10%`. */
+export function formatProtocolFee(feeBps: bigint): string {
+  return `${(Number(feeBps) / 100_000).toFixed(2)}%`;
 }
 
 /**
- * `Deadline . Coverage . RmmSwap . Salt`.
+ * `Deadline . [FeeProtocol] . Coverage . RmmSwap . Salt`.
  *
  * `Coverage` precedes the curve because it *wraps* it: its `exec` calls `ctx.runLoop()` to price on
  * the true shipped reserves and only then checks that the priced output is deliverable. Clamping
  * `balanceOut` before the curve ran would move the reserve point and therefore change the price,
  * which quotes a different option than the maker wrote.
+ *
+ * `FeeProtocol`, when present, sits BEFORE `Coverage` because it too wraps the rest of the program: on
+ * an exact-in fill it takes the fee off the input, runs `Coverage . RmmSwap` on the net amount, then
+ * adds the fee back onto what the taker pays. The fee is in the input token, so it is never part of
+ * what the maker must deliver and `Coverage`'s obligation is unchanged.
  */
-export function buildLegProgram({ rmm, coverage, deadline, salt }: LegProgramArgs): Hex {
+export function buildLegProgram({ rmm, coverage, deadline, salt, protocolFee }: LegProgramArgs): Hex {
   return concat(
     ix.deadline(deadline),
+    ...(protocolFee ? [encodeProtocolFee(protocolFee)] : []),
     encodeCoverage(coverage ?? { flags: 0, haircutBps: 0 }),
     encodeRmmSwap(rmm),
     ix.salt(salt),

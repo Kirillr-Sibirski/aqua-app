@@ -28,11 +28,15 @@ export {
   TAU_FLOOR_SECONDS,
   WAD,
   YEAR_SECONDS,
+  DEFAULT_PROTOCOL_FEE_BPS,
+  PROTOCOL_FEE_SCALE,
   buildLegProgram,
   decodeCoverageArgs,
   decodeRmmSwapArgs,
   encodeCoverage,
   encodeCoverageArgs,
+  encodeProtocolFee,
+  formatProtocolFee,
   encodeRmmSwap,
   encodeRmmSwapArgs,
   expiryFlagsFor,
@@ -45,4 +49,4 @@ export {
   tauWad,
   toRawReserve,
 } from './rmm';
-export type { CoverageArgs, LegKind, LegProgramArgs, RmmArgs } from './rmm';
+export type { CoverageArgs, LegKind, LegProgramArgs, ProtocolFee, RmmArgs } from './rmm';

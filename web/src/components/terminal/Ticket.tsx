@@ -27,6 +27,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader, NumberInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { Minus, Plus } from 'lucide-react';
+import { formatProtocolFee } from '@/components/curve';
 import { dateStringFor, maturityAt, type OfferPair } from '@/components/sell';
 import { TokenAmount, TokenIcon } from '@/components/token';
 import { Reveal, useTweenedBigInt } from '@/lib/motion';
@@ -445,6 +446,19 @@ export function Ticket({
             )}
           </Reveal>
         </FigureRow>
+
+        {draft.protocolFee ? (
+          <FigureRow
+            label="Protocol fee"
+            explain={
+              <Explain term="Protocol fee" position="top-start">
+                <p>Paid by the buyer on each fill, on top of your premium.</p>
+              </Explain>
+            }
+          >
+            <span className={classes.legendFigure}>{`${formatProtocolFee(draft.protocolFee.feeBps)} of each fill`}</span>
+          </FigureRow>
+        ) : null}
       </div>
 
       {/*

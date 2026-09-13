@@ -13,8 +13,9 @@
  * `liquidityForRisky`, and `y` is `StrikelineViews.stableFor` read from the router. This file adds
  * defaults and validation and nothing else. There is no option maths in it.
  */
-import { useCallback, useState } from 'react';
-import type { Address } from 'viem';
+import { useCallback, useMemo, useState } from 'react';
+import { getAddress, isAddress, type Address } from 'viem';
+import { DEFAULT_PROTOCOL_FEE_BPS, type ProtocolFee } from '@/components/curve';
 import {
   dateStringFor,
   earliestMaturity,
@@ -130,6 +131,8 @@ export interface TicketDraft {
   volSpanSeconds?: number;
 
   offer?: SizedOffer;
+  /** The protocol fee every offer published from this ticket carries, when the manifest names a receiver. */
+  protocolFee?: ProtocolFee;
   sizing: { isLoading: boolean; error: Error | null };
 
   /** The one thing stopping a publish, as a button label. Undefined when nothing is. */
@@ -264,6 +267,17 @@ export function useTicketDraft({
   const [saltAnchor] = useState(() => BigInt(Date.now()));
   const [nonce, setNonce] = useState(0);
 
+  /* The fee receiver is the manifest's `protocolFeeReceiver`, else the router owner the bootstrap
+     recorded. With neither, offers are published fee-less rather than paying an address nobody chose. */
+  const feeReceiver = deployments?.extra.protocolFeeReceiver ?? deployments?.extra.routerOwner;
+  const protocolFee = useMemo<ProtocolFee | undefined>(
+    () =>
+      typeof feeReceiver === 'string' && isAddress(feeReceiver, { strict: false })
+        ? { receiver: getAddress(feeReceiver), feeBps: DEFAULT_PROTOCOL_FEE_BPS }
+        : undefined,
+    [feeReceiver],
+  );
+
   const sizing = useOffer({
     router: deployments?.router,
     maker: address,
@@ -276,6 +290,7 @@ export function useTicketDraft({
     spot,
     nowSeconds,
     salt: saltAnchor * BigInt(1_000) + BigInt(nonce),
+    protocolFee,
   });
 
   const publisher = usePublishOffer();
@@ -301,6 +316,7 @@ export function useTicketDraft({
 
   return {
     side,
+    protocolFee,
     /* Switching side starts the two figures that mean something different on each side over: an
        amount of WETH is not an amount of USDC, and a strike above spot is refused on the buy side. */
     setSide: (next: OfferSide) => {

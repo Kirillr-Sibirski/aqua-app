@@ -11,7 +11,12 @@ import {
   FLAG_POST_EXPIRY_ONE_WAY,
   FLAG_POST_EXPIRY_OUT_IS_RISKY,
   FLAG_RISKY_IS_TOKEN_A,
+  COVERAGE_OPCODE,
+  DEFAULT_PROTOCOL_FEE_BPS,
+  RMM_SWAP_OPCODE,
   buildLegProgram,
+  encodeProtocolFee,
+  formatProtocolFee,
   rateFor,
   type RmmArgs,
 } from '../rmm';
@@ -97,5 +102,37 @@ describe('Coverage arguments', () => {
     const f = fields('Coverage');
     expect(f.flags).toBe('0x00');
     expect(f.haircutBps).toBe('0 (0.00%)');
+  });
+});
+
+describe('a leg with a protocol fee', () => {
+  const RECEIVER = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+  const WITH_FEE = buildLegProgram({
+    rmm: LEG,
+    deadline: LEG.maturity + ASSIGNMENT_WINDOW_SECONDS,
+    salt: BigInt('1789000000042'),
+    protocolFee: { receiver: RECEIVER, feeBps: DEFAULT_PROTOCOL_FEE_BPS },
+  });
+
+  it('puts FeeProtocol between Deadline and Coverage, and leaves everything else byte-identical', () => {
+    const ixs = explainProgram(WITH_FEE);
+    expect(ixs.map((i) => i.opcode)).toEqual([explainProgram(PROGRAM)[0].opcode, 0x80, COVERAGE_OPCODE, RMM_SWAP_OPCODE, explainProgram(PROGRAM)[3].opcode]);
+    const plain = explainProgram(PROGRAM).map((i) => i.bytes);
+    expect(ixs.filter((i) => i.opcode !== 0x80).map((i) => i.bytes)).toEqual(plain);
+  });
+
+  it('encodes the fee exactly as the 1inch encoder does: tokenIn, one receiver, 0.10%', () => {
+    const fee = explainProgram(WITH_FEE).find((i) => i.opcode === 0x80)!;
+    expect(fee.bytes).toBe(encodeProtocolFee({ receiver: RECEIVER, feeBps: DEFAULT_PROTOCOL_FEE_BPS }));
+    // header 0x81 (isTokenIn bit, count 1), flags 0x40 (takeFlatFee bit), receiver, uint24 10_000 = 0x002710
+    expect(fee.args).toBe(`0x8140${RECEIVER.slice(2).toLowerCase()}002710`);
+  });
+
+  it('still decodes the same curve arguments', () => {
+    expect(findRmmArgs(WITH_FEE)).toBe(findRmmArgs(PROGRAM));
+  });
+
+  it('formats the fee for the ticket', () => {
+    expect(formatProtocolFee(DEFAULT_PROTOCOL_FEE_BPS)).toBe('0.10%');
   });
 });
