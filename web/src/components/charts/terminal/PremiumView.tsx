@@ -173,7 +173,7 @@ export function PremiumView({
         panelLabelledBy={tabId}
         state={resolved}
         refusedMessage={refusedMessage}
-        emptyMessage="no time left"
+        emptyMessage={leg ? 'no time left' : 'no position'}
         errorMessage={errorMessage ?? terminalError(band.error)}
         cursor={{
           positions: (geometry: ChartGeometry) => {

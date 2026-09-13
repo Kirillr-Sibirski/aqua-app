@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.svg" alt="Strikeline" width="420"></p>
+
 # Strikeline
 
 **Name a price you'd be happy to sell your ETH at. Whoever takes it pays you for
@@ -25,6 +27,18 @@ token, no oracle and no keeper anywhere in the path.
 Built for ETHGlobal ETHOnline 2026. Every strategy settles through the official
 Aqua registry at `0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a`.
 
+## What each partner technology does here
+
+| Partner | Used for | Where |
+|---|---|---|
+| **1inch Aqua + SwapVM** (main track) | The whole product. Offers are SwapVM programs shipped to the official Aqua registry; two custom instructions, `RmmSwap` and `Coverage`, run on a redeployed router | [`contracts/src/instructions/`](contracts/src/instructions/) |
+| **The Graph** | A subgraph decodes every offer's strike, expiry, size and vol out of Aqua's `Shipped` log and builds a cross-maker volatility surface | [`subgraph/`](subgraph/) |
+| **Uniswap v4** | The same curve as a v4 hook, a controlled venue comparison against Aqua, and developer feedback backed by tests | [`contracts/src/hooks/`](contracts/src/hooks/), [`FEEDBACK.md`](FEEDBACK.md) |
+| Chainlink (data only) | The ETH/USD price feed pre-fills the strike and the realised volatility on the ticket, and is the tape the replay runs on. It is never in the pricing path | [`web/src/hooks/`](web/src/hooks/) |
+
+The demo runs on a local anvil fork of Base, against the real, already-deployed Aqua registry and
+real WETH and USDC, which the 1inch track accepts. See [Running it](#running-it).
+
 ## What you are actually agreeing to
 
 If ETH runs past your price, you sell at your price and keep what you were paid.
@@ -41,11 +55,11 @@ underneath. There is no navigation, because there is nowhere to go.
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ ◇ strikeline  ⬡ WETH/USDC 2,442.43 -2.15% 3d   ● 50,946,647   0x70…79C8  │  56px
 ├────────────────────────────────────────────┬─────────────────────────────┤
-│  [ decay | payoff | curve ]                │  SELL          MAX 10.4000  │
+│  [ premium | payoff | price ]              │  SELL          MAX 10.4000  │
 │                                            │  ⬡ WETH  [ 10.4          ]  │
-│   the decay band widening over             │  STRIKE                     │
-│   time; payoff at expiry against           │  ⬡ USDC  [ 2,600    ] +6.5% │
-│   holding; the live curve with             │  EXPIRY                  8d │
+│   the premium a taker must pay, widening   │  STRIKE                     │
+│   with time; payoff at expiry against      │  ⬡ USDC  [ 2,600    ] +6.5% │
+│   holding; the live price curve with       │  EXPIRY                  8d │
 │   its reserve point — all three            │  [ 18 Sep ]  [1w] [2w] [1m] │
 │   sampled from the router, none            │  IV               REAL 21.2 │
 │   of them a model                          │  [ 21.2 %          ]  − +   │
@@ -57,7 +71,7 @@ underneath. There is no navigation, because there is nowhere to go.
 │                                            │  └───────────────────────┘  │
 ├────────────────────────────────────────────┴─────────────────────────────┤
 │ POSITIONS                    PROMISED 30.7400 / 10.4000 WETH 2.96×       │
-│     SIZE       STRIKE      IV    EXPIRY     EARNED      BACKING          │
+│     SIZE       STRIKE      IV    EXPIRY     EARNED  DELIVERABLE          │
 │ ⬡C 9.9251 WETH 3,000.00  60.0%  16 Sep 6d  0.00 USDC ▓▓▓▓▓▓▓▓▓ 100%  ×   │
 │ ⬡C 9.4551 WETH 2,800.00  60.0%  16 Sep 6d  0.00 USDC ▓▓▓▓▓▓▓▓▓ 100%  ×   │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -72,11 +86,11 @@ multicall — once at the offer's own date and once with the date set to zero, w
 degenerates to the constant-sum order it becomes at expiry. The ticket quotes before a wallet is
 connected, because those are view calls and need no signer.
 
-`decay` is the landing view because it is the one of the three that draws a curve. The payoff at
+`premium` is the landing view because it is the one of the three that draws a curve. The payoff at
 expiry of a covered call written with no cash up front is two straight segments — the position IS
 the hold until the assignment point, and flat after it — and the premium on it is fifty-nine USDC
 against a position worth twenty-six thousand, which is three pixels. So the payoff view names the
-figure beside the kink rather than pretending the region is legible, and the decay view, where the
+figure beside the kink rather than pretending the region is legible, and the premium view, where the
 band genuinely widens, is what the screen opens on.
 
 Everything on the screen is read at one block, and that block is printed in the bar. That is what
@@ -84,11 +98,11 @@ lets a fill land on one offer and shrink what the others can deliver in the same
 as four figures drifting into place as their own pollers fire.
 
 `PROMISED 30.7400 / 10.4000` is the number no other venue can print: 30.74 WETH written across four
-offers against the 10.4 WETH actually in the wallet, none of which ever moved. `BACKING` on each row
+offers against the 10.4 WETH actually in the wallet, none of which ever moved. `DELIVERABLE` on each row
 is how much of what that offer advertises its wallet could hand over right now — the bound the
 `Coverage` guard itself reported when the offer was probed for the whole of it — so it reads 100%
 on an untouched book and shrinks on every sibling the moment one of them is filled. There is no
-separate `OPEN` column, because `open` is `SIZE × BACKING` by construction and two columns for one
+separate `OPEN` column, because `open` is `SIZE × DELIVERABLE` by construction and two columns for one
 quantity is not density. That width went to the leg's own implied volatility, which varies per
 offer and is the term that makes this an options book.
 
@@ -412,11 +426,21 @@ holds the tokens, which box holds the price, and which boxes are 1inch's and not
 make install       # required first: Foundry deps resolve through contracts/node_modules
 make build
 make fork          # anvil, Base pinned at block 50946000, chain id 31337
-make bootstrap     # deploy the router against the OFFICIAL Aqua, fund wallets
-make smoke         # ship a strategy, quote it, swap it, print the receipt
-make story-setup && make story-1   # four live offers from anvil account #1
+make story-setup   # deploy the router against the OFFICIAL Aqua, fund wallets, freeze the demo state
+make story-load    # rewind to that frozen state (about a second)
+make story-1       # four live offers from anvil account #1
 make web           # the app, on http://localhost:3000
 ```
+
+In the app, **Connect wallet → demo** signs with anvil account #1, the same maker the story scenes
+use, so no browser extension is needed. The ✕ on a position arms on the first click and withdraws on
+the second.
+
+`make story-0` through `make story-6` are the scripted demo: each scene is one deterministic command
+that performs a real transaction on the fork and asserts its own claim (third-party fills through the
+official router, one wallet backing 2.96× its balance, a fill shrinking sibling depth, decay with no
+transaction, over-allocation refused, settlement at expiry, rolling with zero transfers).
+[`scripts/story/README.md`](scripts/story/README.md) has the runbook.
 
 `make web` serves exactly the one screen above. The diagnostics pages are named `page.dev.tsx` and
 only exist as routes under `make web-dev-routes`; a production build cannot ship them.
